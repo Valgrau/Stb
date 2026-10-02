@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatienetwerk - Zuiver Bloedverwantschap</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f6f9; }
+        #header { background-color: #2c3e50; color: white; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #header h1 { margin: 0; font-size: 22px; }
+        #header p { margin: 5px 0 0 0; font-size: 13px; color: #bdc3c7; }
+        #mynetwork { width: 100vw; height: calc(100vh - 70px); background-color: #ffffff; border-top: 1px solid #dcdcdc; }
+        .legend { position: absolute; bottom: 20px; left: 20px; background: rgba(255, 255, 255, 0.95); padding: 12px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.15); font-size: 12px; line-height: 1.8; z-index: 1000; }
+        .legend-item { display: flex; align-items: center; }
+        .color-box { width: 16px; height: 16px; margin-right: 8px; border-radius: 3px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>Relatienetwerk - Zuiver Bloedverwantschap</h1>
+    <p>Selecteer 2 icoontjes (met Ctrl/Cmd of slepen) om het kortste pad ertussen te tonen. Klik op een lege plek om te herstellen.</p>
+</div>
+
+<div id="mynetwork"></div>
+
+<div class="legend">
+    <strong>Legende:</strong><br>
+    <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 3px solid #D32F2F;"></span> Opgegeven Man (Rode Rand / Ovaal)</div>
+    <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 3px solid #D32F2F;"></span> Opgegeven Vrouw (Rode Rand / Ovaal)</div>
+    <div class="legend-item"><span class="color-box" style="background:#e0e0e0; border: 1px solid #555;"></span> Tussenliggende Schakel (Rechthoek)</div>
+    <hr style="margin: 5px 0;">
+    <div class="legend-item"><span style="color:#4CAF50; font-weight:bold;">➔</span> Biologische Ouder-kind relatie</div>
+    <div class="legend-item"><span style="color:#E91E63; font-weight:bold;">---</span> Partner relatie</div>
+</div>
+
+<script type="text/javascript">
+    var rawNodes = [{"id": "@I8687@", "label": "Lambert Benedict Stiers\n(1850 - )", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Lambert Benedict Stiers</b><br>ID: @I8687@<br>Geslacht: M<br>Jaren: (1850 - )<br><i>Opgegeven in TXT</i>"}, {"id": "@I5507@", "label": "Barbara Esselen\n(1718 - 1785)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Barbara Esselen</b><br>ID: @I5507@<br>Geslacht: F<br>Jaren: (1718 - 1785)<br><i>Tussenliggende link</i>"}, {"id": "@I22681@", "label": "Benedictus Josephus Plevoets\n(1749 - )", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Benedictus Josephus Plevoets</b><br>ID: @I22681@<br>Geslacht: M<br>Jaren: (1749 - )<br><i>Tussenliggende link</i>"}, {"id": "@I2738@", "label": "Maria Borgers\n( - 1789)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Maria Borgers</b><br>ID: @I2738@<br>Geslacht: F<br>Jaren: ( - 1789)<br><i>Tussenliggende link</i>"}, {"id": "@I4746@", "label": "Joseph Henri Georges Plevoets\n(1910 - 1986)", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Joseph Henri Georges Plevoets</b><br>ID: @I4746@<br>Geslacht: M<br>Jaren: (1910 - 1986)<br><i>Opgegeven in TXT</i>"}, {"id": "@I20101@", "label": "Joan Arcadius Bussy\n(1810 - 1863)", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Joan Arcadius Bussy</b><br>ID: @I20101@<br>Geslacht: M<br>Jaren: (1810 - 1863)<br><i>Opgegeven in TXT</i>"}, {"id": "@I5921@", "label": "Pieter Joannes Gijsens\n(1808 - 1859)", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Pieter Joannes Gijsens</b><br>ID: @I5921@<br>Geslacht: M<br>Jaren: (1808 - 1859)<br><i>Opgegeven in TXT</i>"}, {"id": "@I5508@", "label": "Joannes Stiers\n(1749 - 1809)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Joannes Stiers</b><br>ID: @I5508@<br>Geslacht: M<br>Jaren: (1749 - 1809)<br><i>Tussenliggende link</i>"}, {"id": "@I22671@", "label": "Petrus Marcellus Plevoets\n(1820 - 1887)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Petrus Marcellus Plevoets</b><br>ID: @I22671@<br>Geslacht: M<br>Jaren: (1820 - 1887)<br><i>Tussenliggende link</i>"}, {"id": "@I8115@", "label": "Gerard (Molenaar) Stiers\n(1801 - 1839)", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Gerard (Molenaar) Stiers</b><br>ID: @I8115@<br>Geslacht: M<br>Jaren: (1801 - 1839)<br><i>Opgegeven in TXT</i>"}, {"id": "@I22688@", "label": "Judocus Plevoets\n(1661 - )", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Judocus Plevoets</b><br>ID: @I22688@<br>Geslacht: M<br>Jaren: (1661 - )<br><i>Tussenliggende link</i>"}, {"id": "@I6309@", "label": "Catharina Grommen", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Catharina Grommen</b><br>ID: @I6309@<br>Geslacht: F<br>Jaren: <br><i>Tussenliggende link</i>"}, {"id": "@I22682@", "label": "Catharina Prijs\n(1750 - )", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Catharina Prijs</b><br>ID: @I22682@<br>Geslacht: F<br>Jaren: (1750 - )<br><i>Tussenliggende link</i>"}, {"id": "@I3964@", "label": "Martinus Terneven\n(1696 - )", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Martinus Terneven</b><br>ID: @I3964@<br>Geslacht: M<br>Jaren: (1696 - )<br><i>Tussenliggende link</i>"}, {"id": "@I22692@", "label": "Robyn Van Weseren", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Robyn Van Weseren</b><br>ID: @I22692@<br>Geslacht: M<br>Jaren: <br><i>Tussenliggende link</i>"}, {"id": "@I22684@", "label": "Johannes Arnoldus Plevoets\n(1707 - 1780)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Johannes Arnoldus Plevoets</b><br>ID: @I22684@<br>Geslacht: M<br>Jaren: (1707 - 1780)<br><i>Tussenliggende link</i>"}, {"id": "@I187@", "label": "Catharina Aerts\n(1712 - 1765)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Catharina Aerts</b><br>ID: @I187@<br>Geslacht: F<br>Jaren: (1712 - 1765)<br><i>Tussenliggende link</i>"}, {"id": "@I16942@", "label": "Jean Esselen\n(1667 - )", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Jean Esselen</b><br>ID: @I16942@<br>Geslacht: M<br>Jaren: (1667 - )<br><i>Tussenliggende link</i>"}, {"id": "@I185@", "label": "Petrus Duchateau\n(1748 - 1830)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Petrus Duchateau</b><br>ID: @I185@<br>Geslacht: M<br>Jaren: (1748 - 1830)<br><i>Tussenliggende link</i>"}, {"id": "@I4745@", "label": "Godfridus Hubert Raymond Plevoets\n(1879 - 1952)", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Godfridus Hubert Raymond Plevoets</b><br>ID: @I4745@<br>Geslacht: M<br>Jaren: (1879 - 1952)<br><i>Opgegeven in TXT</i>"}, {"id": "@I22685@", "label": "Anna Margaretha Crillen\n(1709 - 1797)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Anna Margaretha Crillen</b><br>ID: @I22685@<br>Geslacht: F<br>Jaren: (1709 - 1797)<br><i>Tussenliggende link</i>"}, {"id": "@I22674@", "label": "Maria Elisabeth Lux\n(1821 - 1904)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Maria Elisabeth Lux</b><br>ID: @I22674@<br>Geslacht: F<br>Jaren: (1821 - 1904)<br><i>Tussenliggende link</i>"}, {"id": "@I4672@", "label": "Henri Leonard Wouters\n(1788 - 1860)", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Henri Leonard Wouters</b><br>ID: @I4672@<br>Geslacht: M<br>Jaren: (1788 - 1860)<br><i>Opgegeven in TXT</i>"}, {"id": "@I22701@", "label": "Anna Maria Elisabeth Plevoets\n(1842 - )", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Anna Maria Elisabeth Plevoets</b><br>ID: @I22701@<br>Geslacht: F<br>Jaren: (1842 - )<br><i>Tussenliggende link</i>"}, {"id": "@I7302@", "label": "Ernest Emile Odilon Joris\n(1885 - 1964)", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Ernest Emile Odilon Joris</b><br>ID: @I7302@<br>Geslacht: M<br>Jaren: (1885 - 1964)<br><i>Opgegeven in TXT</i>"}, {"id": "@I16953@", "label": "Petri Stiers\n(1726 - 1776)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Petri Stiers</b><br>ID: @I16953@<br>Geslacht: M<br>Jaren: (1726 - 1776)<br><i>Tussenliggende link</i>"}, {"id": "@I6311@", "label": "Anna Maria Michiels", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Anna Maria Michiels</b><br>ID: @I6311@<br>Geslacht: F<br>Jaren: <br><i>Tussenliggende link</i>"}, {"id": "@I2739@", "label": "Anna Margaretha Lievesoens\n(1760 - 1811)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Anna Margaretha Lievesoens</b><br>ID: @I2739@<br>Geslacht: F<br>Jaren: (1760 - 1811)<br><i>Tussenliggende link</i>"}, {"id": "@I22679@", "label": "Jan Lux", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Jan Lux</b><br>ID: @I22679@<br>Geslacht: M<br>Jaren: <br><i>Tussenliggende link</i>"}, {"id": "@I22693@", "label": "Elisabeth Catharina Vander Borght", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Elisabeth Catharina Vander Borght</b><br>ID: @I22693@<br>Geslacht: F<br>Jaren: <br><i>Tussenliggende link</i>"}, {"id": "@I7300@", "label": "Gustave Leonard Joris\n(1851 - 1907)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Gustave Leonard Joris</b><br>ID: @I7300@<br>Geslacht: M<br>Jaren: (1851 - 1907)<br><i>Tussenliggende link</i>"}, {"id": "@I560@", "label": "Carolus Henricus Arnauts\n(1840 - 1899)", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Carolus Henricus Arnauts</b><br>ID: @I560@<br>Geslacht: M<br>Jaren: (1840 - 1899)<br><i>Opgegeven in TXT</i>"}, {"id": "@I22690@", "label": "Judocus Plevoets", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Judocus Plevoets</b><br>ID: @I22690@<br>Geslacht: M<br>Jaren: <br><i>Tussenliggende link</i>"}, {"id": "@I5342@", "label": "Petrus Christiaan Sebastiaan Vanschoenbeek\n(1809 - 1882)", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Petrus Christiaan Sebastiaan Vanschoenbeek</b><br>ID: @I5342@<br>Geslacht: M<br>Jaren: (1809 - 1882)<br><i>Opgegeven in TXT</i>"}, {"id": "@I3268@", "label": "Gerardus Joris\n(1825 - 1896)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Gerardus Joris</b><br>ID: @I3268@<br>Geslacht: M<br>Jaren: (1825 - 1896)<br><i>Tussenliggende link</i>"}, {"id": "@I12559@", "label": "Emile Alfred Leon Debruyn\n(1860 - 1931)", "shape": "ellipse", "color": {"background": "#97C2FC", "border": "#D32F2F", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 4, "title": "<b>Emile Alfred Leon Debruyn</b><br>ID: @I12559@<br>Geslacht: M<br>Jaren: (1860 - 1931)<br><i>Opgegeven in TXT</i>"}, {"id": "@I6308@", "label": "Gerard Machiels\n( - 1832)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Gerard Machiels</b><br>ID: @I6308@<br>Geslacht: M<br>Jaren: ( - 1832)<br><i>Tussenliggende link</i>"}, {"id": "@I16294@", "label": "Joannes Jacobus Duchateau\n(1775 - 1847)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Joannes Jacobus Duchateau</b><br>ID: @I16294@<br>Geslacht: M<br>Jaren: (1775 - 1847)<br><i>Tussenliggende link</i>"}, {"id": "@I5334@", "label": "Lambert Benoit Plevoets\n(1802 - )", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Lambert Benoit Plevoets</b><br>ID: @I5334@<br>Geslacht: M<br>Jaren: (1802 - )<br><i>Tussenliggende link</i>"}, {"id": "@I3965@", "label": "Catharina Coenen\n(1700 - )", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Catharina Coenen</b><br>ID: @I3965@<br>Geslacht: F<br>Jaren: (1700 - )<br><i>Tussenliggende link</i>"}, {"id": "@I5315@", "label": "Maria Elisabeth Machiels\n( - 1854)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Maria Elisabeth Machiels</b><br>ID: @I5315@<br>Geslacht: F<br>Jaren: ( - 1854)<br><i>Tussenliggende link</i>"}, {"id": "@I16943@", "label": "Marie Schuermans\n(1680 - 1746)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Marie Schuermans</b><br>ID: @I16943@<br>Geslacht: F<br>Jaren: (1680 - 1746)<br><i>Tussenliggende link</i>"}, {"id": "@I22675@", "label": "Joannes Arnoldus Plevoets\n(1846 - 1918)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Joannes Arnoldus Plevoets</b><br>ID: @I22675@<br>Geslacht: M<br>Jaren: (1846 - 1918)<br><i>Tussenliggende link</i>"}, {"id": "@I2737@", "label": "Joannes Lievesoens\n(1735 - 1813)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Joannes Lievesoens</b><br>ID: @I2737@<br>Geslacht: M<br>Jaren: (1735 - 1813)<br><i>Tussenliggende link</i>"}, {"id": "@I3966@", "label": "Maria Catharina Terneven\n(1752 - 1793)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Maria Catharina Terneven</b><br>ID: @I3966@<br>Geslacht: F<br>Jaren: (1752 - 1793)<br><i>Tussenliggende link</i>"}, {"id": "@I22680@", "label": "Maria Elisabeth Surinx", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Maria Elisabeth Surinx</b><br>ID: @I22680@<br>Geslacht: F<br>Jaren: <br><i>Tussenliggende link</i>"}, {"id": "@I22691@", "label": "Johanna Ceuleers", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Johanna Ceuleers</b><br>ID: @I22691@<br>Geslacht: F<br>Jaren: <br><i>Tussenliggende link</i>"}, {"id": "@I22689@", "label": "Maria Cecilia Van Weseren\n(1666 - 1730)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Maria Cecilia Van Weseren</b><br>ID: @I22689@<br>Geslacht: F<br>Jaren: (1666 - 1730)<br><i>Tussenliggende link</i>"}, {"id": "@I5317@", "label": "Anna Maria Duchateau\n(1811 - 1869)", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Anna Maria Duchateau</b><br>ID: @I5317@<br>Geslacht: F<br>Jaren: (1811 - 1869)<br><i>Tussenliggende link</i>"}, {"id": "@I22672@", "label": "Arnoldus Godefridus Plevoets\n(1785 - 1832)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Arnoldus Godefridus Plevoets</b><br>ID: @I22672@<br>Geslacht: M<br>Jaren: (1785 - 1832)<br><i>Tussenliggende link</i>"}, {"id": "@I8116@", "label": "Lambert Stiers\n(1805 - 1867)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Lambert Stiers</b><br>ID: @I8116@<br>Geslacht: M<br>Jaren: (1805 - 1867)<br><i>Tussenliggende link</i>"}, {"id": "@I186@", "label": "Pascalis Duchateau\n(1720 - 1799)", "shape": "box", "color": {"background": "#97C2FC", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Pascalis Duchateau</b><br>ID: @I186@<br>Geslacht: M<br>Jaren: (1720 - 1799)<br><i>Tussenliggende link</i>"}, {"id": "@I22673@", "label": "Marie Barbe Van Nitsen", "shape": "box", "color": {"background": "#FFC0CB", "border": "#555555", "highlight": {"background": "#FFE082", "border": "#FF6F00"}}, "borderWidth": 1, "title": "<b>Marie Barbe Van Nitsen</b><br>ID: @I22673@<br>Geslacht: F<br>Jaren: <br><i>Tussenliggende link</i>"}];
+    var rawEdges = [{"from": "@I16942@", "to": "@I5507@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I2739@", "to": "@I5508@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I186@", "to": "@I187@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I2739@", "to": "@I8115@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I5317@", "to": "@I5334@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I5334@", "to": "@I22701@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I5317@", "to": "@I22701@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I16953@", "to": "@I5507@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I22679@", "to": "@I22680@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I22682@", "to": "@I22672@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I3964@", "to": "@I3965@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I3268@", "to": "@I7300@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22681@", "to": "@I22672@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I6308@", "to": "@I6311@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I5507@", "to": "@I5508@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22684@", "to": "@I22685@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I16943@", "to": "@I5507@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I6309@", "to": "@I6311@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I16942@", "to": "@I16943@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I8116@", "to": "@I8687@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22688@", "to": "@I22689@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I22673@", "to": "@I22671@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22691@", "to": "@I22688@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22681@", "to": "@I22682@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I22701@", "to": "@I4745@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22690@", "to": "@I22691@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I22679@", "to": "@I22674@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I2737@", "to": "@I2738@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I16953@", "to": "@I5508@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I3965@", "to": "@I3966@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I16294@", "to": "@I5317@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22672@", "to": "@I22671@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I5508@", "to": "@I8116@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22680@", "to": "@I22674@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22671@", "to": "@I22675@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I185@", "to": "@I16294@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22685@", "to": "@I22681@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22693@", "to": "@I22689@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I3964@", "to": "@I3966@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I2738@", "to": "@I2739@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I6308@", "to": "@I6309@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I22671@", "to": "@I22674@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I22684@", "to": "@I22681@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I16294@", "to": "@I5315@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I6311@", "to": "@I3268@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22692@", "to": "@I22693@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I4745@", "to": "@I4746@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22690@", "to": "@I22688@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I2739@", "to": "@I8116@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I2737@", "to": "@I2739@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22675@", "to": "@I4745@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I186@", "to": "@I185@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22672@", "to": "@I22673@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I7300@", "to": "@I7302@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22688@", "to": "@I22684@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22674@", "to": "@I22675@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22689@", "to": "@I22684@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I5508@", "to": "@I8115@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I6309@", "to": "@I5315@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22692@", "to": "@I22689@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I6308@", "to": "@I5315@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I3966@", "to": "@I16294@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I5315@", "to": "@I5317@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I22675@", "to": "@I22701@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}, {"from": "@I187@", "to": "@I185@", "label": "ouder van", "color": {"color": "#4CAF50"}, "arrows": {"to": {"enabled": true, "type": "arrow"}}}, {"from": "@I185@", "to": "@I3966@", "label": "partner", "color": {"color": "#E91E63"}, "dashes": true, "arrows": {"to": false}}];
+
+    var nodes = new vis.DataSet(rawNodes);
+    var edges = new vis.DataSet(rawEdges);
+
+    var container = document.getElementById('mynetwork');
+    var data = { nodes: nodes, edges: edges };
+    var options = {
+        nodes: { font: { size: 13, face: 'Segoe UI' }, margin: 8 },
+        edges: { font: { size: 10, align: 'middle' }, smooth: { type: 'continuous' } },
+        physics: {
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: { gravitationalConstant: -40, centralGravity: 0.01, springLength: 80, springConstant: 0.08 },
+            maxVelocity: 50, stabilization: { iterations: 200 }
+        },
+        interaction: { 0: true, hover: true, tooltipDelay: 150, multiselect: true }
+    };
+    
+    var network = new vis.Network(container, data, options);
+
+    // Bewaar originele styling voor reset
+    var originalNodesMap = {};
+    rawNodes.forEach(function(n) { originalNodesMap[n.id] = n; });
+
+    var originalEdgesMap = {};
+    rawEdges.forEach(function(e, index) { 
+        if (!e.id) e.id = 'e_' + index; 
+        originalEdgesMap[e.id] = e; 
+    });
+    edges.update(rawEdges);
+
+    // Bouw een graaf op in JS voor padzoeken (ongericht)
+    function buildAdjacencyList() {
+        var adj = {};
+        rawNodes.forEach(function(n) { adj[n.id] = []; });
+        rawEdges.forEach(function(e) {
+            if (adj[e.from] && adj[e.to]) {
+                adj[e.from].push({ neighbor: e.to, edgeId: e.id });
+                adj[e.to].push({ neighbor: e.from, edgeId: e.id });
+            }
+        });
+        return adj;
+    }
+
+    var adjList = buildAdjacencyList();
+
+    // BFS Algoritme om het kortste pad tussen 2 nodes te vinden
+    function findShortestPath(startId, endId) {
+        var queue = [[startId]];
+        var visited = new Set([startId]);
+        var parentEdge = {};
+
+        while (queue.length > 0) {
+            var path = queue.shift();
+            var current = path[path.length - 1];
+
+            if (current === endId) {
+                return path;
+            }
+
+            var neighbors = adjList[current] || [];
+            for (var i = 0; i < neighbors.length; i++) {
+                var edgeObj = neighbors[i];
+                var nxt = edgeObj.neighbor;
+                if (!visited.has(nxt)) {
+                    visited.add(nxt);
+                    queue.push(path.concat([nxt]));
+                }
+            }
+        }
+        return null;
+    }
+
+    // Reset de netwerkweergave naar de normale staat
+    function resetHighlighting() {
+        var nodeUpdates = [];
+        rawNodes.forEach(function(n) {
+            nodeUpdates.push({
+                id: n.id,
+                color: n.color,
+                opacity: 1
+            });
+        });
+
+        var edgeUpdates = [];
+        rawEdges.forEach(function(e) {
+            edgeUpdates.push({
+                id: e.id,
+                color: e.color,
+                width: 1
+            });
+        });
+
+        nodes.update(nodeUpdates);
+        edges.update(edgeUpdates);
+    }
+
+    // Highlight kortste pad
+    function highlightPath(selectedNodes) {
+        if (selectedNodes.length !== 2) {
+            resetHighlighting();
+            return;
+        }
+
+        var startId = selectedNodes[0];
+        var endId = selectedNodes[1];
+        var pathNodes = findShortestPath(startId, endId);
+
+        if (!pathNodes) {
+            alert("Geen pad gevonden tussen deze twee personen.");
+            resetHighlighting();
+            return;
+        }
+
+        var pathNodesSet = new Set(pathNodes);
+        var pathEdgesSet = new Set();
+
+        // Verzamel de kant-ID's die op het pad liggen
+        for (var i = 0; i < pathNodes.length - 1; i++) {
+            var u = pathNodes[i];
+            var v = pathNodes[i+1];
+            var neighbors = adjList[u] || [];
+            neighbors.forEach(function(item) {
+                if (item.neighbor === v) {
+                    pathEdgesSet.add(item.edgeId);
+                }
+            });
+        }
+
+        // Update knooppunten
+        var nodeUpdates = [];
+        rawNodes.forEach(function(n) {
+            if (pathNodesSet.has(n.id)) {
+                nodeUpdates.push({
+                    id: n.id,
+                    color: {
+                        background: "#FFEB3B",
+                        border: "#F57F17"
+                    },
+                    opacity: 1
+                });
+            } else {
+                nodeUpdates.push({
+                    id: n.id,
+                    color: {
+                        background: "#E0E0E0",
+                        border: "#BDBDBD"
+                    },
+                    opacity: 0.25
+                });
+            }
+        });
+
+        // Update kanten
+        var edgeUpdates = [];
+        rawEdges.forEach(function(e) {
+            if (pathEdgesSet.has(e.id)) {
+                edgeUpdates.push({
+                    id: e.id,
+                    color: { color: "#FF6F00" },
+                    width: 4
+                });
+            } else {
+                edgeUpdates.push({
+                    id: e.id,
+                    color: { color: "#E0E0E0" },
+                    width: 1
+                });
+            }
+        });
+
+        nodes.update(nodeUpdates);
+        edges.update(edgeUpdates);
+    }
+
+    // Event handler bij (de-)selecteren
+    network.on("select", function (params) {
+        if (params.nodes.length === 2) {
+            highlightPath(params.nodes);
+        } else if (params.nodes.length === 0) {
+            resetHighlighting();
+        }
+    });
+
+    network.on("deselectNode", function (params) {
+        var selected = network.getSelectedNodes();
+        if (selected.length === 2) {
+            highlightPath(selected);
+        } else if (selected.length === 0) {
+            resetHighlighting();
+        }
+    });
+
+    // Vastzetten bij slepen
+    network.on("dragEnd", function (params) {
+        if (params.nodes.length > 0) {
+            var nodeId = params.nodes[0];
+            var position = network.getPositions([nodeId])[nodeId];
+            
+            nodes.update({
+                id: nodeId,
+                x: position.x,
+                y: position.y,
+                fixed: {
+                    x: true,
+                    y: true
+                }
+            });
+        }
+    });
+
+    // Losmaken bij dubbelklikken
+    network.on("doubleClick", function (params) {
+        if (params.nodes.length > 0) {
+            var nodeId = params.nodes[0];
+            
+            nodes.update({
+                id: nodeId,
+                fixed: {
+                    x: false,
+                    y: false
+                }
+            });
+        }
+    });
+</script>
+
+</body>
+</html>
