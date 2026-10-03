@@ -12,6 +12,7 @@
             margin: 0; 
             padding: 0; 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background-color: #f4f6f9;
         }
         #map { 
             height: 100vh; 
@@ -24,20 +25,21 @@
             z-index: 1; 
         }
         
-        .time-panel {
+        .control-panel {
             position: absolute;
             bottom: 25px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
-            padding: 12px 20px;
+            padding: 15px 20px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             text-align: center;
-            width: 80%;
-            max-width: 500px;
+            width: 85%;
+            max-width: 520px;
         }
+
         .slider { width: 100%; cursor: pointer; margin-top: 8px; }
         .year-display { font-size: 22px; font-weight: bold; color: #2c3e50; }
         .stats { font-size: 12px; color: #7f8c8d; margin-top: 4px; }
@@ -55,7 +57,6 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
         }
 
-        /* iPad & Touch Optimalisaties */
         .leaflet-popup-content-wrapper {
             border-radius: 10px;
             padding: 0;
@@ -63,7 +64,7 @@
         }
         .leaflet-popup-content {
             margin: 12px 14px !important;
-            width: 250px !important;
+            width: 260px !important;
         }
         .popup-container h4 {
             margin: 0 0 4px 0;
@@ -79,28 +80,69 @@
             -webkit-overflow-scrolling: touch;
             touch-action: pan-y;
         }
+        .simulated-tag {
+            color: #d35400;
+            font-size: 11px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<div class="time-panel">
+<div class="control-panel">
     <div class="year-display">Jaar: <span id="selected-year">2026</span></div>
-    <input type="range" min="1600" max="2026" value="2026" class="slider" id="year-slider">
-    <div class="stats"><span id="active-count">0</span> personen levend/actief in dit jaar</div>
+    <input type="range" min="1600" max="2026" value="2026" class="slider" id="year-slider" disabled>
+    <div class="stats" id="status-text"></div>
 </div>
 
 <script>
-    // Voorbeelddata (deze wordt door het Python-script automatisch gevuld)
-    const persons = [];
-    const coords = {
+    const GEO_DB = {
         "Binderveld, België": [50.8752, 5.1638],
         "Nieuwerkerken, België": [50.8653, 5.1927],
-        "Sint-Truiden, België": [50.8153, 5.1866]
+        "Sint-Truiden, België": [50.8153, 5.1866],
+        "Gorsem, België": [50.8291, 5.1724],
+        "Duras, België": [50.8336, 5.1511],
+        "Runkelen, België": [50.8389, 5.1481],
+        "Wilderen, België": [50.8122, 5.1581],
+        "Halen, België": [50.9482, 5.1124],
+        "Herk-de-Stad, België": [50.9412, 5.1668],
+        "Donk, België": [50.9321, 5.1215],
+        "Schulen, België": [50.9575, 5.1782],
+        "Berbroek, België": [50.9480, 5.2030],
+        "Lummen, België": [50.9863, 5.2631],
+        "Hasselt, België": [50.9311, 5.3378],
+        "Geel, België": [51.1610, 4.9904],
+        "Diest, België": [50.9847, 5.0510],
+        "Kortenaken, België": [50.9092, 5.0578],
+        "Geetbets, België": [50.8906, 5.1169],
+        "Rummen, België": [50.9067, 5.1528],
+        "Grazen, België": [50.8872, 5.1322],
+        "Zoutleeuw, België": [50.8331, 5.1039],
+        "Landen, België": [50.7533, 5.0811],
+        "Tienen, België": [50.8081, 4.9367],
+        "Leuven, België": [50.8798, 4.7005],
+        "Brussel, België": [50.8503, 4.3517],
+        "Genk, België": [50.9650, 5.5002],
+        "Tongeren, België": [50.7806, 5.4646],
+        "Bilzen, België": [50.8711, 5.5186],
+        "Borgloon, België": [50.8028, 5.3431],
+        "Wellen, België": [50.8411, 5.3372],
+        "Alken, België": [50.8744, 5.3061],
+        "Kortessem, België": [50.8600, 5.3900],
+        "Diepenbeek, België": [50.9080, 5.4200],
+        "Zonhoven, België": [50.9933, 5.3672],
+        "Heusden-Zolder, België": [51.0238, 5.2750],
+        "Beringen, België": [51.0489, 5.2267],
+        "Tessenderlo, België": [51.0681, 5.0883]
     };
 
-    // Standaard centreren op Binderveld / Nieuwerkerken
+    let parsedPersons = {};
+    let families = [];
+    let minYearFound = 1600;
+    let maxYearFound = 2026;
+
     const map = L.map('map', { tap: true }).setView([50.8752, 5.1638], 11);
     
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
@@ -110,15 +152,174 @@
 
     let markersGroup = L.layerGroup().addTo(map);
 
+    // Vaste automatische inlaadfunctie van Gedcom.ged
+    window.addEventListener('DOMContentLoaded', () => {
+        fetch('Gedcom.ged')
+            .then(response => {
+                if (!response.ok) return null;
+                return response.text();
+            })
+            .then(text => {
+                if (text) parseGedcomText(text);
+            })
+            .catch(() => {});
+    });
+
+    function parseGedcomText(text) {
+        const lines = text.split(/\r?\n/);
+        parsedPersons = {};
+        families = [];
+        
+        let currentObj = null;
+        let currentFam = null;
+        let currentType = null;
+        let inBirt = false;
+        let inDeat = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (!line) continue;
+
+            let parts = line.split(" ");
+            let level = parts[0];
+            let tag = parts[1] ? parts[1].toUpperCase() : "";
+            let value = parts.slice(2).join(" ");
+
+            if (level === "0") {
+                if (value.includes("INDI") || tag === "INDI") {
+                    currentType = "INDI";
+                    let id = (tag !== "INDI" ? tag : parts[2]).replace(/[^0-9]/g, '');
+                    currentObj = {
+                        id: id,
+                        name: "Onbekend",
+                        birth_year: null,
+                        birth_place: null,
+                        death_year: null,
+                        death_place: null,
+                        is_simulated_birth: false
+                    };
+                    parsedPersons[id] = currentObj;
+                } else if (value.includes("FAM") || tag === "FAM") {
+                    currentType = "FAM";
+                    currentFam = { husb: null, wife: null, children: [] };
+                    families.push(currentFam);
+                } else {
+                    currentType = null;
+                }
+                inBirt = false;
+                inDeat = false;
+            } else if (currentType === "INDI" && currentObj) {
+                if (level === "1") {
+                    inBirt = (tag === "BIRT");
+                    inDeat = (tag === "DEAT");
+                    if (tag === "NAME") {
+                        currentObj.name = value.replace(/\//g, "").trim();
+                    }
+                } else if (level === "2") {
+                    if (inBirt) {
+                        if (tag === "DATE") {
+                            let match = value.match(/\b(1\d{3}|20\d{2})\b/);
+                            if (match) currentObj.birth_year = parseInt(match[1], 10);
+                        } else if (tag === "PLAC") {
+                            currentObj.birth_place = normalizeLocation(value);
+                        }
+                    } else if (inDeat) {
+                        if (tag === "DATE") {
+                            let match = value.match(/\b(1\d{3}|20\d{2})\b/);
+                            if (match) currentObj.death_year = parseInt(match[1], 10);
+                        } else if (tag === "PLAC") {
+                            currentObj.death_place = normalizeLocation(value);
+                        }
+                    }
+                }
+            } else if (currentType === "FAM" && currentFam) {
+                if (level === "1") {
+                    let id = value.replace(/[^0-9]/g, '');
+                    if (tag === "HUSB") currentFam.husb = id;
+                    if (tag === "WIFE") currentFam.wife = id;
+                    if (tag === "CHIL") currentFam.children.push(id);
+                }
+            }
+        }
+
+        // Bepaal geschatte geboortejaren van ouders indien niet vermeld (oudste kind - 22 jaar)
+        families.forEach(fam => {
+            let childBirthYears = fam.children
+                .map(childId => parsedPersons[childId] ? parsedPersons[childId].birth_year : null)
+                .filter(y => y !== null);
+
+            if (childBirthYears.length > 0) {
+                let oldestChildYear = Math.min(...childBirthYears);
+                let estimatedParentBirth = oldestChildYear - 22;
+
+                [fam.husb, fam.wife].forEach(parentId => {
+                    if (parentId && parsedPersons[parentId]) {
+                        let parent = parsedPersons[parentId];
+                        if (!parent.birth_year) {
+                            parent.birth_year = estimatedParentBirth;
+                            parent.is_simulated_birth = true;
+                        }
+                    }
+                });
+            }
+        });
+
+        let allYears = Object.values(parsedPersons)
+            .map(p => p.birth_year)
+            .filter(y => y !== null);
+
+        if (allYears.length > 0) {
+            minYearFound = Math.min(...allYears);
+        }
+
+        const slider = document.getElementById('year-slider');
+        slider.min = minYearFound;
+        slider.max = maxYearFound;
+        slider.value = maxYearFound;
+        slider.disabled = false;
+
+        document.getElementById('selected-year').innerText = maxYearFound;
+        updateMap(maxYearFound);
+    }
+
+    function normalizeLocation(locStr) {
+        if (!locStr) return null;
+        let loc = locStr.toLowerCase();
+
+        if (loc.includes("binderveld")) return "Binderveld, België";
+        if (loc.includes("nieuwerkerken")) return "Nieuwerkerken, België";
+        if (loc.includes("sint-truiden") || loc.includes("st-truiden")) return "Sint-Truiden, België";
+        if (loc.includes("gorsem")) return "Gorsem, België";
+        if (loc.includes("duras")) return "Duras, België";
+        if (loc.includes("runkelen")) return "Runkelen, België";
+        if (loc.includes("wilderen")) return "Wilderen, België";
+        if (loc.includes("halen")) return "Halen, België";
+        if (loc.includes("herk-de-stad")) return "Herk-de-Stad, België";
+        if (loc.includes("donk")) return "Donk, België";
+        if (loc.includes("schulen")) return "Schulen, België";
+        if (loc.includes("berbroek")) return "Berbroek, België";
+        if (loc.includes("rummen")) return "Rummen, België";
+        if (loc.includes("geetbets")) return "Geetbets, België";
+        if (loc.includes("zoutleeuw")) return "Zoutleeuw, België";
+        if (loc.includes("diest")) return "Diest, België";
+        if (loc.includes("hasselt")) return "Hasselt, België";
+
+        let clean = locStr.split(/[,(]/)[0].trim().replace(/\b\d+\b/g, '').trim();
+        if (clean && !clean.toLowerCase().includes('belgi')) {
+            clean += ", België";
+        }
+        return clean;
+    }
+
     function updateMap(selectedYear) {
         markersGroup.clearLayers();
         
         let locationMap = {};
         let activePersonsCount = 0;
+        let personList = Object.values(parsedPersons);
 
-        persons.forEach(p => {
+        personList.forEach(p => {
             let isAliveOrBorn = false;
-            
             let estimatedDeathYear = p.death_year;
             if (!estimatedDeathYear && p.birth_year) {
                 estimatedDeathYear = p.birth_year + 80;
@@ -135,31 +336,29 @@
             if (isAliveOrBorn) {
                 activePersonsCount++;
                 let place = p.birth_place || p.death_place;
-                if (place && coords[place]) {
+                if (place && GEO_DB[place]) {
                     if (!locationMap[place]) locationMap[place] = [];
                     locationMap[place].push({
                         name: p.name,
-                        birthYear: p.birth_year
+                        birthYear: p.birth_year,
+                        isSimulated: p.is_simulated_birth
                     });
                 }
             }
         });
 
         for (let place in locationMap) {
-            let latLng = coords[place];
+            let latLng = GEO_DB[place];
             if (latLng) {
                 let peopleArray = locationMap[place];
                 let count = peopleArray.length;
 
-                peopleArray.sort((a, b) => {
-                    let yA = a.birthYear || 9999;
-                    let yB = b.birthYear || 9999;
-                    return yA - yB;
-                });
+                peopleArray.sort((a, b) => (a.birthYear || 9999) - (b.birthYear || 9999));
 
                 let peopleList = peopleArray.map(item => {
                     let yearStr = item.birthYear ? item.birthYear : 'Onbekend';
-                    return '<li>' + item.name + ' (Geboren: ' + yearStr + ')</li>';
+                    let simTag = item.isSimulated ? ' <span class="simulated-tag">(geschat)</span>' : '';
+                    return '<li>' + item.name + ' (Geboren: ' + yearStr + simTag + ')</li>';
                 }).join('');
                 
                 let popupContent = '<div class="popup-container">' +
@@ -190,7 +389,8 @@
             }
         }
 
-        document.getElementById('active-count').innerText = activePersonsCount;
+        document.getElementById('status-text').innerText = 
+            personList.length + " personen geladen | " + activePersonsCount + " levend/actief in " + selectedYear;
     }
 
     const slider = document.getElementById('year-slider');
@@ -198,10 +398,8 @@
 
     slider.addEventListener('input', function() {
         yearDisplay.innerText = this.value;
-        updateMap(parseInt(this.value));
+        updateMap(parseInt(this.value, 10));
     });
-
-    updateMap(2026);
 </script>
 
 </body>
