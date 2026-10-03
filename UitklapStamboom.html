@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <title>Interactieve GEDCOM Stamboom</title>
+    <!-- Vis.js bibliotheek voor het renderen van het netwerk/stamboom -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style type="text/css">
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 15px;
+            background-color: #FFFFFF;
+        }
+        #mynetwork {
+            width: 100%;
+            height: 75vh;
+            border: 1px solid #BDBDBD;
+            background-color: #F8F9FA;
+            border-radius: 4px;
+        }
+        .toolbar {
+            margin-bottom: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-reset { background-color: #f44336; color: white; }
+        .btn-nav { background-color: #2196F3; color: white; }
+        .btn:disabled { background-color: #CCCCCC; cursor: not-allowed; }
+        .search-box {
+            padding: 8px;
+            font-size: 14px;
+            width: 280px;
+            border: 1px solid #CCC;
+            border-radius: 4px;
+        }
+        .info-panel {
+            background: #E3F2FD;
+            border-left: 5px solid #2196F3;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        #status {
+            font-weight: bold;
+            color: #1565C0;
+        }
+    </style>
+</head>
+<body>
+
+<h2 id="headerTitle">Stamboom Visualisatie</h2>
+
+<div class="toolbar">
+    <label for="personSelect"><b>Selecteer / Zoek persoon:</b></label>
+    <input type="text" id="personInput" list="personList" class="search-box" placeholder="Typ een naam of ID..." onchange="onPersonSelected()">
+    <datalist id="personList"></datalist>
+
+    <button id="btnReset" class="btn btn-reset" onclick="resetToStart()">↺ Opnieuw Beginnen</button>
+    <button id="btnUndo" class="btn btn-nav" onclick="undo()" disabled>◄ Terug</button>
+    <button id="btnRedo" class="btn btn-nav" onclick="redo()" disabled>Voorwaarts ►</button>
+</div>
+
+<div class="info-panel">
+    <span id="status">Bezig met laden van Gedcom.ged...</span>
+</div>
+
+<div id="mynetwork"></div>
+
+<script type="text/javascript">
+    var personsDB = {};
+    var familiesDB = {};
+    var mainPersonId = "";
+
+    var historyStack = [];
+    var redoStack = [];
+
+    var nodesDataSet = new vis.DataSet();
+    var edgesDataSet = new vis.DataSet();
+
+    var container = document.getElementById('mynetwork');
+    var data = {
+        nodes: nodesDataSet,
+        edges: edgesDataSet
+    };
+
+    var options = {
+        nodes: {
+            font: { size: 13, face: 'arial' },
+            shadow: true,
+            margin: 8
+        },
+        edges: {
+            smooth: { type: 'cubicBezier', forceDirection: 'vertical' },
+            arrows: { to: { enabled: false } }
+        },
+        interaction: {
+            hover: true,
+            zoomView: true,
+            dragView: true
+        },
+        physics: { enabled: false }
+    };
+
+    var network = new vis.Network(container, data, options);
+
+    var BOX_WIDTH = 220;
+    var LEVEL_HEIGHT = 130;
+
+    // --- 1. GEDCOM PARSER IN JAVASCRIPT ---
+    function parseGedcom(text) {
+        var lines = text.split(/\r?\n/);
+        var currentRecord = null;
+        var currentSubTag = null;
+
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+
+            var parts = line.split(" ");
+            var level = parseInt(parts[0], 10);
+            
+            if (isNaN(level)) continue;
+
+            var tag = "";
+            var value = "";
+
+            if (parts[1] && parts[1].startsWith("@") && parts[1].endsWith("@")) {
+                var id = parts[1].replace(/@/g, "");
+                tag = parts[2] ? parts[2].toUpperCase() : "";
+                value = id;
+            } else {
+                tag = parts[1] ? parts[1].toUpperCase() : "";
+                value = parts.slice(2).join(" ");
+            }
+
+            if (level === 0) {
+                if (tag === "INDI") {
+                    currentRecord = { type: "INDI", id: value, name: "", birtDate: "", deatDate: "", parentFam: null, spouseFams: [] };
+                    personsDB[value] = currentRecord;
+                } else if (tag === "FAM") {
+                    currentRecord = { type: "FAM", id: value, husband: null, wife: null, children: [] };
+                    familiesDB[value] = currentRecord;
+                } else {
+                    currentRecord = null;
+                }
+                currentSubTag = null;
+            } else if (currentRecord) {
+                if (currentRecord.type === "INDI") {
+                    if (level === 1) {
+                        currentSubTag = tag;
+                        if (tag === "NAME") {
+                            currentRecord.name = value.replace(/\//g, "").trim();
+                        } else if (tag === "FAMS") {
+                            var famId = value.replace(/@/g, "").trim();
+                            if (famId) currentRecord.spouseFams.push(famId);
+                        } else if (tag === "FAMC") {
+                            var famId = value.replace(/@/g, "").trim();
+                            if (famId) currentRecord.parentFam = famId;
+                        }
+                    } else if (level === 2) {
+                        if (currentSubTag === "BIRT" && tag === "DATE") {
+                            currentRecord.birtDate = value;
+                        } else if (currentSubTag === "DEAT" && tag === "DATE") {
+                            currentRecord.deatDate = value;
+                        }
+                    }
+                } else if (currentRecord.type === "FAM") {
+                    if (level === 1) {
+                        var targetId = value.replace(/@/g, "").trim();
+                        if (tag === "HUSB") currentRecord.husband = targetId;
+                        if (tag === "WIFE") currentRecord.wife = targetId;
+                        if (tag === "CHIL") currentRecord.children.push(targetId);
+                    }
+                }
+            }
+        }
+
+        // Bereken jaartallen string voor elke persoon
+        Object.keys(personsDB).forEach(function(id) {
+            var p = personsDB[id];
+            var birt = p.birtDate || "";
+            var deat = p.deatDate || "";
+            p.years = (birt || deat) ? "(" + birt + " - " + deat + ")" : "";
+            if (!p.name) p.name = "Onbekend";
+        });
+    }
+
+    // --- 2. LAAD HET GEDCOM BESTAND VIA FETCH ---
+    fetch('Gedcom.ged')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Gedcom.ged niet gevonden of kon niet geladen worden.");
+            }
+            return response.text();
+        })
+        .then(gedcomText => {
+            parseGedcom(gedcomText);
+            
+            var personIds = Object.keys(personsDB);
+            if (personIds.length === 0) {
+                document.getElementById('status').innerText = "Fout: Geen personen gevonden in Gedcom.ged";
+                return;
+            }
+
+            // Vul de zoekbalk / datalist
+            var datalist = document.getElementById('personList');
+            personIds.forEach(function(id) {
+                var p = personsDB[id];
+                var option = document.createElement('option');
+                option.value = p.name + " (" + id + ")";
+                datalist.appendChild(option);
+            });
+
+            // Koppel standaard de eerste persoon (of specifiek I5147 als deze bestaat)
+            mainPersonId = personsDB["I5147"] ? "I5147" : personIds[0];
+            
+            document.getElementById('status').innerText = "GEDCOM succesvol geladen (" + personIds.length + " personen). Klik op een persoon in het netwerk om uit te klappen.";
+            
+            resetToStart();
+        })
+        .catch(error => {
+            document.getElementById('status').innerText = "Fout bij laden: " + error.message;
+        });
+
+    // --- 3. LAYOUT & VISUALISATIE LOGICA ---
+    function isPositionOccupied(x, y) {
+        var allNodes = nodesDataSet.get();
+        for (var i = 0; i < allNodes.length; i++) {
+            var n = allNodes[i];
+            if (Math.abs(n.x - x) < (BOX_WIDTH - 20) && Math.abs(n.y - y) < 40) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function findFreeX(targetX, targetY) {
+        var x = targetX;
+        var offset = 0;
+        var step = BOX_WIDTH;
+        
+        while (isPositionOccupied(x, targetY)) {
+            if (offset <= 0) {
+                offset = -offset + step;
+            } else {
+                offset = -offset;
+            }
+            x = targetX + offset;
+        }
+        return x;
+    }
+
+    function addPersonNode(personId, x, y) {
+        var existing = nodesDataSet.get(personId);
+        if (existing) return existing;
+
+        var p = personsDB[personId];
+        if (!p) return null;
+
+        var isMain = (personId === mainPersonId);
+
+        var nodeData = {
+            id: p.id,
+            label: p.name + "\n" + p.years,
+            title: "<b>" + p.name + "</b><br>ID: " + p.id + "<br>Periode: " + p.years,
+            shape: isMain ? "ellipse" : "box",
+            x: x,
+            y: y,
+            physics: false,
+            color: {
+                background: isMain ? "#FF9800" : "#90CAF9",
+                border: isMain ? "#E65100" : "#1565C0"
+            },
+            borderWidth: isMain ? 3 : 1
+        };
+
+        nodesDataSet.add(nodeData);
+        return nodeData;
+    }
+
+    function addFamilyNode(famId, x, y) {
+        var existing = nodesDataSet.get(famId);
+        if (existing) return existing;
+
+        var nodeData = {
+            id: famId,
+            label: " ",
+            shape: "dot",
+            size: 5,
+            x: x,
+            y: y,
+            physics: false,
+            color: { background: "#E91E63", border: "#C2185B" }
+        };
+
+        nodesDataSet.add(nodeData);
+        return nodeData;
+    }
+
+    function addEdge(fromId, toId, isSpouseLink) {
+        var edgeId = fromId + "_" + toId;
+        if (!edgesDataSet.get(edgeId)) {
+            edgesDataSet.add({
+                id: edgeId,
+                from: fromId,
+                to: toId,
+                color: { color: isSpouseLink ? '#E91E63' : '#555555' },
+                width: isSpouseLink ? 2 : 1
+            });
+        }
+    }
+
+    function expandFamily(famId, centerX, centerY) {
+        var fam = familiesDB[famId];
+        if (!fam) return;
+
+        addFamilyNode(famId, centerX, centerY);
+
+        if (fam.husband && personsDB[fam.husband]) {
+            var hX = centerX - 120;
+            addPersonNode(fam.husband, hX, centerY);
+            addEdge(fam.husband, famId, true);
+        }
+
+        if (fam.wife && personsDB[fam.wife]) {
+            var wX = centerX + 120;
+            addPersonNode(fam.wife, wX, centerY);
+            addEdge(fam.wife, famId, true);
+        }
+
+        if (fam.children && fam.children.length > 0) {
+            var childY = centerY + LEVEL_HEIGHT;
+            var validChildren = fam.children.filter(cId => personsDB[cId]);
+            var totalWidth = (validChildren.length - 1) * BOX_WIDTH;
+            var startX = centerX - (totalWidth / 2);
+
+            validChildren.forEach(function(childId, index) {
+                var targetChildX = startX + (index * BOX_WIDTH);
+                var finalChildX = findFreeX(targetChildX, childY);
+                
+                addPersonNode(childId, finalChildX, childY);
+                addEdge(famId, childId, false);
+            });
+        }
+    }
+
+    function expandPerson(personId, isNewAction) {
+        var p = personsDB[personId];
+        if (!p) return;
+
+        if (isNewAction) {
+            historyStack.push(personId);
+            redoStack = [];
+        }
+
+        var nodeObj = nodesDataSet.get(personId);
+        var currentX = nodeObj ? nodeObj.x : 0;
+        var currentY = nodeObj ? nodeObj.y : 0;
+
+        addPersonNode(personId, currentX, currentY);
+
+        if (p.spouseFams) {
+            p.spouseFams.forEach(function(famId, idx) {
+                var famX = findFreeX(currentX + (idx * 260), currentY);
+                expandFamily(famId, famX, currentY);
+            });
+        }
+
+        if (p.parentFam) {
+            var parentFamId = p.parentFam;
+            var parentY = currentY - LEVEL_HEIGHT;
+            var parentFamX = findFreeX(currentX, parentY);
+            expandFamily(parentFamId, parentFamX, parentY);
+        }
+
+        updateButtonStates();
+        network.fit();
+    }
+
+    function rebuildFromHistory() {
+        nodesDataSet.clear();
+        edgesDataSet.clear();
+
+        historyStack.forEach(function(personId) {
+            expandPerson(personId, false);
+        });
+
+        updateButtonStates();
+        network.fit();
+    }
+
+    function undo() {
+        if (historyStack.length > 1) {
+            var lastAction = historyStack.pop();
+            redoStack.push(lastAction);
+            rebuildFromHistory();
+        }
+    }
+
+    function redo() {
+        if (redoStack.length > 0) {
+            var nextAction = redoStack.pop();
+            historyStack.push(nextAction);
+            rebuildFromHistory();
+        }
+    }
+
+    function resetToStart() {
+        historyStack = [];
+        redoStack = [];
+        nodesDataSet.clear();
+        edgesDataSet.clear();
+        if (mainPersonId && personsDB[mainPersonId]) {
+            var p = personsDB[mainPersonId];
+            document.getElementById('headerTitle').innerText = "Stamboom Hoofdpersoon: " + p.name + " (" + mainPersonId + ")";
+            expandPerson(mainPersonId, true);
+        }
+    }
+
+    function updateButtonStates() {
+        document.getElementById('btnUndo').disabled = (historyStack.length <= 1);
+        document.getElementById('btnRedo').disabled = (redoStack.length === 0);
+    }
+
+    function onPersonSelected() {
+        var val = document.getElementById('personInput').value;
+        var match = val.match(/\((I\d+)\)/);
+        if (match && match[1] && personsDB[match[1]]) {
+            mainPersonId = match[1];
+            resetToStart();
+        }
+    }
+
+    network.on("click", function (params) {
+        if (params.nodes.length > 0) {
+            var clickedId = params.nodes[0];
+            if (personsDB[clickedId]) {
+                expandPerson(clickedId, true);
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
