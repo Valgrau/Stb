@@ -155,13 +155,19 @@
     window.addEventListener('DOMContentLoaded', () => {
         fetch('Gedcom.ged')
             .then(response => {
-                if (!response.ok) return null;
+                if (!response.ok) {
+                    throw new Error("Bestand niet gevonden");
+                }
                 return response.text();
             })
             .then(text => {
                 if (text) parseGedcomText(text);
             })
-            .catch(() => {});
+            .catch(err => {
+                document.getElementById('status-text').innerText = 
+                    "Kon Gedcom.ged niet inladen. Controleer of het bestand in dezelfde map staat.";
+                document.getElementById('status-text').style.color = "#c0392b";
+            });
     });
 
     function parseGedcomText(text) {
@@ -387,6 +393,7 @@
             }
         }
 
+        document.getElementById('status-text').style.color = "#2c3e50";
         document.getElementById('status-text').innerText = 
             "Totaal ingelezen uit GEDCOM: " + personList.length + " personen | Actief in " + selectedYear + ": " + activePersonsCount;
     }
