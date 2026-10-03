@@ -42,7 +42,7 @@
 
         .slider { width: 100%; cursor: pointer; margin-top: 8px; }
         .year-display { font-size: 22px; font-weight: bold; color: #2c3e50; }
-        .stats { font-size: 12px; color: #7f8c8d; margin-top: 4px; }
+        .stats { font-size: 13px; color: #2c3e50; margin-top: 6px; font-weight: 500; }
 
         .custom-count-icon {
             background-color: #2b78e4;
@@ -94,7 +94,7 @@
 <div class="control-panel">
     <div class="year-display">Jaar: <span id="selected-year">2026</span></div>
     <input type="range" min="1600" max="2026" value="2026" class="slider" id="year-slider" disabled>
-    <div class="stats" id="status-text"></div>
+    <div class="stats" id="status-text">Laden van Gedcom.ged...</div>
 </div>
 
 <script>
@@ -152,7 +152,6 @@
 
     let markersGroup = L.layerGroup().addTo(map);
 
-    // Vaste automatische inlaadfunctie van Gedcom.ged
     window.addEventListener('DOMContentLoaded', () => {
         fetch('Gedcom.ged')
             .then(response => {
@@ -242,7 +241,6 @@
             }
         }
 
-        // Bepaal geschatte geboortejaren van ouders indien niet vermeld (oudste kind - 22 jaar)
         families.forEach(fam => {
             let childBirthYears = fam.children
                 .map(childId => parsedPersons[childId] ? parsedPersons[childId].birth_year : null)
@@ -390,7 +388,7 @@
         }
 
         document.getElementById('status-text').innerText = 
-            personList.length + " personen geladen | " + activePersonsCount + " levend/actief in " + selectedYear;
+            "Totaal ingelezen uit GEDCOM: " + personList.length + " personen | Actief in " + selectedYear + ": " + activePersonsCount;
     }
 
     const slider = document.getElementById('year-slider');
