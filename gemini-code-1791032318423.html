@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8" />
+    <title>Stamboom Tijdmachine Kaart</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+        }
+        #map { 
+            height: 100vh; 
+            width: 100vw; 
+            position: absolute; 
+            top: 0; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+            z-index: 1; 
+        }
+        
+        .time-panel {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            text-align: center;
+            width: 80%;
+            max-width: 500px;
+        }
+        .slider { width: 100%; cursor: pointer; margin-top: 8px; }
+        .year-display { font-size: 22px; font-weight: bold; color: #2c3e50; }
+        .stats { font-size: 12px; color: #7f8c8d; margin-top: 4px; }
+
+        .custom-count-icon {
+            background-color: #2b78e4;
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        /* iPad & Touch Optimalisaties */
+        .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+            padding: 0;
+            overflow: hidden;
+        }
+        .leaflet-popup-content {
+            margin: 12px 14px !important;
+            width: 250px !important;
+        }
+        .popup-container h4 {
+            margin: 0 0 4px 0;
+            color: #2c3e50;
+            font-size: 15px;
+        }
+        .popup-list {
+            padding-left: 18px;
+            margin: 8px 0 0 0;
+            font-size: 12px;
+            max-height: 180px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="time-panel">
+    <div class="year-display">Jaar: <span id="selected-year">2026</span></div>
+    <input type="range" min="1600" max="2026" value="2026" class="slider" id="year-slider">
+    <div class="stats"><span id="active-count">0</span> personen levend/actief in dit jaar</div>
+</div>
+
+<script>
+    // Voorbeelddata (deze wordt door het Python-script automatisch gevuld)
+    const persons = [];
+    const coords = {
+        "Binderveld, België": [50.8752, 5.1638],
+        "Nieuwerkerken, België": [50.8653, 5.1927],
+        "Sint-Truiden, België": [50.8153, 5.1866]
+    };
+
+    // Standaard centreren op Binderveld / Nieuwerkerken
+    const map = L.map('map', { tap: true }).setView([50.8752, 5.1638], 11);
+    
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri'
+    }).addTo(map);
+
+    let markersGroup = L.layerGroup().addTo(map);
+
+    function updateMap(selectedYear) {
+        markersGroup.clearLayers();
+        
+        let locationMap = {};
+        let activePersonsCount = 0;
+
+        persons.forEach(p => {
+            let isAliveOrBorn = false;
+            
+            let estimatedDeathYear = p.death_year;
+            if (!estimatedDeathYear && p.birth_year) {
+                estimatedDeathYear = p.birth_year + 80;
+            }
+
+            if (p.birth_year && p.birth_year <= selectedYear) {
+                if (estimatedDeathYear >= selectedYear) {
+                    isAliveOrBorn = true;
+                }
+            } else if (!p.birth_year && p.death_year && p.death_year >= selectedYear) {
+                isAliveOrBorn = true;
+            }
+
+            if (isAliveOrBorn) {
+                activePersonsCount++;
+                let place = p.birth_place || p.death_place;
+                if (place && coords[place]) {
+                    if (!locationMap[place]) locationMap[place] = [];
+                    locationMap[place].push({
+                        name: p.name,
+                        birthYear: p.birth_year
+                    });
+                }
+            }
+        });
+
+        for (let place in locationMap) {
+            let latLng = coords[place];
+            if (latLng) {
+                let peopleArray = locationMap[place];
+                let count = peopleArray.length;
+
+                peopleArray.sort((a, b) => {
+                    let yA = a.birthYear || 9999;
+                    let yB = b.birthYear || 9999;
+                    return yA - yB;
+                });
+
+                let peopleList = peopleArray.map(item => {
+                    let yearStr = item.birthYear ? item.birthYear : 'Onbekend';
+                    return '<li>' + item.name + ' (Geboren: ' + yearStr + ')</li>';
+                }).join('');
+                
+                let popupContent = '<div class="popup-container">' +
+                    '<h4>' + place + '</h4>' +
+                    '<b>Aantal personen: ' + count + '</b><br>' +
+                    '<span style="font-size:12px;"><b>Levend in ' + selectedYear + ':</b></span>' +
+                    '<ul class="popup-list">' + peopleList + '</ul>' +
+                    '</div>';
+
+                let countIcon = L.divIcon({
+                    className: 'custom-count-icon',
+                    html: count,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                });
+
+                let marker = L.marker(latLng, { icon: countIcon })
+                    .bindPopup(popupContent, { autoPan: true, keepInView: true })
+                    .addTo(markersGroup);
+
+                marker.on('popupopen', function(e) {
+                    let popupNode = e.popup.getElement().querySelector('.popup-list');
+                    if (popupNode) {
+                        L.DomEvent.disableScrollPropagation(popupNode);
+                        L.DomEvent.disableClickPropagation(popupNode);
+                    }
+                });
+            }
+        }
+
+        document.getElementById('active-count').innerText = activePersonsCount;
+    }
+
+    const slider = document.getElementById('year-slider');
+    const yearDisplay = document.getElementById('selected-year');
+
+    slider.addEventListener('input', function() {
+        yearDisplay.innerText = this.value;
+        updateMap(parseInt(this.value));
+    });
+
+    updateMap(2026);
+</script>
+
+</body>
+</html>
