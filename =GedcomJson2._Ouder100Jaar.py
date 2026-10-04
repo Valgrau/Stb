@@ -5,30 +5,48 @@ import re
 GEDCOM_BESTAND = "Gedcom.ged"
 JSON_BESTAND = "Gedcom.json"
 
-def get_birth_years(node):
+def extract_years_from_text(text):
     """
-    Zoekt naar jaartallen (4 cijfers) in de BIRT -> DATE structuur van een INDI-node.
+    Haalt alle 4-cijferige jaartallen (1000-2099) uit een tekststreng.
     """
-    years = []
+    if not text:
+        return []
+    return [int(y) for y in re.findall(r'\b(1\d{3}|20\d{2})\b', str(text))]
+
+def get_birth_year(node):
+    """
+    Bepaalt het geboortejaar van een INDI-node.
+    Kijkt primair naar BIRT -> DATE. Als die ontbreekt, kijkt de functie naar CHR (doop) -> DATE.
+    """
     if not isinstance(node, dict):
-        return years
+        return None
 
+    # 1. Probeer BIRT (Geboorte)
     birt = node.get("BIRT")
-    if not birt:
-        return years
+    if birt:
+        birt_list = birt if isinstance(birt, list) else [birt]
+        for b in birt_list:
+            if isinstance(b, dict):
+                date_elem = b.get("DATE")
+                if isinstance(date_elem, dict) and "value" in date_elem:
+                    years = extract_years_from_text(date_elem["value"])
+                    if years:
+                        # Neem het vroegst vermelde jaartal bij de geboortedatum
+                        return min(years)
 
-    birt_list = birt if isinstance(birt, list) else [birt]
-    for b in birt_list:
-        if isinstance(b, dict):
-            date_elem = b.get("DATE")
-            if date_elem:
-                date_list = date_elem if isinstance(date_elem, list) else [date_elem]
-                for d in date_list:
-                    if isinstance(d, dict) and "value" in d:
-                        # Zoek naar 4 opeenvolgende cijfers (jaartal)
-                        found = re.findall(r'\b\d{4}\b', str(d["value"]))
-                        years.extend([int(y) for y in found])
-    return years
+    # 2. Alternatief: Probeer CHR (Doop) als BIRT geen datum bevat
+    chr_elem = node.get("CHR")
+    if chr_elem:
+        chr_list = chr_elem if isinstance(chr_elem, list) else [chr_elem]
+        for c in chr_list:
+            if isinstance(c, dict):
+                date_elem = c.get("DATE")
+                if isinstance(date_elem, dict) and "value" in date_elem:
+                    years = extract_years_from_text(date_elem["value"])
+                    if years:
+                        return min(years)
+
+    return None
 
 def remove_references(data, deleted_xrefs):
     """
@@ -124,19 +142,28 @@ def convert_gedcom_to_json(gedcom_path, json_path):
     # --- FILTERING: Personen geboren na 1930 filteren ---
     deleted_xrefs = set()
 
-    # 1. Identificeer en verwijder INDI's geboren na 1930
+    print("--- Overzicht van verwijderde personen (geboren na 1930) ---")
     for xref, node in list(root.items()):
         if isinstance(node, dict) and node.get("TAG") == "INDI":
-            years = get_birth_years(node)
-            # Als er een geboortejaar is gevonden en het vroegst bekende jaar is na 1930
-            if years and min(years) > 1930:
+            birth_year = get_birth_year(node)
+            
+            # Verwijder als het geboortejaar bekend is en na 1930 valt
+            if birth_year is not None and birth_year > 1930:
+                name_node = node.get("NAME", {})
+                name_val = "Onbekend"
+                if isinstance(name_node, dict):
+                    name_val = name_node.get("value", "Onbekend")
+                elif isinstance(name_node, list) and name_node:
+                    name_val = name_node[0].get("value", "Onbekend")
+                
+                print(f"Verwijderd: {xref} | Naam: {name_val} | Geboortejaar: {birth_year}")
                 deleted_xrefs.add(xref)
                 del root[xref]
 
-    # 2. Verwijder alle referenties naar deze personen uit de overgebleven structuur (zoals FAM-records)
+    # Verwijder alle referenties naar de gewiste personen uit FAM records
     remove_references(root, deleted_xrefs)
 
-    print(f"Aantal verwijderde personen (geboren na 1930): {len(deleted_xrefs)}")
+    print(f"\nTotaal aantal verwijderde personen: {len(deleted_xrefs)}")
 
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(root, f, ensure_ascii=False, indent=2)
