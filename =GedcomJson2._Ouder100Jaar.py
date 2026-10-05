@@ -31,7 +31,6 @@ def get_birth_year(node):
                 if isinstance(date_elem, dict) and "value" in date_elem:
                     years = extract_years_from_text(date_elem["value"])
                     if years:
-                        # Neem het vroegst vermelde jaartal bij de geboortedatum
                         return min(years)
 
     # 2. Alternatief: Probeer CHR (Doop) als BIRT geen datum bevat
@@ -48,36 +47,67 @@ def get_birth_year(node):
 
     return None
 
-def remove_references(data, deleted_xrefs):
+def anonymize_name_text(name_str):
     """
-    Verwijdert recursief alle verwijzingen (XREFs) naar de verwijderde personen
-    uit de JSON-structuur (bijv. HUSB, WIFE, CHIL in FAM-records).
+    Zet een GEDCOM-naam om naar initialen.
+    Voorbeeld: "Elza /Diepenrijkx/" -> "E. /D./"
+    Voorbeeld: "Petrus Julius /Bangels/" -> "P. /B./"
     """
-    if isinstance(data, dict):
-        keys_to_delete = []
-        for key, value in list(data.items()):
-            if isinstance(value, dict):
-                if value.get("value") in deleted_xrefs:
-                    keys_to_delete.append(key)
-                else:
-                    remove_references(value, deleted_xrefs)
-            elif isinstance(value, list):
-                new_list = []
-                for item in value:
-                    if isinstance(item, dict):
-                        if item.get("value") in deleted_xrefs:
-                            continue  # Sla verwijderde persoon over
-                        remove_references(item, deleted_xrefs)
-                    else:
-                        new_list.append(item)
-                
-                if not new_list:
-                    keys_to_delete.append(key)
-                else:
-                    data[key] = new_list
+    if not name_str or not isinstance(name_str, str):
+        return name_str
 
-        for key in keys_to_delete:
-            del data[key]
+    name_str = name_str.strip()
+    if not name_str:
+        return name_str
+
+    # GEDCOM-namen gebruiken slashes voor de familienaam: "Voornaam /Familienaam/"
+    if '/' in name_str:
+        parts = name_str.split('/')
+        given = parts[0].strip()
+        surname = parts[1].strip() if len(parts) > 1 else ""
+
+        given_initial = f"{given[0].upper()}." if given else ""
+        surname_initial = f"{surname[0].upper()}." if surname else ""
+
+        if surname_initial:
+            return f"{given_initial} /{surname_initial}/".strip()
+        else:
+            return given_initial
+    else:
+        # Geen schuine strepen aanwezig
+        words = name_str.split()
+        if len(words) == 1:
+            return f"{words[0][0].upper()}."
+        elif len(words) > 1:
+            given_initial = f"{words[0][0].upper()}."
+            surname_initial = f"{words[-1][0].upper()}."
+            return f"{given_initial} /{surname_initial}/"
+
+    return name_str
+
+def anonymize_person_name(name_node):
+    """
+    Past de naam van een persoon aan naar initialen in de GEDCOM JSON-structuur.
+    Past ook eventuele sub-tags zoals GIVEN en SURN aan.
+    """
+    if isinstance(name_node, dict):
+        if "value" in name_node:
+            name_node["value"] = anonymize_name_text(name_node["value"])
+        
+        # Pas eventuele GEDCOM sub-tags GIVEN (voornaam) en SURN (familienaam) aan
+        if "GIVEN" in name_node and isinstance(name_node["GIVEN"], dict) and "value" in name_node["GIVEN"]:
+            val = name_node["GIVEN"]["value"].strip()
+            if val:
+                name_node["GIVEN"]["value"] = f"{val[0].upper()}."
+        
+        if "SURN" in name_node and isinstance(name_node["SURN"], dict) and "value" in name_node["SURN"]:
+            val = name_node["SURN"]["value"].strip()
+            if val:
+                name_node["SURN"]["value"] = f"{val[0].upper()}."
+
+    elif isinstance(name_node, list):
+        for item in name_node:
+            anonymize_person_name(item)
 
 def convert_gedcom_to_json(gedcom_path, json_path):
     root = {}
@@ -139,31 +169,39 @@ def convert_gedcom_to_json(gedcom_path, json_path):
 
                 stack.append((level, node))
 
-    # --- FILTERING: Personen geboren na 1930 filteren ---
-    deleted_xrefs = set()
+    # --- NAAMWIJZIGING: Personen geboren na 1930 initialiseren ---
+    modified_count = 0
 
-    print("--- Overzicht van verwijderde personen (geboren na 1930) ---")
-    for xref, node in list(root.items()):
+    print("--- Geanonimiseerde personen (geboren na 1930) ---")
+    for xref, node in root.items():
         if isinstance(node, dict) and node.get("TAG") == "INDI":
             birth_year = get_birth_year(node)
             
-            # Verwijder als het geboortejaar bekend is en na 1930 valt
+            # Controleer of het geboortejaar bekend is en na 1930 valt
             if birth_year is not None and birth_year > 1930:
-                name_node = node.get("NAME", {})
-                name_val = "Onbekend"
-                if isinstance(name_node, dict):
-                    name_val = name_node.get("value", "Onbekend")
-                elif isinstance(name_node, list) and name_node:
-                    name_val = name_node[0].get("value", "Onbekend")
-                
-                print(f"Verwijderd: {xref} | Naam: {name_val} | Geboortejaar: {birth_year}")
-                deleted_xrefs.add(xref)
-                del root[xref]
+                if "NAME" in node:
+                    # Oude naam ophalen voor weergave
+                    old_name = "Onbekend"
+                    name_node = node["NAME"]
+                    if isinstance(name_node, dict):
+                        old_name = name_node.get("value", "Onbekend")
+                    elif isinstance(name_node, list) and name_node:
+                        old_name = name_node[0].get("value", "Onbekend")
 
-    # Verwijder alle referenties naar de gewiste personen uit FAM records
-    remove_references(root, deleted_xrefs)
+                    # Pas de naam aan
+                    anonymize_person_name(node["NAME"])
 
-    print(f"\nTotaal aantal verwijderde personen: {len(deleted_xrefs)}")
+                    # Nieuwe naam ophalen voor weergave
+                    new_name = "Onbekend"
+                    if isinstance(name_node, dict):
+                        new_name = name_node.get("value", "Onbekend")
+                    elif isinstance(name_node, list) and name_node:
+                        new_name = name_node[0].get("value", "Onbekend")
+
+                    print(f"Gewijzigd: {xref} | Geboortejaar: {birth_year} | {old_name} -> {new_name}")
+                    modified_count += 1
+
+    print(f"\nTotaal aantal geanonimiseerde personen: {modified_count}")
 
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(root, f, ensure_ascii=False, indent=2)
