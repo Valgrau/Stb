@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
     <meta charset="utf-8" />
-    <title>Stamboom Tijdmachine Kaart</title>
+    <title>Stamboom Tijdmachine Kaart (JSON)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -94,7 +94,7 @@
 <div class="control-panel">
     <div class="year-display">Jaar: <span id="selected-year">2026</span></div>
     <input type="range" min="1600" max="2026" value="2026" class="slider" id="year-slider" disabled>
-    <div class="stats" id="status-text">Laden van Gedcom.ged...</div>
+    <div class="stats" id="status-text">Laden van Gedcom.json...</div>
 </div>
 
 <script>
@@ -153,100 +153,93 @@
     let markersGroup = L.layerGroup().addTo(map);
 
     window.addEventListener('DOMContentLoaded', () => {
-        fetch('Gedcom.ged')
+        fetch('Gedcom.json')
             .then(response => {
                 if (!response.ok) {
                     throw new Error("Bestand niet gevonden");
                 }
-                return response.text();
+                return response.json();
             })
-            .then(text => {
-                if (text) parseGedcomText(text);
+            .then(jsonData => {
+                if (jsonData) parseGedcomJson(jsonData);
             })
             .catch(err => {
                 document.getElementById('status-text').innerText = 
-                    "Kon Gedcom.ged niet inladen. Controleer of het bestand in dezelfde map staat.";
+                    "Kon Gedcom.json niet inladen. Controleer of het bestand in dezelfde map staat.";
                 document.getElementById('status-text').style.color = "#c0392b";
             });
     });
 
-    function parseGedcomText(text) {
-        const lines = text.split(/\r?\n/);
+    function cleanId(idStr) {
+        return idStr ? String(idStr).replace(/[^0-9]/g, '') : null;
+    }
+
+    function getValue(elem) {
+        if (!elem) return "";
+        if (Array.isArray(elem)) elem = elem[0];
+        return (elem && elem.value) ? elem.value : "";
+    }
+
+    function getDateValue(eventNode) {
+        if (!eventNode) return null;
+        if (Array.isArray(eventNode)) eventNode = eventNode[0];
+        if (eventNode && eventNode.DATE) {
+            let val = getValue(eventNode.DATE);
+            let match = val.match(/\b(1\d{3}|20\d{2})\b/);
+            return match ? parseInt(match[1], 10) : null;
+        }
+        return null;
+    }
+
+    function getPlaceValue(eventNode) {
+        if (!eventNode) return null;
+        if (Array.isArray(eventNode)) eventNode = eventNode[0];
+        if (eventNode && eventNode.PLAC) {
+            return normalizeLocation(getValue(eventNode.PLAC));
+        }
+        return null;
+    }
+
+    function getIdList(elem) {
+        if (!elem) return [];
+        let list = Array.isArray(elem) ? elem : [elem];
+        return list.map(item => cleanId(item.value)).filter(id => id);
+    }
+
+    function parseGedcomJson(jsonObj) {
         parsedPersons = {};
         families = [];
-        
-        let currentObj = null;
-        let currentFam = null;
-        let currentType = null;
-        let inBirt = false;
-        let inDeat = false;
 
-        for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
-            if (!line) continue;
+        Object.keys(jsonObj).forEach(key => {
+            let node = jsonObj[key];
+            if (!node || typeof node !== 'object') return;
 
-            let parts = line.split(" ");
-            let level = parts[0];
-            let tag = parts[1] ? parts[1].toUpperCase() : "";
-            let value = parts.slice(2).join(" ");
+            let tag = node.TAG || "";
+            let id = cleanId(key);
 
-            if (level === "0") {
-                if (value.includes("INDI") || tag === "INDI") {
-                    currentType = "INDI";
-                    let id = (tag !== "INDI" ? tag : parts[2]).replace(/[^0-9]/g, '');
-                    currentObj = {
-                        id: id,
-                        name: "Onbekend",
-                        birth_year: null,
-                        birth_place: null,
-                        death_year: null,
-                        death_place: null,
-                        is_simulated_birth: false
-                    };
-                    parsedPersons[id] = currentObj;
-                } else if (value.includes("FAM") || tag === "FAM") {
-                    currentType = "FAM";
-                    currentFam = { husb: null, wife: null, children: [] };
-                    families.push(currentFam);
-                } else {
-                    currentType = null;
-                }
-                inBirt = false;
-                inDeat = false;
-            } else if (currentType === "INDI" && currentObj) {
-                if (level === "1") {
-                    inBirt = (tag === "BIRT");
-                    inDeat = (tag === "DEAT");
-                    if (tag === "NAME") {
-                        currentObj.name = value.replace(/\//g, "").trim();
-                    }
-                } else if (level === "2") {
-                    if (inBirt) {
-                        if (tag === "DATE") {
-                            let match = value.match(/\b(1\d{3}|20\d{2})\b/);
-                            if (match) currentObj.birth_year = parseInt(match[1], 10);
-                        } else if (tag === "PLAC") {
-                            currentObj.birth_place = normalizeLocation(value);
-                        }
-                    } else if (inDeat) {
-                        if (tag === "DATE") {
-                            let match = value.match(/\b(1\d{3}|20\d{2})\b/);
-                            if (match) currentObj.death_year = parseInt(match[1], 10);
-                        } else if (tag === "PLAC") {
-                            currentObj.death_place = normalizeLocation(value);
-                        }
-                    }
-                }
-            } else if (currentType === "FAM" && currentFam) {
-                if (level === "1") {
-                    let id = value.replace(/[^0-9]/g, '');
-                    if (tag === "HUSB") currentFam.husb = id;
-                    if (tag === "WIFE") currentFam.wife = id;
-                    if (tag === "CHIL") currentFam.children.push(id);
-                }
+            if (tag === "INDI") {
+                let rawName = getValue(node.NAME);
+                let cleanName = rawName.replace(/\//g, "").trim() || "Onbekend";
+
+                parsedPersons[id] = {
+                    id: id,
+                    name: cleanName,
+                    birth_year: getDateValue(node.BIRT),
+                    birth_place: getPlaceValue(node.BIRT),
+                    death_year: getDateValue(node.DEAT),
+                    death_place: getPlaceValue(node.DEAT),
+                    is_simulated_birth: false
+                };
+            } else if (tag === "FAM") {
+                let husb = node.HUSB ? cleanId(node.HUSB.value) : null;
+                let wife = node.WIFE ? cleanId(node.WIFE.value) : null;
+                let children = getIdList(node.CHIL);
+
+                families.push({ husb: husb, wife: wife, children: children });
             }
-        }
+        });
 
+        // Schatting maken van ontbrekende geboortejaren van ouders op basis van oudste kind
         families.forEach(fam => {
             let childBirthYears = fam.children
                 .map(childId => parsedPersons[childId] ? parsedPersons[childId].birth_year : null)
@@ -395,7 +388,7 @@
 
         document.getElementById('status-text').style.color = "#2c3e50";
         document.getElementById('status-text').innerText = 
-            "Totaal ingelezen uit GEDCOM: " + personList.length + " personen | Actief in " + selectedYear + ": " + activePersonsCount;
+            "Totaal ingelezen uit JSON: " + personList.length + " personen | Actief in " + selectedYear + ": " + activePersonsCount;
     }
 
     const slider = document.getElementById('year-slider');
