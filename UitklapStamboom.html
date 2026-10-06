@@ -2,7 +2,8 @@
 <html lang="nl">
 <head>
     <meta charset="utf-8">
-    <title>Interactieve GEDCOM Stamboom (JSON)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactieve GEDCOM Stamboom</title>
     <!-- Vis.js bibliotheek voor het renderen van het netwerk/stamboom -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style type="text/css">
@@ -13,7 +14,7 @@
         }
         #mynetwork {
             width: 100%;
-            height: 75vh;
+            height: 78vh;
             border: 1px solid #BDBDBD;
             background-color: #F8F9FA;
             border-radius: 4px;
@@ -26,8 +27,8 @@
             flex-wrap: wrap;
         }
         .btn {
-            padding: 8px 16px;
-            font-size: 14px;
+            padding: 8px 14px;
+            font-size: 13px;
             font-weight: bold;
             border: none;
             border-radius: 4px;
@@ -35,7 +36,9 @@
         }
         .btn-reset { background-color: #f44336; color: white; }
         .btn-nav { background-color: #2196F3; color: white; }
+        .btn-file { background-color: #4CAF50; color: white; }
         .btn:disabled { background-color: #CCCCCC; cursor: not-allowed; }
+        
         .search-box {
             padding: 8px;
             font-size: 14px;
@@ -58,16 +61,19 @@
 </head>
 <body>
 
-<h2 id="headerTitle">Stamboom Visualisatie</h2>
+<h2>🌳 Stamboom Visualisatie</h2>
 
 <div class="toolbar">
-    <label for="personSelect"><b>Selecteer / Zoek persoon:</b></label>
+    <label for="personInput"><b>Selecteer / Zoek persoon:</b></label>
     <input type="text" id="personInput" list="personList" class="search-box" placeholder="Typ een naam of ID..." onchange="onPersonSelected()">
     <datalist id="personList"></datalist>
 
     <button id="btnReset" class="btn btn-reset" onclick="resetToStart()">↺ Opnieuw Beginnen</button>
     <button id="btnUndo" class="btn btn-nav" onclick="undo()" disabled>◄ Terug</button>
     <button id="btnRedo" class="btn btn-nav" onclick="redo()" disabled>Voorwaarts ►</button>
+    
+    <input type="file" id="fileInput" accept=".json,.ged" style="display: none;">
+    <button class="btn btn-file" onclick="document.getElementById('fileInput').click()">📁 Bestand Openen</button>
 </div>
 
 <div class="info-panel">
@@ -78,7 +84,6 @@
 
 <script type="text/javascript">
     var personsDB = {};
-    var familiesDB = {};
     var mainPersonId = "";
 
     var historyStack = [];
@@ -88,190 +93,313 @@
     var edgesDataSet = new vis.DataSet();
 
     var container = document.getElementById('mynetwork');
-    var data = {
-        nodes: nodesDataSet,
-        edges: edgesDataSet
-    };
+    var data = { nodes: nodesDataSet, edges: edgesDataSet };
 
+    // Vis.js netwerk instellingen met hiërarchische lay-out
     var options = {
         nodes: {
+            shape: 'box',
             font: { size: 13, face: 'arial' },
             shadow: true,
-            margin: 8
+            margin: 10
         },
         edges: {
             smooth: { type: 'cubicBezier', forceDirection: 'vertical' },
             arrows: { to: { enabled: false } }
         },
-        interaction: {
-            hover: true,
-            zoomView: true,
-            dragView: true
+        layout: {
+            hierarchical: {
+                enabled: true,
+                direction: 'UD',        // Van boven naar beneden
+                sortMethod: 'directed',
+                nodeSpacing: 200,       // Horizontale ruimte tussen blokjes op hetzelfde niveau
+                levelSeparation: 140    // Verticale afstand tussen generaties
+            }
         },
+        interaction: { hover: true, zoomView: true, dragView: true },
         physics: { enabled: false }
     };
 
     var network = new vis.Network(container, data, options);
 
-    var BOX_WIDTH = 220;
-    var LEVEL_HEIGHT = 130;
-
-    // --- 1. PARSER VOOR DE GEDCOM JSON STRUCTUUR ---
-    function parseGedcomJson(jsonObj) {
-        personsDB = {};
-        familiesDB = {};
-
-        function cleanId(idStr) {
-            return idStr ? String(idStr).replace(/@/g, "").trim() : null;
-        }
-
-        function getValue(elem) {
-            if (!elem) return "";
-            if (Array.isArray(elem)) elem = elem[0];
-            return (elem && elem.value) ? elem.value : "";
-        }
-
-        function getDateValue(eventNode) {
-            if (!eventNode) return "";
-            if (Array.isArray(eventNode)) eventNode = eventNode[0];
-            if (eventNode && eventNode.DATE) {
-                return getValue(eventNode.DATE);
+    // Klikken op een persoon in het netwerk om daar naartoe te navigeren
+    network.on("click", function(params) {
+        if (params.nodes.length > 0) {
+            var clickedId = params.nodes[0];
+            if (clickedId !== mainPersonId) {
+                navigateToPerson(clickedId);
             }
-            return "";
+        }
+    });
+
+    function cleanId(idStr) {
+        if (!idStr) return null;
+        if (typeof idStr === 'object') idStr = idStr.value || idStr.val || idStr.id || idStr.xref || '';
+        return String(idStr).replace(/@/g, "").trim();
+    }
+
+    // --- PARSER VOOR GEDCOM JSON STRUCTUUR ---
+    function parseGedcomJson(jsonData) {
+        personsDB = {};
+        var families = {};
+
+        var items = [];
+        if (Array.isArray(jsonData)) {
+            items = jsonData;
+        } else if (typeof jsonData === 'object') {
+            Object.keys(jsonData).forEach(function(k) {
+                var item = jsonData[k];
+                if (typeof item === 'object') {
+                    if (!item.id) item.id = k;
+                    items.push(item);
+                }
+            });
         }
 
-        function getIdList(elem) {
-            if (!elem) return [];
-            var list = Array.isArray(elem) ? elem : [elem];
-            return list.map(item => cleanId(item.value)).filter(id => id);
-        }
+        // 1. Personen en Families verzamelen
+        items.forEach(function(item) {
+            var tag = (item.TAG || item.tag || item.type || '').toUpperCase();
+            var id = cleanId(item.id || item.ID || item.xref);
 
-        Object.keys(jsonObj).forEach(function(key) {
-            var node = jsonObj[key];
-            if (!node || typeof node !== 'object') return;
+            if (tag === 'INDI' || (id && id.startsWith('I'))) {
+                var name = item.NAME || item.name || 'Onbekend';
+                if (typeof name === 'object') name = name.value || name.val || 'Onbekend';
+                name = String(name).replace(/\//g, '').trim();
 
-            var tag = node.TAG || "";
-            var cleanKey = cleanId(key);
+                var birt = extractYear(item, 'BIRT');
+                var deat = extractYear(item, 'DEAT');
+                var sex = extractValue(item, 'SEX').toUpperCase();
 
-            if (tag === "INDI") {
-                var rawName = getValue(node.NAME);
-                var cleanName = rawName.replace(/\//g, "").trim();
-                
-                var parentFam = node.FAMC ? cleanId(node.FAMC.value) : null;
-                var spouseFams = getIdList(node.FAMS);
-
-                var birtDate = getDateValue(node.BIRT);
-                var deatDate = getDateValue(node.DEAT);
-
-                personsDB[cleanKey] = {
-                    type: "INDI",
-                    id: cleanKey,
-                    name: cleanName || "Onbekend",
-                    birtDate: birtDate,
-                    deatDate: deatDate,
-                    parentFam: parentFam,
-                    spouseFams: spouseFams
+                personsDB[id] = {
+                    id: id,
+                    name: name || 'Onbekend',
+                    birt: birt,
+                    deat: deat,
+                    gender: sex,
+                    years: (birt || deat) ? "(" + birt + " - " + deat + ")" : "",
+                    parents: [],
+                    children: [],
+                    spouses: []
                 };
-            } else if (tag === "FAM") {
-                var husband = node.HUSB ? cleanId(node.HUSB.value) : null;
-                var wife = node.WIFE ? cleanId(node.WIFE.value) : null;
-                var children = getIdList(node.CHIL);
-
-                familiesDB[cleanKey] = {
-                    type: "FAM",
-                    id: cleanKey,
-                    husband: husband,
-                    wife: wife,
-                    children: children
-                };
+            } else if (tag === 'FAM' || (id && id.startsWith('F'))) {
+                var husb = cleanId(item.HUSB || item.husb);
+                var wife = cleanId(item.WIFE || item.wife);
+                var chil = item.CHIL || item.chil || [];
+                var children = [];
+                if (Array.isArray(chil)) {
+                    chil.forEach(function(c) { children.push(cleanId(c)); });
+                } else if (chil) {
+                    children.push(cleanId(chil));
+                }
+                families[id] = { husband: husb, wife: wife, children: children };
             }
         });
 
-        // Bereken jaartallen string voor elke persoon
-        Object.keys(personsDB).forEach(function(id) {
-            var p = personsDB[id];
-            var birt = p.birtDate || "";
-            var deat = p.deatDate || "";
-            p.years = (birt || deat) ? "(" + birt + " - " + deat + ")" : "";
-            if (!p.name) p.name = "Onbekend";
+        // 2. Relaties (ouders, kinderen, partners) koppelen
+        Object.values(families).forEach(function(fam) {
+            var parents = [fam.husband, fam.wife].filter(Boolean);
+            if (fam.husband && fam.wife) {
+                if (personsDB[fam.husband] && !personsDB[fam.husband].spouses.includes(fam.wife)) {
+                    personsDB[fam.husband].spouses.push(fam.wife);
+                }
+                if (personsDB[fam.wife] && !personsDB[fam.wife].spouses.includes(fam.husband)) {
+                    personsDB[fam.wife].spouses.push(fam.husband);
+                }
+            }
+            fam.children.forEach(function(childId) {
+                if (personsDB[childId]) {
+                    parents.forEach(function(pId) {
+                        if (!personsDB[childId].parents.includes(pId)) personsDB[childId].parents.push(pId);
+                    });
+                }
+                parents.forEach(function(pId) {
+                    if (personsDB[pId] && !personsDB[pId].children.includes(childId)) {
+                        personsDB[pId].children.push(childId);
+                    }
+                });
+            });
         });
     }
 
-    // --- 2. LAAD HET JSON BESTAND VIA FETCH ---
+    function extractValue(item, tag) {
+        var node = item[tag] || item[tag.toLowerCase()];
+        if (!node) return '';
+        if (typeof node === 'string') return node;
+        if (typeof node === 'object') return node.value || node.val || '';
+        return '';
+    }
+
+    function extractYear(item, tag) {
+        var val = extractValue(item, tag);
+        if (!val && item[tag]) {
+            var dateObj = item[tag].DATE || item[tag].date;
+            if (dateObj) val = typeof dateObj === 'object' ? (dateObj.value || dateObj.val) : dateObj;
+        }
+        var match = String(val).match(/\b\d{3,4}\b/);
+        return match ? match[0] : '';
+    }
+
+    // --- AUTOMATISCH OF HANDMATIG INLADEN ---
     fetch('Gedcom.json')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error("Gedcom.json niet gevonden of kon niet geladen worden.");
-            }
-            return response.json();
+        .then(res => {
+            if (!res.ok) throw new Error("Gedcom.json niet gevonden.");
+            return res.json();
         })
         .then(jsonData => {
-            parseGedcomJson(jsonData);
-            
-            var personIds = Object.keys(personsDB);
-            if (personIds.length === 0) {
-                document.getElementById('status').innerText = "Fout: Geen personen gevonden in Gedcom.json";
-                return;
-            }
-
-            // Vul de zoekbalk / datalist
-            var datalist = document.getElementById('personList');
-            datalist.innerHTML = "";
-            personIds.forEach(function(id) {
-                var p = personsDB[id];
-                var option = document.createElement('option');
-                option.value = p.name + " (" + id + ")";
-                datalist.appendChild(option);
-            });
-
-            // Koppel standaard de eerste persoon (of specifiek I5147 als deze bestaat)
-            mainPersonId = personsDB["I5147"] ? "I5147" : personIds[0];
-            
-            document.getElementById('status').innerText = "Gedcom.json succesvol geladen (" + personIds.length + " personen). Klik op een persoon in het netwerk om uit te klappen.";
-            
-            resetToStart();
+            initTree(jsonData);
         })
-        .catch(error => {
-            document.getElementById('status').innerText = "Fout bij laden: " + error.message;
+        .catch(err => {
+            document.getElementById('status').innerText = "⚠️ Kon Gedcom.json niet automatisch laden. Kies je bestand handmatig via de groene knop 'Bestand Openen'.";
         });
 
-    // --- 3. LAYOUT & VISUALISATIE LOGICA ---
-    function isPositionOccupied(x, y) {
-        var allNodes = nodesDataSet.get();
-        for (var i = 0; i < allNodes.length; i++) {
-            var n = allNodes[i];
-            if (Math.abs(n.x - x) < (BOX_WIDTH - 20) && Math.abs(n.y - y) < 40) {
-                return true;
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                var json = JSON.parse(evt.target.result);
+                initTree(json);
+            } catch (err) {
+                alert("Fout bij het lezen van het JSON-bestand.");
             }
-        }
-        return false;
-    }
+        };
+        reader.readAsText(file);
+    });
 
-    function findFreeX(targetX, targetY) {
-        var x = targetX;
-        var offset = 0;
-        var step = BOX_WIDTH;
+    function initTree(jsonData) {
+        parseGedcomJson(jsonData);
+        var pIds = Object.keys(personsDB);
+        if (pIds.length === 0) {
+            document.getElementById('status').innerText = "Geen geldige personen gevonden in het bestand.";
+            return;
+        }
+
+        var datalist = document.getElementById('personList');
+        datalist.innerHTML = "";
+        pIds.forEach(function(id) {
+            var p = personsDB[id];
+            var option = document.createElement('option');
+            option.value = p.name + " " + p.years + " (" + id + ")";
+            datalist.appendChild(option);
+        });
+
+        mainPersonId = personsDB["I5147"] ? "I5147" : pIds[0];
+        historyStack = [];
+        redoStack = [];
         
-        while (isPositionOccupied(x, targetY)) {
-            if (offset <= 0) {
-                offset = -offset + step;
-            } else {
-                offset = -offset;
-            }
-            x = targetX + offset;
-        }
-        return x;
+        document.getElementById('status').innerText = "✅ " + pIds.length + " personen geladen. Klik op een persoon om te navigeren.";
+        renderTreeFor(mainPersonId);
     }
 
-    function addPersonNode(personId, x, y) {
-        var existing = nodesDataSet.get(personId);
-        if (existing) return existing;
+    // --- RENDEREN VAN DE STAMBOOM (STAP VOOR STAP PER GENERATIE-NIVEAU) ---
+    function renderTreeFor(personId) {
+        mainPersonId = personId;
+        nodesDataSet.clear();
+        edgesDataSet.clear();
 
         var p = personsDB[personId];
-        if (!p) return null;
+        if (!p) return;
 
-        var isMain = (personId === mainPersonId);
+        var newNodes = [];
+        var newEdges = [];
 
-        var nodeData = {
+        // Niveau 0: OUDERS (bovenaan)
+        p.parents.forEach(function(parentId) {
+            var parent = personsDB[parentId];
+            if (parent) {
+                newNodes.push(createNodeObj(parent, 0, false));
+                newEdges.push({ from: parentId, to: personId, color: '#2196F3', width: 2 });
+            }
+        });
+
+        // Niveau 1: CENTRALE HOOFDPERSOON (midden)
+        newNodes.push(createNodeObj(p, 1, true));
+
+        // Niveau 1: PARTNERS (naast de hoofdpersoon)
+        p.spouses.forEach(function(spouseId) {
+            var spouse = personsDB[spouseId];
+            if (spouse) {
+                newNodes.push(createNodeObj(spouse, 1, false));
+                newEdges.push({ from: personId, to: spouseId, color: '#E91E63', width: 2, dashes: true });
+            }
+        });
+
+        // Niveau 2: KINDEREN (onderaan)
+        p.children.forEach(function(childId) {
+            var child = personsDB[childId];
+            if (child) {
+                newNodes.push(createNodeObj(child, 2, false));
+                newEdges.push({ from: personId, to: childId, color: '#4CAF50', width: 2 });
+            }
+        });
+
+        nodesDataSet.add(newNodes);
+        edgesDataSet.add(newEdges);
+
+        updateNavigationButtons();
+    }
+
+    function createNodeObj(p, level, isMain) {
+        var bgColor = p.gender === 'F' ? '#FFB6C1' : (p.gender === 'M' ? '#87CEFA' : '#E0E0E0');
+        if (isMain) bgColor = '#FFD700'; // Goud/geel voor de geselecteerde hoofdpersoon
+
+        return {
             id: p.id,
-            label: p.name
+            label: p.name + (p.years ? "\n" + p.years : ""),
+            level: level, // Zorgt dat Vis.js de persoon op het juiste horizontale niveau zet
+            color: { background: bgColor, border: isMain ? '#FF8C00' : '#555' },
+            font: { bold: isMain }
+        };
+    }
+
+    // --- NAVIGATIE & HISTORIE ---
+    function navigateToPerson(newId) {
+        if (personsDB[newId]) {
+            historyStack.push(mainPersonId);
+            redoStack = [];
+            renderTreeFor(newId);
+        }
+    }
+
+    function onPersonSelected() {
+        var val = document.getElementById('personInput').value;
+        var match = val.match(/\((I\d+)\)/);
+        if (match && match[1] && personsDB[match[1]]) {
+            navigateToPerson(match[1]);
+        }
+    }
+
+    function undo() {
+        if (historyStack.length > 0) {
+            redoStack.push(mainPersonId);
+            var prevId = historyStack.pop();
+            renderTreeFor(prevId);
+        }
+    }
+
+    function redo() {
+        if (redoStack.length > 0) {
+            historyStack.push(mainPersonId);
+            var nextId = redoStack.pop();
+            renderTreeFor(nextId);
+        }
+    }
+
+    function resetToStart() {
+        var startId = personsDB["I5147"] ? "I5147" : Object.keys(personsDB)[0];
+        if (startId) {
+            historyStack = [];
+            redoStack = [];
+            renderTreeFor(startId);
+        }
+    }
+
+    function updateNavigationButtons() {
+        document.getElementById('btnUndo').disabled = (historyStack.length === 0);
+        document.getElementById('btnRedo').disabled = (redoStack.length === 0);
+    }
+</script>
+
+</body>
+</html>
