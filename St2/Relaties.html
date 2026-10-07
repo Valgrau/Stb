@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatienetwerk - Zuiver Bloedverwantschap</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; padding: 0; 
+            background-color: #2c3e50; 
+            display: flex; flex-direction: column; 
+            height: 100vh; overflow: hidden;
+        }
+        #header { 
+            background-color: #1a252f; color: white; 
+            padding: 12px 20px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
+            display: flex; justify-content: space-between; align-items: center; 
+            z-index: 10;
+        }
+        #header h1 { margin: 0; font-size: 18px; }
+        #header p { margin: 3px 0 0 0; font-size: 12px; color: #bdc3c7; }
+        .controls { display: flex; gap: 8px; align-items: center; }
+        .controls input[type="text"] {
+            padding: 6px 10px; border-radius: 4px; border: 1px solid #ccc;
+            font-size: 13px; width: 220px;
+        }
+        .btn {
+            padding: 8px 16px; background-color: #27ae60; color: white;
+            border: none; border-radius: 4px; cursor: pointer;
+            font-size: 13px; font-weight: 600; transition: background-color 0.2s;
+            display: inline-block; text-align: center;
+        }
+        .btn:hover { background-color: #219150; }
+        .btn-file { background-color: #3498db; }
+        .btn-file:hover { background-color: #2980b9; }
+
+        #main-container { position: relative; flex: 1; width: 100%; height: 100%; }
+        #mynetwork { width: 100%; height: 100%; background-color: #ffffff; }
+
+        .legend { 
+            position: absolute; bottom: 20px; left: 20px; 
+            background: rgba(255, 255, 255, 0.95); padding: 12px; 
+            border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.15); 
+            font-size: 12px; line-height: 1.8; z-index: 1000; 
+        }
+        .legend-item { display: flex; align-items: center; }
+        .color-box { width: 16px; height: 16px; margin-right: 8px; border-radius: 3px; display: inline-block; }
+
+        /* Modal Overlay voor bestand inladen */
+        #file-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.94); color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 2000; text-align: center; padding: 20px;
+        }
+        .modal-box {
+            background: white; color: #333; padding: 30px; border-radius: 12px;
+            max-width: 500px; width: 92%; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            border: 2px dashed #3498db;
+        }
+        .modal-box h2 { margin-top: 0; color: #2c3e50; font-size: 22px; }
+        
+        /* Echte native file input styling voor 100% werking */
+        .native-file-input {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            width: 100%;
+            font-size: 13px;
+        }
+
+        #error-msg { 
+            display: none; background: #f8d7da; color: #721c24; 
+            padding: 10px; border-radius: 4px; border: 1px solid #f5c6cb;
+            margin-top: 15px; font-size: 13px; text-align: left;
+            word-break: break-word;
+        }
+        textarea {
+            width: 100%; height: 90px; margin-top: 8px; padding: 8px;
+            font-family: monospace; font-size: 11px; border: 1px solid #ccc; border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <div>
+        <h1>Relatienetwerk - Zuiver Bloedverwantschap</h1>
+        <p>Toont de gemeenschappelijke biologische voorouders en afstammingslijnen.</p>
+    </div>
+    <div class="controls">
+        <label for="header-file-input" class="btn btn-file">📂 Kies Bestand</label>
+        <input type="file" id="header-file-input" accept=".json,.ged,.gedcom,.txt" style="display:none" onchange="readSelectedFile(event)" />
+        
+        <input type="text" id="target-ids-input" value="I5146,I3255" placeholder="Doel ID's (bijv: I5146, I3255)" />
+        <button class="btn" onclick="updateView()">Berekenen</button>
+    </div>
+</div>
+
+<div id="main-container">
+    <div id="file-modal">
+        <div class="modal-box">
+            <h2>Bloedverwantschap Analyse</h2>
+            <p style="font-size:14px; color:#555; margin-bottom:10px;">
+                Selecteer je bestand (<strong>.json</strong> of <strong>.ged</strong>):
+            </p>
+            
+            <!-- Rechtstreekse browser-knop die NOOIT geblokkeerd wordt -->
+            <input type="file" id="modal-file-input" class="native-file-input" accept=".json,.ged,.gedcom,.txt" onchange="readSelectedFile(event)" />
+
+            <div style="margin: 15px 0 8px 0; font-size:12px; color:#888;">— OF PLAK DE INHOUD VAN HET BESTAND HIER —</div>
+            <textarea id="paste-box" placeholder="Plak hier de tekst uit Gedcom.json of Gedcom.ged..."></textarea>
+            <button class="btn" style="margin-top:8px; width:100%;" onclick="processPastedText()">Verwerk Geplakte Tekst</button>
+
+            <div id="error-msg"></div>
+        </div>
+    </div>
+
+    <div id="mynetwork"></div>
+
+    <div class="legend">
+        <strong>Legende:</strong><br>
+        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 3px solid #D32F2F;"></span> Opgegeven Man (Rode Rand / Ovaal)</div>
+        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 3px solid #D32F2F;"></span> Opgegeven Vrouw (Rode Rand / Ovaal)</div>
+        <div class="legend-item"><span class="color-box" style="background:#e0e0e0; border: 1px solid #555;"></span> Tussenliggende Voorouder (Rechthoek)</div>
+        <hr style="margin: 5px 0;">
+        <div class="legend-item"><span style="color:#4CAF50; font-weight:bold; margin-right:5px;">➔</span> Biologische Ouder-kind relatie</div>
+        <div class="legend-item"><span style="color:#E91E63; font-weight:bold; margin-right:5px;">---</span> Partner relatie</div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    let individuals = {};
+    let childToParents = {};
+    let parentChildPairs = [];
+    let partnerPairs = [];
+    let targetIds = new Set();
+
+    let network = null;
+    let nodesDataSet = null;
+    let edgesDataSet = null;
+    let rawNodes = [];
+    let rawEdges = [];
+    let adjList = {};
+
+    function formatId(raw) {
+        if (!raw) return "";
+        let cleaned = String(raw).trim().toUpperCase().replace(/[^A-Z0-9@]/g, '');
+        if (!cleaned) return "";
+        if (!cleaned.startsWith('@')) cleaned = '@' + cleaned;
+        if (!cleaned.endsWith('@')) cleaned = cleaned + '@';
+        return cleaned;
+    }
+
+    function parseYear(dateStr) {
+        if (!dateStr) return "";
+        const match = String(dateStr).match(/\b(1\d{3}|20\d{2})\b/);
+        return match ? match[1] : "";
+    }
+
+    function showError(msg) {
+        const errEl = document.getElementById('error-msg');
+        errEl.innerHTML = "<strong>Fout bij verwerken:</strong><br>" + msg;
+        errEl.style.display = 'block';
+    }
+
+    // Automatische poging tot inladen via webserver indien aanwezig
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            let res = await fetch('Gedcom.json');
+            if (res.ok) {
+                let text = await res.text();
+                parseContentAuto(text);
+            }
+        } catch(e) {
+            // Geen automatische fetch op file:// protocol
+        }
+    });
+
+    function readSelectedFile(e) {
+        let file = e.target.files[0];
+        if (!file) return;
+        let reader = new FileReader();
+        reader.onload = function(evt) {
+            parseContentAuto(evt.target.result);
+        };
+        reader.onerror = function() {
+            showError("Kan het bestand niet lezen vanaf de schijf.");
+        };
+        reader.readAsText(file, "utf-8");
+    }
+
+    function processPastedText() {
+        let text = document.getElementById('paste-box').value.trim();
+        if (!text) {
+            showError("Plak eerst de inhoud van het bestand in het tekstvak.");
+            return;
+        }
+        parseContentAuto(text);
+    }
+
+    // Automatische herkenning: JSON of GEDCOM tekst
+    function parseContentAuto(content) {
+        document.getElementById('error-msg').style.display = 'none';
+        content = content.trim();
+
+        try {
+            if (content.startsWith('{') || content.startsWith('[')) {
+                let json = JSON.parse(content);
+                processGedcomJson(json);
+            } else {
+                parseNativeGedcom(content);
+            }
+            
+            // Verberg het venster bij succes
+            document.getElementById('file-modal').style.display = 'none';
+            updateView();
+        } catch(err) {
+            console.error(err);
+            showError(err.message || "Het bestand kon niet verwerkt worden.");
+        }
+    }
+
+    // PARSER 1: GEDCOM (.ged) tekst
+    function parseNativeGedcom(text) {
+        individuals = {};
+        childToParents = {};
+        parentChildPairs = [];
+        partnerPairs = [];
+
+        const lines = text.split(/\r?\n/);
+        let currentObj = null;
+        let currentType = null;
+        let familyRecords = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (!line) continue;
+
+            const match = line.match(/^(\d+)\s+(@[^@]+@)?\s*(\w+)?(.*)$/);
+            if (!match) continue;
+
+            const level = parseInt(match[1]);
+            const pointer = match[2] ? match[2].trim() : "";
+            const tag = match[3] ? match[3].trim() : "";
+            const value = match[4] ? match[4].trim() : "";
+
+            if (level === 0) {
+                if (tag === 'INDI' || value === 'INDI') {
+                    currentType = 'INDI';
+                    let id = formatId(pointer || tag);
+                    currentObj = { id: id, name: 'Onbekend', gender: 'U', bYear: '', dYear: '' };
+                    individuals[id] = currentObj;
+                } else if (tag === 'FAM' || value === 'FAM') {
+                    currentType = 'FAM';
+                    let id = formatId(pointer || tag);
+                    currentObj = { id: id, husbands: [], wives: [], children: [] };
+                    familyRecords.push(currentObj);
+                } else {
+                    currentType = null;
+                    currentObj = null;
+                }
+            } else if (currentType === 'INDI' && currentObj) {
+                if (tag === 'NAME') {
+                    currentObj.name = value.replace(/\//g, '').
