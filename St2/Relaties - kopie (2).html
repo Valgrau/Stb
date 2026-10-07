@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatienetwerk - 5 Invoervelden met Autocomplete</title>
+    <title>Relatienetwerk - Vaste & Losse Posities</title>
     <!-- Vis.js bibliotheek voor het renderen van het netwerk -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style type="text/css">
@@ -14,7 +14,7 @@
         }
         #mynetwork {
             width: 100%;
-            height: 55vh;
+            height: 60vh;
             border: 1px solid #BDBDBD;
             background-color: #F8F9FA;
             border-radius: 4px;
@@ -23,62 +23,10 @@
         .toolbar {
             margin-bottom: 12px;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
             flex-wrap: wrap;
-            background: #F1F3F4;
-            padding: 10px 14px;
-            border-radius: 6px;
         }
-        .input-group {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-        }
-        .input-group label {
-            font-size: 11px;
-            font-weight: bold;
-            color: #555;
-            margin-bottom: 2px;
-        }
-        .search-box {
-            padding: 6px 10px;
-            font-size: 13px;
-            width: 200px;
-            border: 1px solid #CCC;
-            border-radius: 4px;
-        }
-        /* Autocomplete Popup Stijlen */
-        .autocomplete-items {
-            position: absolute;
-            border: 1px solid #d4d4d4;
-            border-bottom: none;
-            border-top: none;
-            z-index: 99;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background-color: #fff;
-            max-height: 220px;
-            overflow-y: auto;
-            box-shadow: 0px 4px 6px rgba(0,0,0,0.1);
-            border-radius: 0 0 4px 4px;
-        }
-        .autocomplete-items div {
-            padding: 8px 10px;
-            cursor: pointer;
-            background-color: #fff;
-            border-bottom: 1px solid #d4d4d4;
-            font-size: 12px;
-        }
-        .autocomplete-items div:hover {
-            background-color: #e9e9e9;
-        }
-        .autocomplete-active {
-            background-color: #2196F3 !important;
-            color: #ffffff;
-        }
-
         .btn {
             padding: 8px 14px;
             font-size: 13px;
@@ -93,17 +41,24 @@
         .btn-file { background-color: #FF9800; color: white; }
         .btn-clear { background-color: #78909C; color: white; }
         
+        .search-box {
+            padding: 8px;
+            font-size: 14px;
+            width: 220px;
+            border: 1px solid #CCC;
+            border-radius: 4px;
+        }
         .num-box {
-            padding: 6px;
-            font-size: 13px;
-            width: 50px;
+            padding: 8px;
+            font-size: 14px;
+            width: 60px;
             border: 1px solid #CCC;
             border-radius: 4px;
         }
         .info-panel {
             background: #E3F2FD;
             border-left: 5px solid #2196F3;
-            padding: 8px 14px;
+            padding: 10px 14px;
             margin-bottom: 12px;
             font-size: 13px;
             border-radius: 4px;
@@ -147,7 +102,7 @@
             border-radius: 6px;
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: 12px;
-            max-height: 180px;
+            max-height: 200px;
             overflow-y: auto;
             border: 1px solid #333;
         }
@@ -171,45 +126,18 @@
 <h2>🩸 Relatienetwerk & Bloedverwantschap</h2>
 
 <div class="toolbar">
-    <div class="input-group">
-        <label>Persoon 1</label>
-        <input type="text" id="target1" class="search-box" placeholder="Typ naam..." autocomplete="off">
-        <input type="hidden" id="targetId1">
-    </div>
-    <div class="input-group">
-        <label>Persoon 2</label>
-        <input type="text" id="target2" class="search-box" placeholder="Typ naam..." autocomplete="off">
-        <input type="hidden" id="targetId2">
-    </div>
-    <div class="input-group">
-        <label>Persoon 3 (optioneel)</label>
-        <input type="text" id="target3" class="search-box" placeholder="Typ naam..." autocomplete="off">
-        <input type="hidden" id="targetId3">
-    </div>
-    <div class="input-group">
-        <label>Persoon 4 (optioneel)</label>
-        <input type="text" id="target4" class="search-box" placeholder="Typ naam..." autocomplete="off">
-        <input type="hidden" id="targetId4">
-    </div>
-    <div class="input-group">
-        <label>Persoon 5 (optioneel)</label>
-        <input type="text" id="target5" class="search-box" placeholder="Typ naam..." autocomplete="off">
-        <input type="hidden" id="targetId5">
-    </div>
+    <label for="targetInput"><b>Doel ID's:</b></label>
+    <input type="text" id="targetInput" class="search-box" value="I5146, I3255" placeholder="bijv. I5146, I3255">
 
-    <div class="input-group">
-        <label>Max Gen</label>
-        <input type="number" id="maxGenInput" class="num-box" value="8" min="1" max="25">
-    </div>
+    <label for="maxGenInput"><b>Max Generaties:</b></label>
+    <input type="number" id="maxGenInput" class="num-box" value="8" min="1" max="25">
 
-    <div style="display: flex; gap: 8px; align-items: flex-end; margin-top: 15px;">
-        <button class="btn btn-calc" onclick="calculateAndRender()">⚡ Berekenen</button>
-        <button id="btnBlood" class="btn btn-mode active" onclick="setMode('blood')">Zuiver Bloed</button>
-        <button id="btnShortest" class="btn btn-mode" onclick="setMode('shortest')">Kortste Route</button>
-        <button class="btn btn-file" onclick="document.getElementById('fileInput').click()">📁 Open JSON</button>
-    </div>
+    <button class="btn btn-calc" onclick="calculateAndRender()">⚡ Berekenen</button>
+    <button id="btnBlood" class="btn btn-mode active" onclick="setMode('blood')">Zuiver Bloedverwantschap</button>
+    <button id="btnShortest" class="btn btn-mode" onclick="setMode('shortest')">Kortste Route</button>
     
     <input type="file" id="fileInput" accept=".json,.ged" style="display: none;" onchange="handleFileSelect(event)">
+    <button class="btn btn-file" onclick="document.getElementById('fileInput').click()">📁 Bestand Openen</button>
 </div>
 
 <div class="info-panel" id="infoPanel">
@@ -222,14 +150,14 @@
 
 <div id="mynetwork">
     <div class="legend">
-        <strong>Legende (Sleep = vast | Dubbelklik = los):</strong><br>
-        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 2px solid #D32F2F;"></span> Opgegeven Man (Rode Rand)</div>
-        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 2px solid #D32F2F;"></span> Opgegeven Vrouw (Rode Rand)</div>
-        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 1px solid #555;"></span> Tussenliggende Man</div>
-        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 1px solid #555;"></span> Tussenliggende Vrouw</div>
+        <strong>Legende (Tip: Dubbelklik om vast/los te zetten):</strong><br>
+        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 2px solid #D32F2F;"></span> Opgegeven Man (Ovaal / Rode Rand)</div>
+        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 2px solid #D32F2F;"></span> Opgegeven Vrouw (Ovaal / Rode Rand)</div>
+        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 1px solid #555;"></span> Tussenliggende Man (Rechthoek)</div>
+        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 1px solid #555;"></span> Tussenliggende Vrouw (Rechthoek)</div>
         <hr style="margin: 4px 0;">
-        <div class="legend-item"><span style="color:#4CAF50; font-weight:bold; margin-right:5px;">➔</span> Ouder-kind</div>
-        <div class="legend-item"><span style="color:#E91E63; font-weight:bold; margin-right:5px;">---</span> Partner</div>
+        <div class="legend-item"><span style="color:#4CAF50; font-weight:bold; margin-right:5px;">➔</span> Biologische Ouder-kind relatie</div>
+        <div class="legend-item"><span style="color:#E91E63; font-weight:bold; margin-right:5px;">---</span> Partner relatie</div>
     </div>
 </div>
 
@@ -256,6 +184,7 @@
 
         var container = document.getElementById('logContainer');
         container.scrollTop = container.scrollHeight;
+
         console.log('[' + type.toUpperCase() + '] ' + msg);
     }
 
@@ -274,8 +203,14 @@
     var data = { nodes: nodesDataSet, edges: edgesDataSet };
 
     var options = {
-        nodes: { font: { size: 13, face: 'Segoe UI' }, margin: 8 },
-        edges: { font: { size: 10, align: 'middle' }, smooth: { type: 'continuous' } },
+        nodes: {
+            font: { size: 13, face: 'Segoe UI' },
+            margin: 8
+        },
+        edges: {
+            font: { size: 10, align: 'middle' },
+            smooth: { type: 'continuous' }
+        },
         physics: {
             solver: 'forceAtlas2Based',
             forceAtlas2Based: { gravitationalConstant: -35, centralGravity: 0.01, springLength: 75, springConstant: 0.08 },
@@ -287,29 +222,38 @@
 
     var network = new vis.Network(container, data, options);
 
+    // Zet een knooppunt vast wanneer je stopt met slepen
     network.on("dragEnd", function (params) {
         if (params.nodes.length > 0) {
             params.nodes.forEach(function (nodeId) {
                 var pointerPos = network.getPositions([nodeId]);
                 if (pointerPos[nodeId]) {
-                    nodesDataSet.update({ id: nodeId, fixed: { x: true, y: true } });
+                    nodesDataSet.update({
+                        id: nodeId,
+                        fixed: { x: true, y: true }
+                    });
                     log("Persoon " + nodeId + " vastgezet op huidige positie.", "info");
                 }
             });
         }
     });
 
+    // Dubbelklik op een knooppunt om hem WEER LOS te zetten
     network.on("doubleClick", function (params) {
         if (params.nodes.length > 0) {
             params.nodes.forEach(function (nodeId) {
-                nodesDataSet.update({ id: nodeId, fixed: false });
-                log("Persoon " + nodeId + " weer losgezet.", "success");
+                nodesDataSet.update({
+                    id: nodeId,
+                    fixed: false
+                });
+                log("Persoon " + nodeId + " weer losgezet (vrijgegeven voor fysica).", "success");
             });
         }
     });
 
     network.on("select", function (params) {
         if (params.nodes.length === 2) {
+            log("Twee knopen geselecteerd: " + params.nodes.join(" en ") + ". Pad oplichten...", "info");
             highlightPathBetween(params.nodes[0], params.nodes[1]);
         } else if (params.nodes.length === 0) {
             resetHighlighting();
@@ -340,13 +284,6 @@
         if (!node) return '';
         if (typeof node === 'string') return node;
         if (typeof node === 'number') return String(node);
-        if (Array.isArray(node)) {
-            for (var i = 0; i < node.length; i++) {
-                var res = parseSingleString(node[i]);
-                if (res) return res;
-            }
-            return '';
-        }
         if (typeof node === 'object') {
             if (node.value) return parseSingleString(node.value);
             if (node.val) return parseSingleString(node.val);
@@ -383,7 +320,9 @@
             var cid = cleanIndiId(node);
             if (cid && cid.startsWith("I")) ids.push(cid);
         } else if (Array.isArray(node)) {
-            node.forEach(function(item) { ids = ids.concat(extractIndiIds(item)); });
+            node.forEach(function(item) {
+                ids = ids.concat(extractIndiIds(item));
+            });
         } else if (typeof node === 'object') {
             if (node.value || node.val || node.id || node.xref) {
                 var cid = cleanIndiId(node.value || node.val || node.id || node.xref);
@@ -405,7 +344,9 @@
             var cid = cleanFamId(node);
             if (cid && cid.startsWith("F")) ids.push(cid);
         } else if (Array.isArray(node)) {
-            node.forEach(function(item) { ids = ids.concat(extractFamIds(item)); });
+            node.forEach(function(item) {
+                ids = ids.concat(extractFamIds(item));
+            });
         } else if (typeof node === 'object') {
             if (node.value || node.val || node.id || node.xref) {
                 var cid = cleanFamId(node.value || node.val || node.id || node.xref);
@@ -430,13 +371,16 @@
         log("Starten met parseren van JSON-structuur...", "info");
         personsDB = {};
         var familiesDB = {};
+
         var topKeys = Object.keys(jsonData);
+        log("Aantal top-level keys in JSON: " + topKeys.length, "info");
 
         topKeys.forEach(function(key) {
             var item = jsonData[key];
             if (!item || typeof item !== 'object') return;
 
             var tag = (item.TAG || item.tag || '').toUpperCase();
+
             var isIndi = (tag === 'INDI') || key.startsWith('@I') || key.startsWith('I');
             var isFam = (tag === 'FAM') || key.startsWith('@F') || key.startsWith('F');
 
@@ -481,26 +425,47 @@
                 var wives = extractIndiIds(item.WIFE || item.wife);
                 var children = extractIndiIds(item.CHIL || item.chil);
 
-                familiesDB[cleanedFamId] = { id: cleanedFamId, husbands: husbands, wives: wives, children: children };
+                familiesDB[cleanedFamId] = {
+                    id: cleanedFamId,
+                    husbands: husbands,
+                    wives: wives,
+                    children: children
+                };
             }
         });
 
         log("Gevonden personen (INDI): " + Object.keys(personsDB).length, "success");
+        log("Gevonden gezinnen (FAM): " + Object.keys(familiesDB).length, "info");
+
+        var totalParentChildLinks = 0;
+        var totalPartnerLinks = 0;
 
         Object.values(familiesDB).forEach(function(fam) {
             var parents = [].concat(fam.husbands, fam.wives);
+
             fam.husbands.forEach(function(hId) {
                 fam.wives.forEach(function(wId) {
-                    if (personsDB[hId] && !personsDB[hId].spouses.includes(wId)) personsDB[hId].spouses.push(wId);
-                    if (personsDB[wId] && !personsDB[wId].spouses.includes(hId)) personsDB[wId].spouses.push(hId);
+                    if (personsDB[hId] && !personsDB[hId].spouses.includes(wId)) {
+                        personsDB[hId].spouses.push(wId);
+                        totalPartnerLinks++;
+                    }
+                    if (personsDB[wId] && !personsDB[wId].spouses.includes(hId)) {
+                        personsDB[wId].spouses.push(hId);
+                    }
                 });
             });
+
             fam.children.forEach(function(childId) {
                 if (personsDB[childId]) {
                     parents.forEach(function(pId) {
                         if (personsDB[pId]) {
-                            if (!personsDB[childId].parents.includes(pId)) personsDB[childId].parents.push(pId);
-                            if (!personsDB[pId].children.includes(childId)) personsDB[pId].children.push(childId);
+                            if (!personsDB[childId].parents.includes(pId)) {
+                                personsDB[childId].parents.push(pId);
+                                totalParentChildLinks++;
+                            }
+                            if (!personsDB[pId].children.includes(childId)) {
+                                personsDB[pId].children.push(childId);
+                            }
                         }
                     });
                 }
@@ -514,91 +479,47 @@
                     var parents = [].concat(fam.husbands, fam.wives);
                     parents.forEach(function(pId) {
                         if (personsDB[pId]) {
-                            if (!pObj.parents.includes(pId)) pObj.parents.push(pId);
-                            if (!personsDB[pId].children.includes(pObj.id)) personsDB[pId].children.push(pObj.id);
+                            if (!pObj.parents.includes(pId)) {
+                                pObj.parents.push(pId);
+                                totalParentChildLinks++;
+                            }
+                            if (!personsDB[pId].children.includes(pObj.id)) {
+                                personsDB[pId].children.push(pObj.id);
+                            }
                         }
                     });
                 }
             });
         });
 
-        setupAutocomplete();
+        log("Totaal opgebouwde ouder-kind koppelingen: " + totalParentChildLinks, "success");
+        log("Totaal opgebouwde partner koppelingen: " + totalPartnerLinks, "info");
     }
-
-    function setupAutocomplete() {
-        for (let i = 1; i <= 5; i++) {
-            let input = document.getElementById("target" + i);
-            let hiddenId = document.getElementById("targetId" + i);
-
-            input.addEventListener("input", function() {
-                let val = this.value;
-                closeAllLists();
-                if (!val || val.length < 2) {
-                    hiddenId.value = "";
-                    return;
-                }
-
-                let listDiv = document.createElement("DIV");
-                listDiv.setAttribute("id", this.id + "-autocomplete-list");
-                listDiv.setAttribute("class", "autocomplete-items");
-                this.parentNode.appendChild(listDiv);
-
-                let personsArray = Object.values(personsDB);
-                for (let p of personsArray) {
-                    if (p.name.toLowerCase().indexOf(val.toLowerCase()) !== -1) {
-                        let itemDiv = document.createElement("DIV");
-                        itemDiv.innerHTML = "<strong>" + p.name + "</strong> " + (p.years ? p.years : "");
-                        itemDiv.innerHTML += "<input type='hidden' value='" + p.id + "' data-name='" + p.name + "'>";
-                        
-                        itemDiv.addEventListener("click", function() {
-                            input.value = p.name;
-                            hiddenId.value = p.id;
-                            closeAllLists();
-                        });
-                        listDiv.appendChild(itemDiv);
-                    }
-                }
-            });
-
-            input.addEventListener("blur", function() {
-                setTimeout(() => {
-                    if (!input.value) hiddenId.value = "";
-                }, 200);
-            });
-        }
-    }
-
-    function closeAllLists(elmnt) {
-        let items = document.getElementsByClassName("autocomplete-items");
-        for (let i = 0; i < items.length; i++) {
-            if (elmnt != items[i] && elmnt != event?.target) {
-                items[i].parentNode.removeChild(items[i]);
-            }
-        }
-    }
-
-    document.addEventListener("click", function (e) {
-        closeAllLists(e.target);
-    });
 
     function initTree(jsonData) {
         try {
+            log("Inlezen van JSON-data gestart...", "info");
             parseGedcomJson(jsonData);
             var pIds = Object.keys(personsDB);
             if (pIds.length === 0) {
+                log("Geen personen gevonden in JSON!", "error");
                 setStatus("⚠️ Geen geldige personen gevonden in het JSON-bestand.", true);
                 return;
             }
+
             document.getElementById('dropZone').style.display = 'none';
-            setStatus("✅ " + pIds.length + " personen geladen. Kies personen in de velden hierboven.", false);
+            setStatus("✅ " + pIds.length + " personen geladen. Klik op 'Berekenen' om de relaties te tonen.", false);
+            calculateAndRender();
         } catch (err) {
-            setStatus("⚠️ Fout bij verwerken data: " + err.message, true);
+            log("Fout bij verwerken van JSON-data: " + err.message, "error");
+            setStatus("⚠️ Fout bij het verwerken van de data: " + err.message, true);
         }
     }
 
     function handleFileSelect(e) {
         var file = e.target.files[0];
         if (!file) return;
+        log("Bestand handmatig geselecteerd: " + file.name + " (" + file.size + " bytes)", "info");
         readFile(file);
     }
 
@@ -606,45 +527,72 @@
         var reader = new FileReader();
         reader.onload = function(evt) {
             try {
+                log("Bestand uitgelezen. Proberen te parsen als JSON...", "info");
                 var json = JSON.parse(evt.target.result);
                 initTree(json);
             } catch (err) {
-                setStatus("⚠️ Geen geldig JSON-bestand.", true);
+                log("JSON.parse mislukt: " + err.message, "error");
+                setStatus("⚠️ Het geselecteerde bestand is geen geldig JSON-bestand.", true);
             }
         };
         reader.readAsText(file);
     }
 
     window.addEventListener('load', function() {
+        log("DOM/Pagina geladen. Gestart met automatische fetch('Gedcom.json')...", "info");
         var hasLoaded = false;
-        setTimeout(function() {
+        var timeout = setTimeout(function() {
             if (!hasLoaded) {
-                setStatus("⚠️ Klik op 'Open JSON' om je bestand te selecteren.", true);
+                log("Fetch time-out bereikt (2 seconden). Browser blokkeert mogelijk automatische verzoeken via file:///", "warn");
+                setStatus("⚠️ Automatisch inladen duurt te lang of is geblokkeerd (file:///). Klik hieronder op 'Bestand Openen' om Gedcom.json handmatig te selecteren.", true);
             }
         }, 2000);
 
         fetch('Gedcom.json')
-            .then(res => { if (!res.ok) throw new Error(); return res.json(); })
-            .then(jsonData => { hasLoaded = true; initTree(jsonData); })
-            .catch(() => { hasLoaded = true; setStatus("⚠️ Klik op 'Open JSON' om Gedcom.json te selecteren.", true); });
+            .then(res => {
+                log("Fetch antwoord ontvangen. HTTP Status: " + res.status, "info");
+                if (!res.ok) throw new Error("Gedcom.json niet gevonden op server (Status " + res.status + ")");
+                return res.json();
+            })
+            .then(jsonData => {
+                hasLoaded = true;
+                clearTimeout(timeout);
+                log("Gedcom.json succesvol geladen via fetch().", "success");
+                initTree(jsonData);
+            })
+            .catch(err => {
+                hasLoaded = true;
+                clearTimeout(timeout);
+                log("Fetch mislukt: " + err.message, "error");
+                setStatus("⚠️ Kon Gedcom.json niet automatisch laden via de browser (file:///). Klik hieronder om het bestand te selecteren.", true);
+            });
     });
 
     ['dragover', 'drop'].forEach(function(eventName) {
-        window.addEventListener(eventName, function(e) { e.preventDefault(); e.stopPropagation(); });
+        window.addEventListener(eventName, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        });
     });
 
     window.addEventListener('drop', function(e) {
-        if (e.dataTransfer && e.dataTransfer.files.length > 0) readFile(e.dataTransfer.files[0]);
+        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+            log("Bestand neergezet via drag & drop: " + e.dataTransfer.files[0].name, "info");
+            readFile(e.dataTransfer.files[0]);
+        }
     });
 
     function getAncestorsWithPaths(startId, maxGenerations) {
         var ancestors = {};
         var queue = [{ id: startId, path: [startId] }];
+        
         while (queue.length > 0) {
             var item = queue.shift();
             if (item.path.length > maxGenerations) continue;
+            
             var pObj = personsDB[item.id];
             if (!pObj) continue;
+
             pObj.parents.forEach(function(pId) {
                 if (!ancestors[pId]) {
                     var newPath = item.path.concat([pId]);
@@ -657,17 +605,25 @@
     }
 
     function findBloodRelationships(targetList, maxGen) {
+        log("Zoeken naar gemeenschappelijke biologische voorouders voor: " + targetList.join(", ") + " (max " + maxGen + " generaties)", "info");
         var nodesToInclude = new Set(targetList);
         var ancestorDict = {};
+
         targetList.forEach(function(tId) {
             ancestorDict[tId] = getAncestorsWithPaths(tId, maxGen);
+            log("Voorouders van " + tId + " gevonden binnen limiet: " + Object.keys(ancestorDict[tId]).length, "info");
         });
 
         for (var i = 0; i < targetList.length; i++) {
             for (var j = i + 1; j < targetList.length; j++) {
-                var p1 = targetList[i], p2 = targetList[j];
-                var anc1 = ancestorDict[p1] || {}, anc2 = ancestorDict[p2] || {};
+                var p1 = targetList[i];
+                var p2 = targetList[j];
+                var anc1 = ancestorDict[p1] || {};
+                var anc2 = ancestorDict[p2] || {};
+
                 var common = Object.keys(anc1).filter(a => a in anc2);
+                log("Gemeenschappelijke voorouders tussen " + p1 + " en " + p2 + ": " + common.length, "success");
+                
                 common.forEach(function(mrca) {
                     (anc1[mrca] || []).forEach(n => nodesToInclude.add(n));
                     (anc2[mrca] || []).forEach(n => nodesToInclude.add(n));
@@ -678,18 +634,24 @@
     }
 
     function findShortestAnyPath(targetList) {
+        log("Kortste pad (inclusief aangetrouwd) berekenen...", "info");
         var nodesToInclude = new Set(targetList);
+        
         targetList.forEach(function(startId) {
             var visited = new Set([startId]);
             var queue = [[startId]];
+
             while (queue.length > 0) {
                 var path = queue.shift();
                 var node = path[path.length - 1];
+
                 if (targetList.includes(node) && node !== startId) {
                     path.forEach(n => nodesToInclude.add(n));
                 }
+
                 var pObj = personsDB[node];
                 if (!pObj) continue;
+
                 var neighbors = [].concat(pObj.parents, pObj.children, pObj.spouses);
                 neighbors.forEach(function(nbr) {
                     if (nbr && !visited.has(nbr)) {
@@ -699,41 +661,34 @@
                 });
             }
         });
+
         return nodesToInclude;
     }
 
     function setMode(mode) {
         currentMode = mode;
+        log("Modus gewijzigd naar: " + mode, "info");
         document.getElementById('btnBlood').className = 'btn btn-mode' + (mode === 'blood' ? ' active' : '');
         document.getElementById('btnShortest').className = 'btn btn-mode' + (mode === 'shortest' ? ' active' : '');
         calculateAndRender();
     }
 
     function calculateAndRender() {
-        var targetList = [];
-        var targetSet = new Set();
-
-        for (let i = 1; i <= 5; i++) {
-            let hiddenId = document.getElementById("targetId" + i).value;
-            let textVal = document.getElementById("target" + i).value.trim();
-
-            if (hiddenId && personsDB[hiddenId]) {
-                targetList.push(hiddenId);
-                targetSet.add(hiddenId);
-            } else if (textVal) {
-                let found = Object.values(personsDB).find(p => p.name.toLowerCase() === textVal.toLowerCase());
-                if (found) {
-                    targetList.push(found.id);
-                    targetSet.add(found.id);
-                }
-            }
-        }
-
+        var rawInput = document.getElementById('targetInput').value;
         var maxGen = parseInt(document.getElementById('maxGenInput').value, 10);
         if (isNaN(maxGen) || maxGen < 1) maxGen = 10;
 
+        log("Invoerdoelen uitlezen: '" + rawInput + "' | Max generaties: " + maxGen, "info");
+        
+        var parts = rawInput.split(/[,;\s]+/).map(cleanIndiId).filter(Boolean);
+        var targetSet = new Set(parts);
+        var targetList = Array.from(targetSet).filter(id => personsDB[id]);
+
+        log("Gevonden geldige doel-ID's in database: " + targetList.join(", "), "info");
+
         if (targetList.length === 0) {
-            setStatus("⚠️ Kies ten minste 1 persoon uit de invulvelden.", true);
+            log("Fout: Geen van de ingevoerde ID's komt voor in de geladen database!", "error");
+            setStatus("⚠️ Voer ten minste 1 geldig doel-ID in dat aanwezig is in de data (bijv. I5146, I3255).", true);
             return;
         }
 
@@ -741,18 +696,21 @@
             ? findBloodRelationships(targetList, maxGen) 
             : findShortestAnyPath(targetList);
 
+        log("Totaal aantal personen in het op te bouwen netwerk: " + nodesToInclude.size, "success");
+
         if (nodesToInclude.size === 0) {
-            setStatus("⚠️ Geen relaties gevonden voor deze personen binnen deze limiet.", true);
+            setStatus("⚠️ Geen relaties of gemeenschappelijke voorouders gevonden binnen deze generatielimiet.", true);
             return;
         }
 
         renderNetworkGraph(nodesToInclude, targetSet);
-        setStatus("✅ Weergave van " + nodesToInclude.size + " personen.", false);
+        setStatus("✅ Weergave van " + nodesToInclude.size + " personen (" + (currentMode === 'blood' ? "Zuiver Bloedverwantschap" : "Kortste Route") + ")", false);
     }
 
     var currentAdjMap = {};
 
     function renderNetworkGraph(nodesToInclude, targetSet) {
+        log("Vis.js netwerk voorbereiden en opbouwen...", "info");
         nodesDataSet.clear();
         edgesDataSet.clear();
         currentAdjMap = {};
@@ -774,10 +732,15 @@
                 id: id,
                 label: p.name + (p.years ? "\n" + p.years : ""),
                 shape: shape,
-                color: { background: colorFill, border: borderColor, highlight: { background: "#FFE082", border: "#FF6F00" } },
+                color: {
+                    background: colorFill,
+                    border: borderColor,
+                    highlight: { background: "#FFE082", border: "#FF6F00" }
+                },
                 borderWidth: borderWidth,
-                title: "<b>" + p.name + "</b><br>ID: " + id + "<br>Jaren: " + p.years
+                title: "<b>" + p.name + "</b><br>ID: " + id + "<br>Geslacht: " + p.gender + "<br>Jaren: " + p.years
             });
+
             currentAdjMap[id] = [];
         });
 
@@ -788,14 +751,20 @@
             p.spouses.forEach(function(sId) {
                 if (nodesToInclude.has(sId)) {
                     var pairKey = [id, sId].sort().join('-partner-');
-                    edgesSet.add(JSON.stringify({ key: pairKey, from: id, to: sId, label: "partner", color: { color: "#E91E63" }, dashes: true, arrows: { to: false } }));
+                    edgesSet.add(JSON.stringify({
+                        key: pairKey, from: id, to: sId, label: "partner",
+                        color: { color: "#E91E63" }, dashes: true, arrows: { to: false }
+                    }));
                 }
             });
 
             p.children.forEach(function(cId) {
                 if (nodesToInclude.has(cId)) {
                     var pairKey = id + '->' + cId + '-parent';
-                    edgesSet.add(JSON.stringify({ key: pairKey, from: id, to: cId, label: "ouder van", color: { color: "#4CAF50" }, arrows: { to: { enabled: true, type: "arrow" } } }));
+                    edgesSet.add(JSON.stringify({
+                        key: pairKey, from: id, to: cId, label: "ouder van",
+                        color: { color: "#4CAF50" }, arrows: { to: { enabled: true, type: "arrow" } }
+                    }));
                 }
             });
         });
@@ -804,15 +773,18 @@
         var edgeIndex = 0;
         edgesSet.forEach(function(str) {
             var e = JSON.parse(str);
-            e.id = "e_" + (edgeIndex++);
+            var eId = "e_" + (edgeIndex++);
+            e.id = eId;
             newEdges.push(e);
-            if (currentAdjMap[e.from]) currentAdjMap[e.from].push({ neighbor: e.to, edgeId: e.id });
-            if (currentAdjMap[e.to]) currentAdjMap[e.to].push({ neighbor: e.from, edgeId: e.id });
+
+            if (currentAdjMap[e.from]) currentAdjMap[e.from].push({ neighbor: e.to, edgeId: eId });
+            if (currentAdjMap[e.to]) currentAdjMap[e.to].push({ neighbor: e.from, edgeId: eId });
         });
 
         nodesDataSet.add(newNodes);
         edgesDataSet.add(newEdges);
         network.fit();
+        log("Vis.js netwerk succesvol gerenderd (" + newNodes.length + " knooppunten, " + newEdges.length + " kanten).", "success");
     }
 
     function highlightPathBetween(startId, endId) {
@@ -823,28 +795,48 @@
         while (queue.length > 0) {
             var path = queue.shift();
             var current = path[path.length - 1];
-            if (current === endId) { targetPath = path; break; }
-            (currentAdjMap[current] || []).forEach(function(item) {
+
+            if (current === endId) {
+                targetPath = path;
+                break;
+            }
+
+            var neighbors = currentAdjMap[current] || [];
+            neighbors.forEach(function(item) {
                 if (!visited.has(item.neighbor)) {
                     visited.add(item.neighbor);
                     queue.push(path.concat([item.neighbor]));
                 }
             });
         }
+
         if (!targetPath) return;
 
         var pathNodesSet = new Set(targetPath);
         var pathEdgesSet = new Set();
+
         for (var i = 0; i < targetPath.length - 1; i++) {
-            var u = targetPath[i], v = targetPath[i + 1];
-            (currentAdjMap[u] || []).forEach(function(item) { if (item.neighbor === v) pathEdgesSet.add(item.edgeId); });
+            var u = targetPath[i];
+            var v = targetPath[i + 1];
+            (currentAdjMap[u] || []).forEach(function(item) {
+                if (item.neighbor === v) pathEdgesSet.add(item.edgeId);
+            });
         }
 
         nodesDataSet.forEach(function(n) {
-            nodesDataSet.update({ id: n.id, opacity: pathNodesSet.has(n.id) ? 1 : 0.25 });
+            if (pathNodesSet.has(n.id)) {
+                nodesDataSet.update({ id: n.id, color: { background: "#FFEB3B", border: "#F57F17" }, opacity: 1 });
+            } else {
+                nodesDataSet.update({ id: n.id, opacity: 0.25 });
+            }
         });
+
         edgesDataSet.forEach(function(e) {
-            edgesDataSet.update({ id: e.id, color: { color: pathEdgesSet.has(e.id) ? "#FF6F00" : "#E0E0E0" }, width: pathEdgesSet.has(e.id) ? 4 : 1 });
+            if (pathEdgesSet.has(e.id)) {
+                edgesDataSet.update({ id: e.id, color: { color: "#FF6F00" }, width: 4 });
+            } else {
+                edgesDataSet.update({ id: e.id, color: { color: "#E0E0E0" }, width: 1 });
+            }
         });
     }
 
@@ -852,10 +844,24 @@
         nodesDataSet.forEach(function(n) {
             var p = personsDB[n.id];
             if (!p) return;
-            nodesDataSet.update({ id: n.id, opacity: 1 });
+            var isTarget = document.getElementById('targetInput').value.includes(n.id);
+            nodesDataSet.update({
+                id: n.id,
+                color: {
+                    background: p.gender === 'F' ? "#FFC0CB" : "#97C2FC",
+                    border: isTarget ? "#D32F2F" : "#555555"
+                },
+                opacity: 1
+            });
         });
+
         edgesDataSet.forEach(function(e) {
-            edgesDataSet.update({ id: e.id, color: { color: e.label === "ouder van" ? "#4CAF50" : "#E91E63" }, width: 1 });
+            var isParent = e.label === "ouder van";
+            edgesDataSet.update({
+                id: e.id,
+                color: { color: isParent ? "#4CAF50" : "#E91E63" },
+                width: 1
+            });
         });
     }
 </script>
