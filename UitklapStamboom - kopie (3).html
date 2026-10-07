@@ -322,6 +322,7 @@
         reader.readAsText(file);
     }
 
+    // Automatisch laden met time-out beveiliging
     window.addEventListener('load', function() {
         var hasLoaded = false;
         var timeout = setTimeout(function() {
@@ -347,6 +348,7 @@
             });
     });
 
+    // Drag & Drop
     ['dragover', 'drop'].forEach(function(eventName) {
         window.addEventListener(eventName, function(e) {
             e.preventDefault();
@@ -360,7 +362,7 @@
         }
     });
 
-    // --- RENDEREN MET VOLLEDIGE TAKKENVOOROUDERS (VADER- EN MOEDERLIJNEN) ---
+    // --- BEVEILIGD RENDEREN (VOORKOMT STACK OVERFLOW / EINDELOZE LUSSEN) ---
     function safeRenderTree(personId) {
         try {
             mainPersonId = personId;
@@ -399,10 +401,8 @@
                 }
             });
 
-            // 2. Voorouders verzamelen (ALLE TAKKEN: zowel vader- als moederlijnen)
+            // 2. Voorouders verzamelen (x generaties omhoog)
             var currentGen = [personId];
-            var ancestorGenSet = new Set([personId]); // Houdt bij wie reeds in de voorouderketen verwerkt is
-
             for (var gen = 1; gen <= x; gen++) {
                 var nextGen = [];
                 var relLvl = -gen;
@@ -412,30 +412,19 @@
                     currP.parents.forEach(function(parentId) {
                         if (personsDB[parentId]) {
                             addEdge(parentId, currId, 'parent');
-
                             if (!addedNodes.has(parentId)) {
                                 addedNodes.add(parentId);
                                 nodeLevels[parentId] = relLvl;
-                            } else if (nodeLevels[parentId] === undefined || nodeLevels[parentId] > relLvl) {
-                                nodeLevels[parentId] = relLvl;
-                            }
-
-                            // ZORG ERVOOR DAT ELKE OUDER (VADER EN MOEDER) WORDT TOEGEVOEGD AAN NEXTGEN
-                            if (!ancestorGenSet.has(parentId)) {
-                                ancestorGenSet.add(parentId);
                                 nextGen.push(parentId);
-                            }
 
-                            // Partners van voorouders toevoegen op hetzelfde niveau
-                            personsDB[parentId].spouses.forEach(function(sId) {
-                                if (personsDB[sId]) {
-                                    if (!addedNodes.has(sId)) {
+                                personsDB[parentId].spouses.forEach(function(sId) {
+                                    if (personsDB[sId] && !addedNodes.has(sId)) {
                                         addedNodes.add(sId);
                                         nodeLevels[sId] = relLvl;
+                                        addEdge(parentId, sId, 'spouse');
                                     }
-                                    addEdge(parentId, sId, 'spouse');
-                                }
-                            });
+                                });
+                            }
                         }
                     });
                 });
@@ -444,8 +433,6 @@
 
             // 3. Afstammelingen verzamelen (y generaties omlaag)
             currentGen = [personId];
-            var descendantGenSet = new Set([personId]);
-
             for (var gen = 1; gen <= y; gen++) {
                 var nextGen = [];
                 var relLvl = gen;
@@ -455,41 +442,32 @@
                     currP.children.forEach(function(childId) {
                         if (personsDB[childId]) {
                             addEdge(currId, childId, 'parent');
-
                             if (!addedNodes.has(childId)) {
                                 addedNodes.add(childId);
                                 nodeLevels[childId] = relLvl;
-                            } else if (nodeLevels[childId] === undefined || nodeLevels[childId] < relLvl) {
-                                nodeLevels[childId] = relLvl;
-                            }
-
-                            if (!descendantGenSet.has(childId)) {
-                                descendantGenSet.add(childId);
                                 nextGen.push(childId);
-                            }
 
-                            personsDB[childId].spouses.forEach(function(sId) {
-                                if (personsDB[sId]) {
-                                    if (!addedNodes.has(sId)) {
+                                personsDB[childId].spouses.forEach(function(sId) {
+                                    if (personsDB[sId] && !addedNodes.has(sId)) {
                                         addedNodes.add(sId);
                                         nodeLevels[sId] = relLvl;
+                                        addEdge(childId, sId, 'spouse');
                                     }
-                                    addEdge(childId, sId, 'spouse');
-                                }
-                            });
+                                });
+                            }
                         }
                     });
                 });
                 currentGen = nextGen;
             }
 
-            // STRIKTE NIVEAU-CORRECTIE
+            // STRIKTE NIVEAU-CORRECTIE (VOORKOMT CONFLICTEN IN VIS.JS HIERARCHY)
             addedEdgesMap.forEach(function(edge) {
                 if (edge.type === 'parent') {
                     var pLvl = nodeLevels[edge.from];
                     var cLvl = nodeLevels[edge.to];
                     if (pLvl !== undefined && cLvl !== undefined && pLvl >= cLvl) {
-                        nodeLevels[edge.from] = cLvl - 1;
+                        nodeLevels[edge.from] = cLvl - 1; // Ouder staat ALTIJD boven kind
                     }
                 }
             });
@@ -534,7 +512,7 @@
         safeRenderTree(personId);
     }
 
-    // --- SCHALEN OP SCHERMHOOGTE EN LINKS UITLIJNEN ---
+    // --- BEVEILIGD SCHALEN OP SCHERMHOOGTE EN LINKS UITLIJNEN ---
     function fitHeightAndAlignLeft() {
         setTimeout(function() {
             try {
