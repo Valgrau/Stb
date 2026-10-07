@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatienetwerk - Vaste & Losse Posities</title>
+    <title>Relatienetwerk - Met Generatie Limiet</title>
     <!-- Vis.js bibliotheek voor het renderen van het netwerk -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style type="text/css">
@@ -150,7 +150,7 @@
 
 <div id="mynetwork">
     <div class="legend">
-        <strong>Legende (Tip: Dubbelklik om vast/los te zetten):</strong><br>
+        <strong>Legende:</strong><br>
         <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 2px solid #D32F2F;"></span> Opgegeven Man (Ovaal / Rode Rand)</div>
         <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 2px solid #D32F2F;"></span> Opgegeven Vrouw (Ovaal / Rode Rand)</div>
         <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 1px solid #555;"></span> Tussenliggende Man (Rechthoek)</div>
@@ -221,35 +221,6 @@
     };
 
     var network = new vis.Network(container, data, options);
-
-    // Zet een knooppunt vast wanneer je stopt met slepen
-    network.on("dragEnd", function (params) {
-        if (params.nodes.length > 0) {
-            params.nodes.forEach(function (nodeId) {
-                var pointerPos = network.getPositions([nodeId]);
-                if (pointerPos[nodeId]) {
-                    nodesDataSet.update({
-                        id: nodeId,
-                        fixed: { x: true, y: true }
-                    });
-                    log("Persoon " + nodeId + " vastgezet op huidige positie.", "info");
-                }
-            });
-        }
-    });
-
-    // Dubbelklik op een knooppunt om hem WEER LOS te zetten
-    network.on("doubleClick", function (params) {
-        if (params.nodes.length > 0) {
-            params.nodes.forEach(function (nodeId) {
-                nodesDataSet.update({
-                    id: nodeId,
-                    fixed: false
-                });
-                log("Persoon " + nodeId + " weer losgezet (vrijgegeven voor fysica).", "success");
-            });
-        }
-    });
 
     network.on("select", function (params) {
         if (params.nodes.length === 2) {
