@@ -7,36 +7,27 @@
     <!-- Vis.js bibliotheek voor het renderen van het netwerk -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style type="text/css">
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 10px;
-            box-sizing: border-box;
-            background-color: #FFFFFF;
-            overflow: hidden; /* Voorkomt scrollbars en witte randen onderaan */
+        body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        h2 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            font-size: 20px;
+            margin: 15px;
+            background-color: #FFFFFF;
         }
         #mynetwork {
             width: 100%;
-            height: calc(100vh - 210px); /* Past zich dynamisch aan de resterende schermhoogte aan */
+            height: 65vh; /* Iets vergroot omdat de log-console weg is */
             border: 1px solid #BDBDBD;
             background-color: #F8F9FA;
             border-radius: 4px;
             position: relative;
         }
         .toolbar {
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             display: flex;
-            gap: 12px;
+            gap: 15px;
             align-items: center;
             flex-wrap: wrap;
             background: #F1F3F4;
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 6px;
         }
         .input-group {
@@ -51,9 +42,9 @@
             margin-bottom: 2px;
         }
         .search-box {
-            padding: 5px 8px;
+            padding: 6px 10px;
             font-size: 13px;
-            width: 180px;
+            width: 200px;
             border: 1px solid #CCC;
             border-radius: 4px;
         }
@@ -89,7 +80,7 @@
         }
 
         .btn {
-            padding: 7px 12px;
+            padding: 8px 14px;
             font-size: 13px;
             font-weight: bold;
             border: none;
@@ -102,7 +93,7 @@
         .btn-file { background-color: #FF9800; color: white; }
         
         .num-box {
-            padding: 5px;
+            padding: 6px;
             font-size: 13px;
             width: 50px;
             border: 1px solid #CCC;
@@ -111,8 +102,8 @@
         .info-panel {
             background: #E3F2FD;
             border-left: 5px solid #2196F3;
-            padding: 6px 12px;
-            margin-bottom: 8px;
+            padding: 8px 14px;
+            margin-bottom: 12px;
             font-size: 13px;
             border-radius: 4px;
         }
@@ -125,7 +116,7 @@
             background-color: #E3F2FD;
             padding: 15px;
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
@@ -183,7 +174,7 @@
         <input type="number" id="maxGenInput" class="num-box" value="8" min="1" max="25">
     </div>
 
-    <div style="display: flex; gap: 8px; align-items: flex-end;">
+    <div style="display: flex; gap: 8px; align-items: flex-end; margin-top: 15px;">
         <button class="btn btn-calc" onclick="calculateAndRender()">⚡ Berekenen</button>
         <button id="btnBlood" class="btn btn-mode active" onclick="setMode('blood')">Zuiver Bloed</button>
         <button id="btnShortest" class="btn btn-mode" onclick="setMode('shortest')">Kortste Route</button>
@@ -216,6 +207,7 @@
 
 <script type="text/javascript">
     function log(msg, type) {
+        // Veilige fallback aangezien het log-element is verwijderd
         console.log('[' + (type || 'info').toUpperCase() + '] ' + msg);
     }
 

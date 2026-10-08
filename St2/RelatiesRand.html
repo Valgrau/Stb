@@ -203,7 +203,7 @@
 
 <div id="mynetwork">
     <div class="legend">
-        <strong>Legende (Sleep = vast | Dubbelklik = los):</strong><br>
+        <strong>Legende (Sleep = verplaatsbaar | Dubbelklik = vastzetten):</strong><br>
         <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 2px solid #D32F2F;"></span> Opgegeven Man (Rode Rand)</div>
         <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 2px solid #D32F2F;"></span> Opgegeven Vrouw (Rode Rand)</div>
         <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 1px solid #555;"></span> Tussenliggende Man</div>
@@ -230,11 +230,11 @@
 
     var options = {
         nodes: { font: { size: 13, face: 'Segoe UI' }, margin: 8 },
-        edges: { font: { size: 10, align: 'middle' }, smooth: { type: 'continuous' } },
+        edges: { font: { size: 10, align: 'middle' }, smooth: { type: 'cubicBezier', roundness: 0.2 } },
         physics: {
             solver: 'forceAtlas2Based',
-            forceAtlas2Based: { gravitationalConstant: -35, centralGravity: 0.01, springLength: 75, springConstant: 0.08 },
-            maxVelocity: 50,
+            forceAtlas2Based: { gravitationalConstant: -40, centralGravity: 0.01, springLength: 70, springConstant: 0.08 },
+            maxVelocity: 30,
             stabilization: { iterations: 150 }
         },
         interaction: { hover: true, tooltipDelay: 150, multiselect: true }
@@ -696,19 +696,31 @@
             return;
         }
 
-        renderNetworkGraph(nodesToInclude, targetSet);
+        renderNetworkGraph(nodesToInclude, targetSet, targetList);
         setStatus("✅ Weergave van " + nodesToInclude.size + " personen.", false);
     }
 
     var currentAdjMap = {};
 
-    function renderNetworkGraph(nodesToInclude, targetSet) {
+    function renderNetworkGraph(nodesToInclude, targetSet, targetList) {
         nodesDataSet.clear();
         edgesDataSet.clear();
         currentAdjMap = {};
 
         var newNodes = [];
         var edgesSet = new Set();
+
+        // Compacte randcoördinaten binnen het scherm zodat het netwerk overzichtelijk gecentreerd blijft
+        var widthRange = 250;
+        var heightRange = 180;
+        
+        var edgePositions = [
+            { x: -widthRange, y: -heightRange }, // Target 1: Boven-Links
+            { x: widthRange,  y: -heightRange }, // Target 2: Boven-Rechts
+            { x: -widthRange, y: heightRange },  // Target 3: Onder-Links
+            { x: widthRange,  y: heightRange },  // Target 4: Onder-Rechts
+            { x: 0,           y: -heightRange-40 } // Target 5: Boven-Midden
+        ];
 
         nodesToInclude.forEach(function(id) {
             var p = personsDB[id];
@@ -720,14 +732,24 @@
             var borderWidth = isTarget ? 4 : 1;
             var shape = isTarget ? "ellipse" : "box";
 
-            newNodes.push({
+            var nodeConfig = {
                 id: id,
                 label: p.name + (p.years ? "\n" + p.years : ""),
                 shape: shape,
                 color: { background: colorFill, border: borderColor, highlight: { background: "#FFE082", border: "#FF6F00" } },
                 borderWidth: borderWidth,
                 title: "<b>" + p.name + "</b><br>ID: " + id + "<br>Jaren: " + p.years
-            });
+            };
+
+            var targetIdx = targetList.indexOf(id);
+            if (targetIdx !== -1) {
+                var pos = edgePositions[targetIdx % edgePositions.length];
+                nodeConfig.x = pos.x;
+                nodeConfig.y = pos.y;
+                nodeConfig.fixed = false; // Blijft volledig verplaatsbaar
+            }
+
+            newNodes.push(nodeConfig);
             currentAdjMap[id] = [];
         });
 
