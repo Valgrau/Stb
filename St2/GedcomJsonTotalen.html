@@ -130,7 +130,7 @@
             display: inline-block;
         }
 
-        /* Stijlen voor Ouders & Kinderen van I5147 */
+        /* Stijlen voor Ouders & Kinderen van I10345 */
         .rel-group {
             margin-bottom: 20px;
         }
@@ -240,9 +240,9 @@
         </tbody>
     </table>
 
-    <!-- Ouders en Kinderen van I5147 -->
-    <h2 class="section-title" style="margin-top: 35px;">👨‍👩‍👧‍👦 Relaties van hoofdpersoon (I5147)</h2>
-    <div id="i5147RelatiesContainer">
+    <!-- Ouders en Kinderen van I10345 -->
+    <h2 class="section-title" style="margin-top: 35px;">👨‍👩‍👧‍👦 Relaties van hoofdpersoon (I10345)</h2>
+    <div id="i10345RelatiesContainer">
         <p style="color: #a0aec0; text-align: center;">Wachten op data uit Gedcom.json...</p>
     </div>
 </div>
@@ -508,8 +508,8 @@
         };
     }
 
-    function renderI5147Relationships(items) {
-        const container = document.getElementById('i5147RelatiesContainer');
+    function renderI10345Relationships(items) {
+        const container = document.getElementById('i10345RelatiesContainer');
         if (!container) return;
 
         const personsMap = {};
@@ -524,11 +524,11 @@
             }
         });
 
-        const targetId = 'I5147';
+        const targetId = 'I10345';
         const person = personsMap[targetId];
 
         if (!person) {
-            container.innerHTML = `<p style="color: #e53e3e; font-weight: 600;">⚠️ Persoon met ID <strong>@I5147@</strong> is niet gevonden in het JSON-bestand.</p>`;
+            container.innerHTML = `<p style="color: #e53e3e; font-weight: 600;">⚠️ Persoon met ID <strong>@I10345@</strong> is niet gevonden in het JSON-bestand.</p>`;
             return;
         }
 
@@ -713,8 +713,8 @@
         // Eeuwen tabel opbouwen
         renderCenturyTable(centuryCounts);
 
-        // Relaties van I5147 opbouwen
-        renderI5147Relationships(items);
+        // Relaties van I10345 opbouwen
+        renderI10345Relationships(items);
     }
 
     function renderCenturyTable(centuryCounts) {
