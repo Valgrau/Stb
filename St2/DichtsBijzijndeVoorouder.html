@@ -27,6 +27,23 @@
             border-bottom: 1px solid #dcdcdc;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
+        .status-bar {
+            background: #e8f4fd;
+            border: 1px dashed #3498db;
+            padding: 10px 15px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        #status {
+            font-size: 13px;
+            font-weight: bold;
+            color: #2980b9;
+        }
         .inputs-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -72,17 +89,10 @@
         .btn-secondary:hover { background-color: #1f6391; }
         .btn-clear { background-color: #e74c3c; color: white; }
         .btn-clear:hover { background-color: #c0392b; }
-        
-        #status {
-            font-size: 13px;
-            font-weight: bold;
-            color: #2980b9;
-            margin-left: 10px;
-        }
 
         #mynetwork {
             width: 100vw;
-            height: calc(100vh - 260px);
+            height: calc(100vh - 290px);
             background-color: #ffffff;
         }
 
@@ -110,6 +120,17 @@
 </div>
 
 <div class="controls-panel">
+    <!-- Status en Handmatige File Picker -->
+    <div class="status-bar">
+        <span id="status">⏳ Bezig met inladen van Gedcom.json...</span>
+        <div id="fileFallback" style="display: none;">
+            <input type="file" id="jsonFileInput" accept=".json" style="display: none;">
+            <button class="btn btn-secondary" onclick="document.getElementById('jsonFileInput').click();">
+                📁 Selecteer Gedcom.json handmatig
+            </button>
+        </div>
+    </div>
+
     <div class="inputs-grid" id="inputContainer">
         <!-- Genereren van 10 invoervelden via JavaScript -->
     </div>
@@ -118,7 +139,6 @@
         <button class="btn btn-primary" onclick="calculateMRCA()">▶ Bereken & Toon Netwerk</button>
         <button class="btn btn-secondary" onclick="exportToTxt()">📥 Exporteer ID's naar TXT</button>
         <button class="btn btn-clear" onclick="clearSelection()">↺ Wis Alles</button>
-        <span id="status">Laden van Gedcom.json...</span>
     </div>
 </div>
 
@@ -152,66 +172,240 @@
         inputContainer.appendChild(div);
     }
 
-    // 2. JSON-bestand inlezen via fetch
-    fetch('Gedcom.json')
-        .then(response => {
-            if (!response.ok) throw new Error("Bestand Gedcom.json niet gevonden.");
-            return response.json();
-        })
-        .then(data => {
-            parseJsonData(data);
-            populateDatalist();
-            document.getElementById('status').innerText = "Gedcom.json geladen (" + Object.keys(personsDB).length + " personen).";
-        })
-        .catch(err => {
-            document.getElementById('status').innerText = "Fout bij laden JSON: " + err.message;
-        });
+    // 2. Probeer automatisch in te lezen via fetch, met fallback naar handmatige selectie
+    window.addEventListener('DOMContentLoaded', () => {
+        fetch('Gedcom.json')
+            .then(response => {
+                if (!response.ok) throw new Error("Bestand niet gevonden");
+                return response.json();
+            })
+            .then(data => {
+                parseGedcomJson(data);
+                populateDatalist();
+                document.getElementById('status').innerText = "✅ Gedcom.json automatisch geladen (" + Object.keys(personsDB).length + " personen).";
+            })
+            .catch(() => {
+                document.getElementById('status').innerText = "⚠️ Automatisch inladen geblokkeerd door browserbeveiliging. Selecteer handmatig:";
+                document.getElementById('fileFallback').style.display = 'block';
+            });
+    });
 
-    // 3. Flexibele JSON Parser logica
-    function parseJsonData(data) {
-        var listToProcess = [];
+    // Handmatige selectie via knop verwerken
+    document.getElementById('jsonFileInput').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                var data = JSON.parse(evt.target.result);
+                parseGedcomJson(data);
+                populateDatalist();
+                document.getElementById('status').innerHTML = "✅ " + file.name + " geladen (<strong>" + Object.keys(personsDB).length + " personen</strong>).";
+                document.getElementById('fileFallback').style.display = 'none';
+            } catch (err) {
+                alert('Fout bij verwerken van JSON bestand!');
+                document.getElementById('status').innerText = "❌ Ongeldig JSON bestand.";
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    // 3. Robuuste parser logica
+    function extractItems(data) {
+        if (!data) return [];
+        if (Array.isArray(data)) return data;
         
-        if (Array.isArray(data)) {
-            listToProcess = data;
-        } else {
-            var individuals = data.individuals || data.personen || data.persons || data.nodes || data.indi || [];
-            if (Array.isArray(individuals)) {
-                listToProcess = individuals;
-            } else if (typeof individuals === 'object' && individuals !== null) {
-                listToProcess = Object.values(individuals);
+        if (typeof data === 'object') {
+            if (Array.isArray(data.records)) return data.records;
+            if (Array.isArray(data.items)) return data.items;
+            if (Array.isArray(data.tree)) return data.tree;
+
+            let list = [];
+            for (let k in data) {
+                if (Array.isArray(data[k])) {
+                    list = list.concat(data[k]);
+                } else if (typeof data[k] === 'object' && data[k] !== null) {
+                    let obj = data[k];
+                    if (!obj.TAG && !obj.tag) {
+                        if (k.startsWith('@I') || k.startsWith('I')) obj.TAG = 'INDI';
+                        if (k.startsWith('@F') || k.startsWith('F')) obj.TAG = 'FAM';
+                    }
+                    if (!obj.id && !obj.ID) obj.id = k;
+                    list.push(obj);
+                }
+            }
+            return list;
+        }
+        return [];
+    }
+
+    function cleanId(idStr) {
+        if (!idStr) return '';
+        if (typeof idStr === 'object') {
+            idStr = idStr.value || idStr.val || idStr.text || idStr.id || idStr.pointer || idStr.xref || '';
+        }
+        return String(idStr).replace(/@/g, '').trim();
+    }
+
+    function extractId(item) {
+        let id = item.id || item.ID || item.xref || item.pointer || item.xref_id || '';
+        return cleanId(id);
+    }
+
+    function extractName(item) {
+        if (!item) return 'Onbekend';
+        let name = item.NAME || item.name || item.Name || '';
+        if (name) {
+            if (typeof name === 'object') {
+                name = name.value || name.val || name.text || '';
+            }
+            if (name) return String(name).replace(/\//g, '').trim();
+        }
+        const children = item.children || item.nodes || item.tree || item.sub || [];
+        if (Array.isArray(children)) {
+            const nameNode = children.find(c => c && (c.tag || c.type || c.TAG || '').toUpperCase() === 'NAME');
+            if (nameNode) {
+                let val = nameNode.value || nameNode.val || nameNode.text || '';
+                if (val) return String(val).replace(/\//g, '').trim();
+            }
+        }
+        return 'Onbekend';
+    }
+
+    function extractSex(item) {
+        let sex = item.SEX || item.sex || item.gender || item.GENDER;
+        if (sex) {
+            if (typeof sex === 'object') sex = sex.value || sex.val || sex.text || '';
+            return String(sex);
+        }
+        const children = item.children || item.nodes || item.tree || item.sub || [];
+        if (Array.isArray(children)) {
+            const sexNode = children.find(c => c && (c.tag || c.type || c.TAG || '').toUpperCase() === 'SEX');
+            if (sexNode) {
+                return String(sexNode.value || sexNode.val || sexNode.text || '');
+            }
+        }
+        return '';
+    }
+
+    function extractBirthYear(item) {
+        let dateStr = '';
+        if (item.birthDate) dateStr = String(item.birthDate);
+        const birt = item.BIRT || item.birt || item.Birth || item.BIRTH;
+        if (birt) {
+            if (typeof birt === 'string') {
+                dateStr = birt;
+            } else if (typeof birt === 'object' && birt !== null) {
+                if (birt.value) dateStr = String(birt.value);
+                else if (birt.val) dateStr = String(birt.val);
+                else if (birt.DATE) {
+                    if (typeof birt.DATE === 'string') dateStr = birt.DATE;
+                    else if (typeof birt.DATE === 'object') dateStr = String(birt.DATE.value || birt.DATE.val || birt.DATE.text || '');
+                }
+            }
+        }
+        if (!dateStr) {
+            const children = item.children || item.nodes || item.tree || item.sub || [];
+            if (Array.isArray(children)) {
+                const birtChild = children.find(c => c && (c.tag || c.type || c.TAG || '').toUpperCase() === 'BIRT');
+                if (birtChild) {
+                    dateStr = birtChild.value || birtChild.val || birtChild.text || '';
+                    if (!dateStr) {
+                        const birtChildren = birtChild.children || birtChild.nodes || birtChild.tree || birtChild.sub || [];
+                        if (Array.isArray(birtChildren)) {
+                            const dateChild = birtChildren.find(c => c && (c.tag || c.type || c.TAG || '').toUpperCase() === 'DATE');
+                            if (dateChild) dateStr = dateChild.value || dateChild.val || dateChild.text || '';
+                        }
+                    }
+                }
+            }
+        }
+        if (dateStr) {
+            const match = dateStr.match(/\b(\d{3,4})\b/);
+            if (match) {
+                const year = parseInt(match[1], 10);
+                if (year >= 500 && year <= 2100) return year;
+            }
+        }
+        return '';
+    }
+
+    function extractFamMembers(famItem) {
+        let husb = cleanId(famItem.HUSB || famItem.husb);
+        let wife = cleanId(famItem.WIFE || famItem.wife);
+        let childrenIds = [];
+
+        let chil = famItem.CHIL || famItem.chil || famItem.children_ids || famItem.kinderen;
+        if (chil) {
+            if (Array.isArray(chil)) {
+                chil.forEach(c => childrenIds.push(cleanId(c)));
+            } else {
+                childrenIds.push(cleanId(chil));
             }
         }
 
-        // Personen inladen in personsDB
-        listToProcess.forEach(function(p) {
-            var id = p.id || p._id || p.INDI || p.ID;
-            if (id) {
+        const subNodes = famItem.children || famItem.nodes || famItem.tree || famItem.sub || [];
+        if (Array.isArray(subNodes)) {
+            subNodes.forEach(c => {
+                if (!c) return;
+                const tag = (c.tag || c.type || c.TAG || '').toUpperCase();
+                const val = c.value || c.val || c.text || c.pointer || c.xref || '';
+                if (tag === 'HUSB' && !husb) husb = cleanId(val);
+                if (tag === 'WIFE' && !wife) wife = cleanId(val);
+                if (tag === 'CHIL' && val) childrenIds.push(cleanId(val));
+            });
+        }
+
+        return {
+            husb: husb,
+            wife: wife,
+            children: [...new Set(childrenIds)].filter(Boolean)
+        };
+    }
+
+    function parseGedcomJson(data) {
+        personsDB = {};
+        parentMap = {};
+        const items = extractItems(data);
+        const familiesMap = {};
+
+        items.forEach(item => {
+            const tag = (item.TAG || item.tag || item.type || '').toUpperCase();
+            const id = extractId(item);
+            if (!id) return;
+
+            if (tag === 'INDI') {
+                var fullName = extractName(item);
+                var nameParts = fullName.split(" ");
+                var fname = nameParts[0] || "";
+                var lname = nameParts.slice(1).join(" ") || "";
+                var sexVal = extractSex(item).trim().toUpperCase();
+                var gender = ['F', 'FEMALE', 'VROUW', 'GIRL', '2'].includes(sexVal) ? 'F' : 'M';
+
                 personsDB[id] = {
                     type: "INDI",
                     id: id,
-                    fname: p.fname || p.voornaam || p.first_name || "",
-                    lname: p.lname || p.achternaam || p.last_name || "",
-                    gender: (p.gender || p.geslacht || p.sex || "M").toUpperCase(),
-                    birtYear: p.birtYear || p.geboortejaar || p.birth_year || "",
-                    deatYear: p.deatYear || p.overlijdensjaar || p.death_year || ""
+                    fname: fname,
+                    lname: lname,
+                    gender: gender,
+                    birtYear: extractBirthYear(item),
+                    deatYear: ""
                 };
+            } else if (tag === 'FAM') {
+                familiesMap[id] = item;
             }
         });
 
-        // Families inladen en parentMap opbouwen
-        var families = data.families || data.gezinnen || data.fams || data.fam || [];
-        var famList = Array.isArray(families) ? families : Object.values(families);
-        
-        famList.forEach(function(fam) {
-            var husb = fam.husb || fam.man || fam.husband || fam.vader || null;
-            var wife = fam.wife || fam.vrouw || fam.wife_id || fam.moeder || null;
-            var children = fam.children || fam.kinderen || fam.child_ids || [];
-
+        Object.keys(familiesMap).forEach(function(famId) {
+            var fam = familiesMap[famId];
+            var members = extractFamMembers(fam);
             var parents = [];
-            if (husb && personsDB[husb]) parents.push(husb);
-            if (wife && personsDB[wife]) parents.push(wife);
+            
+            if (members.husb && personsDB[members.husb]) parents.push(members.husb);
+            if (members.wife && personsDB[members.wife]) parents.push(members.wife);
 
-            children.forEach(function(childId) {
+            members.children.forEach(function(childId) {
                 if (personsDB[childId]) {
                     if (!parentMap[childId]) parentMap[childId] = [];
                     parentMap[childId] = parentMap[childId].concat(parents);
@@ -338,10 +532,10 @@
             if (!person) return;
 
             var fullName = (person.fname + " " + person.lname).trim() || "Onbekend";
-            var datesStr = (person.birtYear || person.deatYear) ? "(" + person.birtYear + " - " + person.deatYear + ")" : "";
+            var datesStr = person.birtYear ? "(" + person.birtYear + ")" : "";
             var isTarget = targetIds.indexOf(ptr) !== -1;
 
-            var colorFill = (person.gender === 'F' || person.gender === 'V') ? "#FFC0CB" : "#97C2FC";
+            var colorFill = (person.gender === 'F') ? "#FFC0CB" : "#97C2FC";
             var borderColor = isTarget ? "#D32F2F" : "#555555";
             var borderWidth = isTarget ? 4 : 1;
             var shape = isTarget ? "ellipse" : "box";
@@ -356,7 +550,7 @@
                     highlight: { background: "#FFE082", border: "#FF6F00" }
                 },
                 borderWidth: borderWidth,
-                title: "<b>" + fullName + "</b><br>ID: " + ptr + "<br>Geslacht: " + person.gender + "<br>Jaren: " + datesStr
+                title: "<b>" + fullName + "</b><br>ID: " + ptr + "<br>Geslacht: " + person.gender + "<br>Geboortejaar: " + person.birtYear
             });
         });
 
@@ -399,7 +593,6 @@
         if (network) network.destroy();
         network = new vis.Network(container, data, options);
 
-        // Vastzetten bij slepen
         network.on("dragEnd", function (params) {
             if (params.nodes.length > 0) {
                 var nodeId = params.nodes[0];
@@ -413,7 +606,6 @@
             }
         });
 
-        // Losmaken bij dubbelklikken
         network.on("doubleClick", function (params) {
             if (params.nodes.length > 0) {
                 var nodeId = params.nodes[0];
