@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <title>Relatiepad Zoeker</title>
+    <!-- Vis.netwerk bibliotheek voor de stamboom visualisatie -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #1e1e1e; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #mynetwork { width: 100%; height: 100%; }
+        
+        #search-container {
+            position: absolute; top: 15px; left: 15px; z-index: 1000;
+            background: rgba(30, 30, 30, 0.95); padding: 20px; border-radius: 8px; color: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8); width: 380px; border: 1px solid #444;
+        }
+        
+        .input-group { margin-bottom: 12px; position: relative; }
+        .input-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; font-weight: bold; }
+        input[type="text"] { width: 93%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #2a2a2a; color: white; font-size: 13px; }
+        
+        button { width: 100%; padding: 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin-top: 10px; }
+        button:hover { background-color: #45a049; }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+        
+        #path-status { margin-top: 15px; padding: 10px; background: #2a2a2a; border-radius: 4px; font-size: 13px; color: #ffeb3b; border-left: 4px solid #ffeb3b; }
+        .selected-tag { font-size: 11px; color: #81c784; margin-top: 4px; }
+        
+        #fallback-box { display: none; margin-top: 15px; padding: 10px; background: #3a2e2e; border-radius: 4px; border-left: 4px solid #f44336; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div id="search-container">
+    <h3 style="margin: 0 0 15px 0; color: #4CAF50;">Relatiepad Zoeker</h3>
+    
+    <!-- Fallback melding als automatisch inlezen door browserbeveiliging blokkeert -->
+    <div id="fallback-box">
+        <b>Kan 'Gedcom.json' niet automatisch laden</b> (beveiligingsregels browser).<br>
+        Selecteer handmatig:
+        <input type="file" id="json-file-input" accept=".json" style="margin-top: 8px; color: white;" onchange="loadManualJson(event)">
+    </div>
+
+    <!-- Input Persoon VAN met Datalist -->
+    <div class="input-group">
+        <label>VAN (Persoon 1):</label>
+        <input type="text" id="input-from" placeholder="Typ naam of ID..." list="list-from" onchange="onPersonSelected('from')" disabled>
+        <div id="tag-from" class="selected-tag"></div>
+        <datalist id="list-from"></datalist>
+    </div>
+
+    <!-- Input Persoon TOT met Datalist -->
+    <div class="input-group">
+        <label>TOT (Persoon 2):</label>
+        <input type="text" id="input-to" placeholder="Typ naam of ID..." list="list-to" onchange="onPersonSelected('to')" disabled>
+        <div id="tag-to" class="selected-tag"></div>
+        <datalist id="list-to"></datalist>
+    </div>
+
+    <button id="calc-btn" onclick="calculateAndRenderPath()" disabled>Bereken & Toon Pad</button>
+    
+    <div id="path-status">Bezig met laden van Gedcom.json...</div>
+</div>
+
+<div id="mynetwork"></div>
+
+<script type="text/javascript">
+    var personsDB = {};
+    var selectedFromId = null;
+    var selectedToId = null;
+
+    var container = document.getElementById('mynetwork');
+    var visNodes = new vis.DataSet([]);
+    var visEdges = new vis.DataSet([]);
+    var data = { nodes: visNodes, edges: visEdges };
+
+    var options = {
+        nodes: { 
+            shape: 'box',
+            margin: 10,
+            borderWidth: 2, 
+            shadow: true,
+            font: { color: '#000000', size: 14 }
+        },
+        edges: { smooth: { type: 'cubicBezier', forceDirection: 'vertical' } },
+        layout: {
+            hierarchical: {
+                enabled: true,
+                direction: 'UD',
+                sortMethod: 'directed',
+                nodeSpacing: 200,
+                levelSeparation: 130
+            }
+        },
+        interaction: { hover: true },
+        physics: { enabled: false }
+    };
+
+    var network = new vis.Network(container, data, options);
+
+    // Hulpfuncties voor ID opschonen (compatibel met jouw voorbeeld)
+    function cleanId(idStr) {
+        if (!idStr) return null;
+        if (typeof idStr === 'object') idStr = idStr.value || idStr.val || idStr.id || idStr.xref || '';
+        return String(idStr).replace(/@/g, "").trim();
+    }
+
+    function extractValue(item, tag) {
+        var node = item[tag] || item[tag.toLowerCase()];
+        if (!node) return '';
+        if (typeof node === 'string') return node;
+        if (typeof node === 'object') return node.value || node.val || '';
+        return '';
+    }
+
+    function extractYear(item, tag) {
+        var val = extractValue(item, tag);
+        if (!val && item[tag]) {
+            var dateObj = item[tag].DATE || item[tag].date;
+            if (dateObj) val = typeof dateObj === 'object' ? (dateObj.value || dateObj.val) : dateObj;
+        }
+        var match = String(val).match(/\b\d{3,4}\b/);
+        return match ? match[0] : '';
+    }
+
+    // Universele parser om zowel platte JSON als object-structuren correct in te lezen
+    function parseGedcomJson(jsonData) {
+        personsDB = {};
+        var families = {};
+        var items = [];
+
+        if (Array.isArray(jsonData)) {
+            items = jsonData;
+        } else if (typeof jsonData === 'object') {
+            // Als het via jouw Python script of een andere export komt
+            if (jsonData.nodes) {
+                jsonData = jsonData.nodes;
+            }
+            Object.keys(jsonData).forEach(function(k) {
+                var item = jsonData[k];
+                if (typeof item === 'object') {
+                    if (!item.id) item.id = k;
+                    items.push(item);
+                }
+            });
+        }
+
+        items.forEach(function(item) {
+            var tag = (item.TAG || item.tag || item.type || '').toUpperCase();
+            var id = cleanId(item.id || item.ID || item.xref);
+
+            if (tag === 'INDI' || (id && id.startsWith('I')) || (item.name && item.gender)) {
+                var name = item.NAME || item.name || 'Onbekend';
+                if (typeof name === 'object') name = name.value || name.val || 'Onbekend';
+                name = String(name).replace(/\//g, '').trim();
+
+                var birt = item.birt || extractYear(item, 'BIRT');
+                var deat = item.deat || extractYear(item, 'DEAT');
+                var sex = (item.gender || extractValue(item, 'SEX')).toUpperCase();
+
+                var parents = [];
+                if (Array.isArray(item.parents)) parents = item.parents.map(cleanId).filter(Boolean);
+                
+                var children = [];
+                if (Array.isArray(item.children)) children = item.children.map(cleanId).filter(Boolean);
+                
+                var spouses = [];
+                if (Array.isArray(item.spouses)) spouses = item.spouses.map(cleanId).filter(Boolean);
+
+                var datesStr = (birt || deat) ? "(" + birt + (deat ? " - " + deat : "") + ")" : "";
+
+                personsDB[id] = {
+                    id: id,
+                    name: name || 'Onbekend',
+                    birt: birt,
+                    deat: deat,
+                    gender: sex,
+                    dates: datesStr,
+                    parents: parents,
+                    children: children,
+                    spouses: spouses
+                };
+            } else if (tag === 'FAM' || (id && id.startsWith('F'))) {
+                var husb = cleanId(item.HUSB || item.husb || item.husband);
+                var wife = cleanId(item.WIFE || item.wife);
+                var chil = item.CHIL || item.chil || item.children || [];
+                var famChildren = [];
+                if (Array.isArray(chil)) {
+                    chil.forEach(function(c) { famChildren.push(cleanId(c)); });
+                } else if (chil) {
+                    famChildren.push(cleanId(chil));
+                }
+                families[id] = { husband: husb, wife: wife, children: famChildren };
+            }
+        });
+
+        // Koppel relaties als dit nog niet in de JSON verwerkt was
+        Object.values(families).forEach(function(fam) {
+            var parents = [fam.husband, fam.wife].filter(Boolean);
+            if (fam.husband && fam.wife) {
+                if (personsDB[fam.husband] && !personsDB[fam.husband].spouses.includes(fam.wife)) {
+                    personsDB[fam.husband].spouses.push(fam.wife);
+                }
+                if (personsDB[fam.wife] && !personsDB[fam.wife].spouses.includes(fam.husband)) {
+                    personsDB[fam.wife].spouses.push(fam.husband);
+                }
+            }
+            fam.children.forEach(function(childId) {
+                if (personsDB[childId]) {
+                    parents.forEach(function(pId) {
+                        if (personsDB[pId] && !personsDB[childId].parents.includes(pId)) personsDB[childId].parents.push(pId);
+                    });
+                }
+                parents.forEach(function(pId) {
+                    if (personsDB[pId] && !personsDB[pId].children.includes(childId)) {
+                        personsDB[pId].children.push(childId);
+                    }
+                });
+            });
+        });
+    }
+
+    // Automatisch inlezen bij openen van de pagina
+    window.addEventListener('DOMContentLoaded', function() {
+        fetch('Gedcom.json')
+            .then(response => {
+                if (!response.ok) throw new Error("Bestand niet gevonden");
+                return response.json();
+            })
+            .then(jsonData => {
+                initData(jsonData);
+            })
+            .catch(error => {
+                console.warn("Automatisch laden mislukt:", error);
+                document.getElementById('fallback-box').style.display = 'block';
+                document.getElementById('path-status').style.borderLeftColor = "#f44336";
+                document.getElementById('path-status').style.color = "#ff8a80";
+                document.getElementById('path-status').innerText = "Selecteer hierboven handmatig 'Gedcom.json'.";
+            });
+    });
+
+    function loadManualJson(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var jsonData = JSON.parse(e.target.result);
+                document.getElementById('fallback-box').style.display = 'none';
+                initData(jsonData);
+            } catch (err) {
+                alert("Fout bij het parsen van de JSON: " + err.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function initData(jsonData) {
+        parseGedcomJson(jsonData);
+        var pIds = Object.keys(personsDB);
+        
+        if (pIds.length === 0) {
+            document.getElementById('path-status').innerHTML = "<b>Waarschuwing:</b> Geen personen gevonden in het JSON-bestand.";
+            return;
+        }
+
+        // Vul de datalists voor de autocomplete pop-up (zoals in jouw werkende voorbeeld)
+        var listFrom = document.getElementById('list-from');
+        var listTo = document.getElementById('list-to');
+        listFrom.innerHTML = "";
+        listTo.innerHTML = "";
+
+        pIds.forEach(function(id) {
+            var p = personsDB[id];
+            var optionText = p.name + " " + p.dates + " (" + id + ")";
+            
+            var opt1 = document.createElement('option');
+            opt1.value = optionText;
+            listFrom.appendChild(opt1);
+
+            var opt2 = document.createElement('option');
+            opt2.value = optionText;
+            listTo.appendChild(opt2);
+        });
+
+        document.getElementById('input-from').disabled = false;
+        document.getElementById('input-to').disabled = false;
+        document.getElementById('calc-btn').disabled = false;
+        
+        var status = document.getElementById('path-status');
+        status.innerHTML = "<b>Gedcom.json geladen!</b><br>Aantal ingelezen personen: <b>" + pIds.length + "</b>.<br>Selecteer twee personen.";
+        status.style.borderLeftColor = "#ffeb3b";
+        status.style.color = "#ffeb3b";
+    }
+
+    // Koppelt de geselecteerde waarde uit de datalist aan het juiste ID
+    function onPersonSelected(type) {
+        var val = document.getElementById('input-' + type).value;
+        var match = val.match(/\((I\d+)\)/);
+        if (match && match[1] && personsDB[match[1]]) {
+            var personId = match[1];
+            var p = personsDB[personId];
+            if (type === 'from') {
+                selectedFromId = personId;
+            } else {
+                selectedToId = personId;
+            }
+            document.getElementById('tag-' + type).innerText = "Geselecteerd: " + p.name + " (" + personId + ")";
+        }
+    }
+
+    // BFS algoritme in JavaScript
+    function findPath(startId, endId) {
+        function bfs(allowSpouses) {
+            var queue = [[startId]];
+            var visited = new Set([startId]);
+
+            while (queue.length > 0) {
+                var path = queue.shift();
+                var curr = path[path.length - 1];
+
+                if (curr === endId) return path;
+
+                var p = personsDB[curr];
+                if (!p) continue;
+
+                var neighbors = [];
+                if (p.parents) p.parents.forEach(function(id) { neighbors.push({id: id}); });
+                if (p.children) p.children.forEach(function(id) { neighbors.push({id: id}); });
+                if (allowSpouses && p.spouses) {
+                    p.spouses.forEach(function(id) { neighbors.push({id: id}); });
+                }
+
+                for (var i = 0; i < neighbors.length; i++) {
+                    var nId = neighbors[i].id;
+                    if (!visited.has(nId) && personsDB[nId]) {
+                        visited.add(nId);
+                        var newPath = path.slice();
+                        newPath.push(nId);
+                        queue.push(newPath);
+                    }
+                }
+            }
+            return null;
+        }
+
+        var path = bfs(false);
+        if (path) return { path: path, type: "Bloedverwantschap" };
+
+        path = bfs(true);
+        if (path) return { path: path, type: "Aangehuwde/Gecombineerde relatie" };
+
+        return null;
+    }
+
+    function calculateAndRenderPath() {
+        var status = document.getElementById('path-status');
+
+        // Controleer of de gebruiker misschien direct getypt heeft zonder de dropdown te selecteren
+        if (!selectedFromId) {
+            onPersonSelected('from');
+        }
+        if (!selectedToId) {
+            onPersonSelected('to');
+        }
+
+        if (!selectedFromId || !selectedToId) {
+            status.innerHTML = "Selecteer A.U.B. geldige personen uit de suggestielijst.";
+            return;
+        }
+
+        if (selectedFromId === selectedToId) {
+            status.innerHTML = "Selecteer twee verschillende personen.";
+            return;
+        }
+
+        var result = findPath(selectedFromId, selectedToId);
+
+        if (!result) {
+            status.innerHTML = "<b>Geen pad gevonden</b> tussen deze twee personen.";
+            visNodes.clear();
+            visEdges.clear();
+            return;
+        }
+
+        var path = result.path;
+        status.innerHTML = "<b>" + result.type + " gevonden!</b><br>Ketenlengte: " + (path.length - 1) + " stappen (" + path.length + " personen).";
+
+        var levels = {};
+        levels[path[0]] = 0;
+
+        for (var i = 0; i < path.length - 1; i++) {
+            var u = path[i];
+            var v = path[i+1];
+            var pU = personsDB[u];
+
+            if (pU.parents && pU.parents.includes(v)) {
+                levels[v] = levels[u] - 1;
+            } else if (pU.children && pU.children.includes(v)) {
+                levels[v] = levels[u] + 1;
+            } else {
+                levels[v] = levels[u];
+            }
+        }
+
+        var newNodes = [];
+        path.forEach(function(id, index) {
+            var p = personsDB[id];
+            var bgColor = p.gender === 'F' ? '#FFB6C1' : '#87CEFA';
+            var labelText = p.name + (p.dates ? "\n" + p.dates : "");
+
+            var nodeObj = {
+                id: id,
+                label: labelText,
+                title: "<b>" + p.name + "</b><br>" + p.dates + "<br>ID: " + id,
+                shape: 'box',
+                level: levels[id],
+                color: { background: bgColor, border: '#444' }
+            };
+
+            if (index === 0) {
+                nodeObj.color = { background: '#4CAF50', border: '#2E7D32' };
+                nodeObj.font = { color: '#ffffff', bold: true };
+                nodeObj.label = "START: " + labelText;
+            } else if (index === path.length - 1) {
+                nodeObj.color = { background: '#FF5722', border: '#D84315' };
+                nodeObj.font = { color: '#ffffff', bold: true };
+                nodeObj.label = "EIND: " + labelText;
+            }
+
+            newNodes.push(nodeObj);
+        });
+
+        var newEdges = [];
+        for (var i = 0; i < path.length - 1; i++) {
+            var u = path[i];
+            var v = path[i+1];
+            var pU = personsDB[u];
+
+            if (pU.spouses && pU.spouses.includes(v)) {
+                newEdges.push({ from: u, to: v, title: "Partner", color: "#E91E63", width: 3, dashes: true });
+            } else if (pU.children && pU.children.includes(v)) {
+                newEdges.push({ from: u, to: v, title: "Ouder -> Kind", color: "#2196F3", width: 2, arrows: "to" });
+            } else if (pU.parents && pU.parents.includes(v)) {
+                newEdges.push({ from: v, to: u, title: "Ouder -> Kind", color: "#2196F3", width: 2, arrows: "to" });
+            }
+        }
+
+        visNodes.clear();
+        visEdges.clear();
+        visNodes.add(newNodes);
+        visEdges.add(newEdges);
+
+        network.fit({
+            animation: { duration: 500, easingFunction: 'easeInOutQuad' }
+        });
+    }
+</script>
+
+</body>
+</html>
