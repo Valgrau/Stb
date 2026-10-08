@@ -167,48 +167,45 @@
             document.getElementById('status').innerText = "Fout bij laden JSON: " + err.message;
         });
 
-    // 3. JSON Parser logica
+    // 3. Flexibele JSON Parser logica
     function parseJsonData(data) {
-        // Ondersteunt zowel objecten als arrays voor individuals en families in de JSON
-        var individuals = data.individuals || data.personen || {};
-        var families = data.families || {};
-
-        // Personen inladen
-        if (Array.isArray(individuals)) {
-            individuals.forEach(function(p) {
-                if (p.id) {
-                    personsDB[p.id] = {
-                        type: "INDI",
-                        id: p.id,
-                        fname: p.fname || p.voornaam || "",
-                        lname: p.lname || p.achternaam || "",
-                        gender: (p.gender || p.geslacht || "M").toUpperCase(),
-                        birtYear: p.birtYear || p.geboortejaar || "",
-                        deatYear: p.deatYear || p.overlijdensjaar || ""
-                    };
-                }
-            });
+        var listToProcess = [];
+        
+        if (Array.isArray(data)) {
+            listToProcess = data;
         } else {
-            Object.keys(individuals).forEach(function(id) {
-                var p = individuals[id];
+            var individuals = data.individuals || data.personen || data.persons || data.nodes || data.indi || [];
+            if (Array.isArray(individuals)) {
+                listToProcess = individuals;
+            } else if (typeof individuals === 'object' && individuals !== null) {
+                listToProcess = Object.values(individuals);
+            }
+        }
+
+        // Personen inladen in personsDB
+        listToProcess.forEach(function(p) {
+            var id = p.id || p._id || p.INDI || p.ID;
+            if (id) {
                 personsDB[id] = {
                     type: "INDI",
                     id: id,
-                    fname: p.fname || p.voornaam || "",
-                    lname: p.lname || p.achternaam || "",
-                    gender: (p.gender || p.geslacht || "M").toUpperCase(),
-                    birtYear: p.birtYear || p.geboortejaar || "",
-                    deatYear: p.deatYear || p.overlijdensjaar || ""
+                    fname: p.fname || p.voornaam || p.first_name || "",
+                    lname: p.lname || p.achternaam || p.last_name || "",
+                    gender: (p.gender || p.geslacht || p.sex || "M").toUpperCase(),
+                    birtYear: p.birtYear || p.geboortejaar || p.birth_year || "",
+                    deatYear: p.deatYear || p.overlijdensjaar || p.death_year || ""
                 };
-            });
-        }
+            }
+        });
 
         // Families inladen en parentMap opbouwen
+        var families = data.families || data.gezinnen || data.fams || data.fam || [];
         var famList = Array.isArray(families) ? families : Object.values(families);
+        
         famList.forEach(function(fam) {
-            var husb = fam.husb || fam.man || null;
-            var wife = fam.wife || fam.vrouw || null;
-            var children = fam.children || fam.kinderen || [];
+            var husb = fam.husb || fam.man || fam.husband || fam.vader || null;
+            var wife = fam.wife || fam.vrouw || fam.wife_id || fam.moeder || null;
+            var children = fam.children || fam.kinderen || fam.child_ids || [];
 
             var parents = [];
             if (husb && personsDB[husb]) parents.push(husb);
@@ -265,7 +262,6 @@
         var selectedIds = [];
         for (var i = 1; i <= 10; i++) {
             var val = document.getElementById('p' + i).value;
-            // Zoekt naar ID tussen haakjes, bijv. (I123) of (123)
             var match = val.match(/\(([^)]+)\)/);
             if (match && match[1]) {
                 var id = match[1].trim();
