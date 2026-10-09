@@ -13,7 +13,7 @@
             padding: 10px;
             box-sizing: border-box;
             background-color: #FFFFFF;
-            overflow: hidden;
+            overflow: hidden; /* Voorkomt scrollbars en witte randen onderaan */
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         h2 {
@@ -23,7 +23,7 @@
         }
         #mynetwork {
             width: 100%;
-            height: calc(100vh - 210px);
+            height: calc(100vh - 210px); /* Past zich dynamisch aan de resterende schermhoogte aan */
             border: 1px solid #BDBDBD;
             background-color: #F8F9FA;
             border-radius: 4px;
@@ -57,6 +57,7 @@
             border: 1px solid #CCC;
             border-radius: 4px;
         }
+        /* Autocomplete Popup Stijlen */
         .autocomplete-items {
             position: absolute;
             border: 1px solid #d4d4d4;
@@ -99,7 +100,6 @@
         .btn-mode { background-color: #2196F3; color: white; }
         .btn-mode.active { background-color: #0D47A1; }
         .btn-file { background-color: #FF9800; color: white; }
-        .btn-copy { background-color: #673AB7; color: white; }
         
         .num-box {
             padding: 5px;
@@ -183,12 +183,11 @@
         <input type="number" id="maxGenInput" class="num-box" value="8" min="1" max="25">
     </div>
 
-    <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
+    <div style="display: flex; gap: 8px; align-items: flex-end;">
         <button class="btn btn-calc" onclick="calculateAndRender()">⚡ Berekenen</button>
         <button id="btnBlood" class="btn btn-mode active" onclick="setMode('blood')">Zuiver Bloed</button>
         <button id="btnShortest" class="btn btn-mode" onclick="setMode('shortest')">Kortste Route</button>
         <button class="btn btn-file" onclick="document.getElementById('fileInput').click()">📁 Open JSON</button>
-        <button class="btn btn-copy" onclick="copySelectedPath()">📋 Kopieer Pad</button>
     </div>
     
     <input type="file" id="fileInput" accept=".json,.ged" style="display: none;" onchange="handleFileSelect(event)">
@@ -222,11 +221,6 @@
 
     var personsDB = {};
     var currentMode = 'blood';
-    var lastSelectedPathNames = []; 
-    var lastPathStartName = "";
-    var lastPathEndName = "";
-    var lastPathCode = "";
-    var changeIndices = []; // Indexen van personen waar richtingswijziging plaatsvindt
 
     var nodesDataSet = new vis.DataSet();
     var edgesDataSet = new vis.DataSet();
@@ -712,24 +706,20 @@
         nodesDataSet.clear();
         edgesDataSet.clear();
         currentAdjMap = {};
-        lastSelectedPathNames = [];
-        lastPathStartName = "";
-        lastPathEndName = "";
-        lastPathCode = "";
-        changeIndices = [];
 
         var newNodes = [];
         var edgesSet = new Set();
 
+        // Compacte randcoördinaten binnen het scherm zodat het netwerk overzichtelijk gecentreerd blijft
         var widthRange = 250;
         var heightRange = 180;
         
         var edgePositions = [
-            { x: -widthRange, y: -heightRange },
-            { x: widthRange,  y: -heightRange },
-            { x: -widthRange, y: heightRange },
-            { x: widthRange,  y: heightRange },
-            { x: 0,           y: -heightRange-40 }
+            { x: -widthRange, y: -heightRange }, // Target 1: Boven-Links
+            { x: widthRange,  y: -heightRange }, // Target 2: Boven-Rechts
+            { x: -widthRange, y: heightRange },  // Target 3: Onder-Links
+            { x: widthRange,  y: heightRange },  // Target 4: Onder-Rechts
+            { x: 0,           y: -heightRange-40 } // Target 5: Boven-Midden
         ];
 
         nodesToInclude.forEach(function(id) {
@@ -756,7 +746,7 @@
                 var pos = edgePositions[targetIdx % edgePositions.length];
                 nodeConfig.x = pos.x;
                 nodeConfig.y = pos.y;
-                nodeConfig.fixed = false;
+                nodeConfig.fixed = false; // Blijft volledig verplaatsbaar
             }
 
             newNodes.push(nodeConfig);
@@ -797,23 +787,6 @@
         network.fit();
     }
 
-    function getRelationCodeChar(fromId, toId) {
-        var fromP = personsDB[fromId];
-        var toP = personsDB[toId];
-        if (!fromP || !toP) return '?';
-
-        if (fromP.parents.includes(toId)) {
-            return toP.gender === 'F' ? 'M' : 'V';
-        }
-        if (fromP.children.includes(toId)) {
-            return 'K';
-        }
-        if (fromP.spouses.includes(toId)) {
-            return 'P';
-        }
-        return '?';
-    }
-
     function highlightPathBetween(startId, endId) {
         var queue = [[startId]];
         var visited = new Set([startId]);
@@ -832,38 +805,6 @@
         }
         if (!targetPath) return;
 
-        var startPerson = personsDB[startId];
-        var endPerson = personsDB[endId];
-        lastPathStartName = startPerson ? startPerson.name : startId;
-        lastPathEndName = endPerson ? endPerson.name : endId;
-
-        var codeChars = [];
-        var lastGroup = ''; 
-        changeIndices = [];
-
-        for (var i = 0; i < targetPath.length - 1; i++) {
-            var charCode = getRelationCodeChar(targetPath[i], targetPath[i+1]);
-            var currentGroup = (charCode === 'V' || charCode === 'M') ? 'PARENT' : charCode;
-
-            if (lastGroup !== '' && lastGroup !== currentGroup) {
-                codeChars.push('-');
-                // De persoon waar de richtingswijziging plaatsvindt is targetPath[i]
-                changeIndices.push(i);
-            }
-            codeChars.push(charCode);
-            lastGroup = currentGroup;
-        }
-        lastPathCode = codeChars.join('');
-
-        lastSelectedPathNames = targetPath.map(function(id, idx) {
-            var p = personsDB[id];
-            var namePart = p ? (p.name + (p.years ? " " + p.years : "") + " (@" + id + "@)") : id;
-            if (changeIndices.includes(idx)) {
-                return "🔴 " + namePart + " (Richtsverandering)";
-            }
-            return namePart;
-        });
-
         var pathNodesSet = new Set(targetPath);
         var pathEdgesSet = new Set();
         for (var i = 0; i < targetPath.length - 1; i++) {
@@ -880,11 +821,6 @@
     }
 
     function resetHighlighting() {
-        lastSelectedPathNames = [];
-        lastPathStartName = "";
-        lastPathEndName = "";
-        lastPathCode = "";
-        changeIndices = [];
         nodesDataSet.forEach(function(n) {
             var p = personsDB[n.id];
             if (!p) return;
@@ -892,22 +828,6 @@
         });
         edgesDataSet.forEach(function(e) {
             edgesDataSet.update({ id: e.id, color: { color: e.label === "ouder van" ? "#4CAF50" : "#E91E63" }, width: 1 });
-        });
-    }
-
-    function copySelectedPath() {
-        if (!lastSelectedPathNames || lastSelectedPathNames.length === 0) {
-            alert("Selecteer eerst exact 2 personen in het netwerk door erop te klikken zodat het pad oplicht.");
-            return;
-        }
-
-        var titleLine = "Pad van " + lastPathStartName + " naar " + lastPathEndName + " (" + lastSelectedPathNames.length + " personen, relatiecode: " + lastPathCode + "):";
-        var textToCopy = titleLine + "\n" + lastSelectedPathNames.join(" ➔ ");
-
-        navigator.clipboard.writeText(textToCopy).then(function() {
-            setStatus("✅ Het pad inclusief aantal personen en relatiecode (" + lastPathCode + ") is naar het klembord gekopieerd!", false);
-        }).catch(function(err) {
-            alert("Kopiëren mislukt: " + err);
         });
     }
 </script>
