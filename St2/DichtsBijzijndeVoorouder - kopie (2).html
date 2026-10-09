@@ -94,7 +94,6 @@
             width: 100vw;
             height: calc(100vh - 290px);
             background-color: #ffffff;
-            position: relative;
         }
 
         .legend {
@@ -145,15 +144,15 @@
 
 <datalist id="personList"></datalist>
 
-<div id="mynetwork">
-    <div class="legend">
-        <strong>Legende:</strong><br>
-        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 3px solid #D32F2F;"></span> Opgegeven Man (Rode Rand / Ovaal)</div>
-        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 3px solid #D32F2F;"></span> Opgegeven Vrouw (Rode Rand / Ovaal)</div>
-        <div class="legend-item"><span class="color-box" style="background:#e0e0e0; border: 1px solid #555;"></span> Tussenliggende Voorouder (Rechthoek)</div>
-        <hr style="margin: 5px 0;">
-        <div class="legend-item"><span style="color:#2B7CE9; font-weight:bold;">➔</span> Ouder -> Kind afstamming</div>
-    </div>
+<div id="mynetwork"></div>
+
+<div class="legend">
+    <strong>Legende:</strong><br>
+    <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 3px solid #D32F2F;"></span> Opgegeven Man (Rode Rand / Ovaal)</div>
+    <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 3px solid #D32F2F;"></span> Opgegeven Vrouw (Rode Rand / Ovaal)</div>
+    <div class="legend-item"><span class="color-box" style="background:#e0e0e0; border: 1px solid #555;"></span> Tussenliggende Voorouder (Rechthoek)</div>
+    <hr style="margin: 5px 0;">
+    <div class="legend-item"><span style="color:#2B7CE9; font-weight:bold;">➔</span> Ouder -> Kind afstamming</div>
 </div>
 
 <script type="text/javascript">
@@ -162,7 +161,6 @@
     var network = null;
     var nodesDataSet = new vis.DataSet();
     var edgesDataSet = new vis.DataSet();
-    var currentAdjMap = {}; // Voor pad-interactie
 
     // 1. Invoervelden genereren (1 tot 10 personen)
     var inputContainer = document.getElementById('inputContainer');
@@ -424,6 +422,7 @@
             var fullName = (p.fname + " " + p.lname).trim() || "Onbekend";
             var birthStr = p.birtYear ? " (" + p.birtYear + ")" : "";
             var option = document.createElement('option');
+            // Toon naam, voornaam en geboortejaar in de popup, met het ID verborgen tussen haakjes achteraan
             option.value = fullName + birthStr + " [" + id + "]";
             datalist.appendChild(option);
         });
@@ -529,7 +528,6 @@
     function renderNetwork(nodesSet, edgesSet, targetIds) {
         nodesDataSet.clear();
         edgesDataSet.clear();
-        currentAdjMap = {};
 
         nodesSet.forEach(function(ptr) {
             var person = personsDB[ptr];
@@ -556,26 +554,16 @@
                 borderWidth: borderWidth,
                 title: "<b>" + fullName + "</b><br>ID: " + ptr + "<br>Geslacht: " + person.gender + "<br>Geboortejaar: " + person.birtYear
             });
-            currentAdjMap[ptr] = [];
         });
 
-        var edgeIndex = 0;
         edgesSet.forEach(function(edgeStr) {
             var parts = edgeStr.split("->");
-            var fromNode = parts[0];
-            var toNode = parts[1];
-            var eId = "e_" + (edgeIndex++);
-
             edgesDataSet.add({
-                id: eId,
-                from: fromNode,
-                to: toNode,
+                from: parts[0],
+                to: parts[1],
                 color: { color: "#2B7CE9" },
                 arrows: { to: { enabled: true, type: "arrow" } }
             });
-
-            if (currentAdjMap[fromNode]) currentAdjMap[fromNode].push({ neighbor: toNode, edgeId: eId });
-            if (currentAdjMap[toNode]) currentAdjMap[toNode].push({ neighbor: fromNode, edgeId: eId });
         });
 
         var container = document.getElementById('mynetwork');
@@ -601,29 +589,11 @@
             },
             nodes: { font: { size: 12, face: 'Segoe UI' }, margin: 8 },
             edges: { smooth: { type: 'cubicBezier', forceDirection: 'vertical' } },
-            interaction: { hover: true, tooltipDelay: 150, multiselect: true }
+            interaction: { hover: true, tooltipDelay: 150 }
         };
 
         if (network) network.destroy();
         network = new vis.Network(container, data, options);
-
-        // Klik-functionaliteit voor padverlichting tussen 2 personen
-        network.on("select", function (params) {
-            if (params.nodes.length === 2) {
-                highlightPathBetween(params.nodes[0], params.nodes[1]);
-            } else if (params.nodes.length === 0) {
-                resetHighlighting();
-            }
-        });
-
-        network.on("deselectNode", function () {
-            var selected = network.getSelectedNodes();
-            if (selected.length === 2) {
-                highlightPathBetween(selected[0], selected[1]);
-            } else if (selected.length === 0) {
-                resetHighlighting();
-            }
-        });
 
         network.on("dragEnd", function (params) {
             if (params.nodes.length > 0) {
@@ -649,50 +619,7 @@
         });
     }
 
-    // 6. Pad oplichten tussen 2 geselecteerde nodes
-    function highlightPathBetween(startId, endId) {
-        var queue = [[startId]];
-        var visited = new Set([startId]);
-        var targetPath = null;
-
-        while (queue.length > 0) {
-            var path = queue.shift();
-            var current = path[path.length - 1];
-            if (current === endId) { targetPath = path; break; }
-            (currentAdjMap[current] || []).forEach(function(item) {
-                if (!visited.has(item.neighbor)) {
-                    visited.add(item.neighbor);
-                    queue.push(path.concat([item.neighbor]));
-                }
-            });
-        }
-        if (!targetPath) return;
-
-        var pathNodesSet = new Set(targetPath);
-        var pathEdgesSet = new Set();
-        for (var i = 0; i < targetPath.length - 1; i++) {
-            var u = targetPath[i], v = targetPath[i + 1];
-            (currentAdjMap[u] || []).forEach(function(item) { if (item.neighbor === v) pathEdgesSet.add(item.edgeId); });
-        }
-
-        nodesDataSet.forEach(function(n) {
-            nodesDataSet.update({ id: n.id, opacity: pathNodesSet.has(n.id) ? 1 : 0.25 });
-        });
-        edgesDataSet.forEach(function(e) {
-            edgesDataSet.update({ id: e.id, color: { color: pathEdgesSet.has(e.id) ? "#FF6F00" : "#E0E0E0" }, width: pathEdgesSet.has(e.id) ? 4 : 1 });
-        });
-    }
-
-    function resetHighlighting() {
-        nodesDataSet.forEach(function(n) {
-            nodesDataSet.update({ id: n.id, opacity: 1 });
-        });
-        edgesDataSet.forEach(function(e) {
-            edgesDataSet.update({ id: e.id, color: { color: "#2B7CE9" }, width: 1 });
-        });
-    }
-
-    // 7. Exporteren en Schoonmaken
+    // 6. Exporteren en Schoonmaken
     function exportToTxt() {
         var targetIds = getSelectedTargetIds();
         if (targetIds.length === 0) {
