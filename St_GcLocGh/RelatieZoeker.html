@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <title>Relatiepad Zoeker</title>
+    <!-- Vis.netwerk bibliotheek voor de stamboom visualisatie -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #1e1e1e; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #mynetwork { width: 100%; height: 100%; }
+        
+        #search-container {
+            position: absolute; top: 15px; left: 15px; z-index: 1000;
+            background: rgba(30, 30, 30, 0.95); padding: 20px; border-radius: 8px; color: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8); width: 380px; border: 1px solid #444;
+        }
+        
+        .input-group { margin-bottom: 12px; position: relative; }
+        .input-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; font-weight: bold; }
+        input[type="text"] { width: 93%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #2a2a2a; color: white; font-size: 13px; }
+        
+        button { width: 100%; padding: 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin-top: 10px; }
+        button:hover { background-color: #45a049; }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+        
+        #path-status { margin-top: 15px; padding: 10px; background: #2a2a2a; border-radius: 4px; font-size: 13px; color: #ffeb3b; border-left: 4px solid #ffeb3b; }
+        .selected-tag { font-size: 11px; color: #81c784; margin-top: 4px; }
+        
+        #fallback-box { display: none; margin-top: 15px; padding: 10px; background: #3a2e2e; border-radius: 4px; border-left: 4px solid #f44336; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div id="search-container">
+    <h3 style="margin: 0 0 15px 0; color: #4CAF50;">Relatiepad Zoeker</h3>
+    
+    <!-- Fallback melding indien lokaal geheugen leeg is -->
+    <div id="fallback-box">
+        <b>Geen stamboom gevonden in geheugen.</b><br>
+        Selecteer handmatig een GEDCOM-bestand:
+        <input type="file" id="gedcom-file-input" accept=".ged,.GED,.txt" style="margin-top: 8px; color: white;" onchange="loadManualFile(event)">
+    </div>
+
+    <div class="input-group">
+        <label>VAN (Persoon 1):</label>
+        <input type="text" id="input-from" placeholder="Typ naam of ID..." list="list-from" onchange="onPersonSelected('from')" disabled>
+        <div id="tag-from" class="selected-tag"></div>
+        <datalist id="list-from"></datalist>
+    </div>
+
+    <div class="input-group">
+        <label>TOT (Persoon 2):</label>
+        <input type="text" id="input-to" placeholder="Typ naam of ID..." list="list-to" onchange="onPersonSelected('to')" disabled>
+        <div id="tag-to" class="selected-tag"></div>
+        <datalist id="list-to"></datalist>
+    </div>
+
+    <button id="calc-btn" onclick="calculateAndRenderPath()" disabled>Bereken & Toon Pad</button>
+    <button style="background-color: #2196F3;" onclick="window.location.href='index.html'">🏠 Naar Startpagina</button>
+    
+    <div id="path-status">Gegevens ophalen uit lokaal geheugen...</div>
+</div>
+
+<div id="mynetwork"></div>
+
+<script type="text/javascript">
+    var personsDB = {};
+    var selectedFromId = null;
+    var selectedToId = null;
+
+    var container = document.getElementById('mynetwork');
+    var visNodes = new vis.DataSet([]);
+    var visEdges = new vis.DataSet([]);
+    var data = { nodes: visNodes, edges: visEdges };
+
+    var options = {
+        nodes: { 
+            shape: 'box',
+            margin: 10,
+            borderWidth: 2, 
+            shadow: true,
+            font: { color: '#000000', size: 14 }
+        },
+        edges: { smooth: { type: 'cubicBezier', forceDirection: 'vertical' } },
+        layout: {
+            hierarchical: {
+                enabled: true,
+                direction: 'UD',
+                sortMethod: 'directed',
+                nodeSpacing: 200,
+                levelSeparation: 130
+            }
+        },
+        interaction: { hover: true },
+        physics: { enabled: false }
+    };
+
+    var network = new vis.Network(container, data, options);
+
+    function cleanId(idStr) {
+        if (!idStr) return null;
+        return String(idStr).replace(/@/g, "").trim();
+    }
+
+    function parseGedcomText(gedcomText) {
+        personsDB = {};
+        var rawFams = {};
+        
+        var lines = gedcomText.split(/\r?\n/);
+        var currentRecordType = null;
+        var currentIndi = null;
+        var currentFam = null;
+        var currentSubTag = null;
+
+        lines.forEach(function(line) {
+            var trimmed = line.trim();
+            if (!trimmed) return;
+
+            var parts = trimmed.split(' ');
+            var level = parseInt(parts[0], 10);
+            var tag = '';
+            var val = '';
+            var id = '';
+
+            if (isNaN(level)) return;
+
+            if (parts[1] && parts[1].startsWith('@') && parts[1].endsWith('@')) {
+                id = parts[1].replace(/@/g, '');
+                tag = parts[2] ? parts[2].toUpperCase() : '';
+                val = parts.slice(3).join(' ');
+            } else {
+                tag = parts[1] ? parts[1].toUpperCase() : '';
+                val = parts.slice(2).join(' ');
+            }
+
+            if (level === 0) {
+                currentIndi = null;
+                currentFam = null;
+                currentRecordType = null;
+
+                if (tag === 'INDI') {
+                    currentRecordType = 'INDI';
+                    currentIndi = {
+                        id: id,
+                        name: 'Onbekend',
+                        gender: 'U',
+                        birt: '',
+                        deat: '',
+                        dates: '',
+                        parents: [],
+                        children: [],
+                        spouses: []
+                    };
+                    personsDB[id] = currentIndi;
+                } else if (tag === 'FAM') {
+                    currentRecordType = 'FAM';
+                    currentFam = {
+                        id: id,
+                        husb: [],
+                        wife: [],
+                        children: []
+                    };
+                    rawFams[id] = currentFam;
+                }
+            } else if (level === 1) {
+                currentSubTag = tag;
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if (tag === 'SEX') {
+                        currentIndi.gender = val.trim().toUpperCase();
+                    } else if (tag === 'NAME') {
+                        currentIndi.name = val.replace(/\//g, '').trim();
+                    }
+                } else if (currentRecordType === 'FAM' && currentFam) {
+                    if (tag === 'HUSB') {
+                        var hId = cleanId(val);
+                        if (hId) currentFam.husb.push(hId);
+                    } else if (tag === 'WIFE') {
+                        var wId = cleanId(val);
+                        if (wId) currentFam.wife.push(wId);
+                    } else if (tag === 'CHIL') {
+                        var cId = cleanId(val);
+                        if (cId) currentFam.children.push(cId);
+                    }
+                }
+            } else if (level === 2 || level === 3) {
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if ((currentSubTag === 'BIRT' || currentSubTag === 'DEAT') && tag === 'DATE') {
+                        var match = String(val).match(/\b(1\d{3}|20\d{2})\b/);
+                        if (match) {
+                            if (currentSubTag === 'BIRT') currentIndi.birt = match[1];
+                            if (currentSubTag === 'DEAT') currentIndi.deat = match[1];
+                        }
+                    }
+                }
+            }
+        });
+
+        Object.values(personsDB).forEach(function(p) {
+            if (p.birt || p.deat) {
+                p.dates = "(" + p.birt + (p.deat ? " - " + p.deat : "") + ")";
+            }
+        });
+
+        Object.values(rawFams).forEach(function(fam) {
+            var parents = [].concat(fam.husb, fam.wife);
+            fam.husb.forEach(function(hId) {
+                fam.wife.forEach(function(wId) {
+                    if (personsDB[hId] && !personsDB[hId].spouses.includes(wId)) personsDB[hId].spouses.push(wId);
+                    if (personsDB[wId] && !personsDB[wId].spouses.includes(hId)) personsDB[wId].spouses.push(hId);
+                });
+            });
+            fam.children.forEach(function(childId) {
+                if (personsDB[childId]) {
+                    parents.forEach(function(pId) {
+                        if (personsDB[pId]) {
+                            if (!personsDB[childId].parents.includes(pId)) personsDB[childId].parents.push(pId);
+                            if (!personsDB[pId].children.includes(childId)) personsDB[pId].children.push(childId);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+        var savedData = localStorage.getItem('gedcomData');
+        if (savedData) {
+            initData(savedData);
+        } else {
+            document.getElementById('fallback-box').style.display = 'block';
+            document.getElementById('path-status').style.borderLeftColor = "#f44336";
+            document.getElementById('path-status').style.color = "#ff8a80";
+            document.getElementById('path-status').innerText = "Geen stamboom gevonden in geheugen.";
+        }
+    });
+
+    function loadManualFile(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var text = e.target.result;
+            localStorage.setItem('gedcomData', text);
+            document.getElementById('fallback-box').style.display = 'none';
+            initData(text);
+        };
+        reader.readAsText(file);
+    }
+
+    function initData(gedcomText) {
+        parseGedcomText(gedcomText);
+        var pIds = Object.keys(personsDB);
+        
+        if (pIds.length === 0) {
+            document.getElementById('path-status').innerHTML = "<b>Waarschuwing:</b> Geen personen gevonden in de data.";
+            return;
+        }
+
+        var listFrom = document.getElementById('list-from');
+        var listTo = document.getElementById('list-to');
+        listFrom.innerHTML = "";
+        listTo.innerHTML = "";
+
+        pIds.forEach(function(id) {
+            var p = personsDB[id];
+            var optionText = p.name + " " + p.dates + " (" + id + ")";
+            
+            var opt1 = document.createElement('option');
+            opt1.value = optionText;
+            listFrom.appendChild(opt1);
+
+            var opt2 = document.createElement('option');
+            opt2.value = optionText;
+            listTo.appendChild(opt2);
+        });
+
+        document.getElementById('input-from').disabled = false;
+        document.getElementById('input-to').disabled = false;
+        document.getElementById('calc-btn').disabled = false;
+        
+        var status = document.getElementById('path-status');
+        status.innerHTML = "<b>Data geladen uit geheugen!</b><br>Aantal ingelezen personen: <b>" + pIds.length + "</b>.<br>Selecteer twee personen.";
+        status.style.borderLeftColor = "#ffeb3b";
+        status.style.color = "#ffeb3b";
+    }
+
+    function onPersonSelected(type) {
+        var val = document.getElementById('input-' + type).value;
+        var match = val.match(/\((I\d+)\)/);
+        if (match && match[1] && personsDB[match[1]]) {
+            var personId = match[1];
+            var p = personsDB[personId];
+            if (type === 'from') {
+                selectedFromId = personId;
+            } else {
+                selectedToId = personId;
+            }
+            document.getElementById('tag-' + type).innerText = "Geselecteerd: " + p.name + " (" + personId + ")";
+        }
+    }
+
+    function findPath(startId, endId) {
+        function bfs(allowSpouses) {
+            var queue = [[startId]];
+            var visited = new Set([startId]);
+
+            while (queue.length > 0) {
+                var path = queue.shift();
+                var curr = path[path.length - 1];
+
+                if (curr === endId) return path;
+
+                var p = personsDB[curr];
+                if (!p) continue;
+
+                var neighbors = [];
+                if (p.parents) p.parents.forEach(function(id) { neighbors.push({id: id}); });
+                if (p.children) p.children.forEach(function(id) { neighbors.push({id: id}); });
+                if (allowSpouses && p.spouses) {
+                    p.spouses.forEach(function(id) { neighbors.push({id: id}); });
+                }
+
+                for (var i = 0; i < neighbors.length; i++) {
+                    var nId = neighbors[i].id;
+                    if (!visited.has(nId) && personsDB[nId]) {
+                        visited.add(nId);
+                        var newPath = path.slice();
+                        newPath.push(nId);
+                        queue.push(newPath);
+                    }
+                }
+            }
+            return null;
+        }
+
+        var path = bfs(false);
+        if (path) return { path: path, type: "Bloedverwantschap" };
+
+        path = bfs(true);
+        if (path) return { path: path, type: "Aangehuwde/Gecombineerde relatie" };
+
+        return null;
+    }
+
+    function calculateAndRenderPath() {
+        var status = document.getElementById('path-status');
+
+        if (!selectedFromId) onPersonSelected('from');
+        if (!selectedToId) onPersonSelected('to');
+
+        if (!selectedFromId || !selectedToId) {
+            status.innerHTML = "Selecteer A.U.B. geldige personen uit de suggestielijst.";
+            return;
+        }
+
+        if (selectedFromId === selectedToId) {
+            status.innerHTML = "Selecteer twee verschillende personen.";
+            return;
+        }
+
+        var result = findPath(selectedFromId, selectedToId);
+
+        if (!result) {
+            status.innerHTML = "<b>Geen pad gevonden</b> tussen deze twee personen.";
+            visNodes.clear();
+            visEdges.clear();
+            return;
+        }
+
+        var path = result.path;
+        status.innerHTML = "<b>" + result.type + " gevonden!</b><br>Ketenlengte: " + (path.length - 1) + " stappen (" + path.length + " personen).";
+
+        var levels = {};
+        levels[path[0]] = 0;
+
+        for (var i = 0; i < path.length - 1; i++) {
+            var u = path[i];
+            var v = path[i+1];
+            var pU = personsDB[u];
+
+            if (pU.parents && pU.parents.includes(v)) {
+                levels[v] = levels[u] - 1;
+            } else if (pU.children && pU.children.includes(v)) {
+                levels[v] = levels[u] + 1;
+            } else {
+                levels[v] = levels[u];
+            }
+        }
+
+        var newNodes = [];
+        path.forEach(function(id, index) {
+            var p = personsDB[id];
+            var bgColor = p.gender === 'F' ? '#FFB6C1' : '#87CEFA';
+            var labelText = p.name + (p.dates ? "\n" + p.dates : "");
+
+            var nodeObj = {
+                id: id,
+                label: labelText,
+                title: "<b>" + p.name + "</b><br>" + p.dates + "<br>ID: " + id,
+                shape: 'box',
+                level: levels[id],
+                color: { background: bgColor, border: '#444' }
+            };
+
+            if (index === 0) {
+                nodeObj.color = { background: '#4CAF50', border: '#2E7D32' };
+                nodeObj.font = { color: '#ffffff', bold: true };
+                nodeObj.label = "START: " + labelText;
+            } else if (index === path.length - 1) {
+                nodeObj.color = { background: '#FF5722', border: '#D84315' };
+                nodeObj.font = { color: '#ffffff', bold: true };
+                nodeObj.label = "EIND: " + labelText;
+            }
+
+            newNodes.push(nodeObj);
+        });
+
+        var newEdges = [];
+        for (var i = 0; i < path.length - 1; i++) {
+            var u = path[i];
+            var v = path[i+1];
+            var pU = personsDB[u];
+
+            if (pU.spouses && pU.spouses.includes(v)) {
+                newEdges.push({ from: u, to: v, title: "Partner", color: "#E91E63", width: 3, dashes: true });
+            } else if (pU.children && pU.children.includes(v)) {
+                newEdges.push({ from: u, to: v, title: "Ouder -> Kind", color: "#2196F3", width: 2, arrows: "to" });
+            } else if (pU.parents && pU.parents.includes(v)) {
+                newEdges.push({ from: v, to: u, title: "Ouder -> Kind", color: "#2196F3", width: 2, arrows: "to" });
+            }
+        }
+
+        visNodes.clear();
+        visEdges.clear();
+        visNodes.add(newNodes);
+        visEdges.add(newEdges);
+
+        network.fit({
+            animation: { duration: 500, easingFunction: 'easeInOutQuad' }
+        });
+    }
+</script>
+
+</body>
+</html>

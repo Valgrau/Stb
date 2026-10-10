@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Dichtstbijzijnde Gemeenschappelijke Voorouder (MRCA)</title>
+    <!-- Vis.js bibliotheek voor het netwerk -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f9;
+        }
+        #header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #header h1 { margin: 0; font-size: 22px; }
+        #header p { margin: 5px 0 0 0; font-size: 13px; color: #bdc3c7; }
+        
+        .controls-panel {
+            background: #ffffff;
+            padding: 15px 20px;
+            border-bottom: 1px solid #dcdcdc;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .status-bar {
+            background: #e8f4fd;
+            border: 1px dashed #3498db;
+            padding: 10px 15px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        #status {
+            font-size: 13px;
+            font-weight: bold;
+            color: #2980b9;
+        }
+        .inputs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .input-group label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #34495e;
+            width: 70px;
+        }
+        .search-input {
+            flex: 1;
+            padding: 6px 10px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .button-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-primary { background-color: #27ae60; color: white; }
+        .btn-primary:hover { background-color: #219150; }
+        .btn-secondary { background-color: #2980b9; color: white; }
+        .btn-secondary:hover { background-color: #1f6391; }
+        .btn-clear { background-color: #e74c3c; color: white; }
+        .btn-clear:hover { background-color: #c0392b; }
+
+        #mynetwork {
+            width: 100vw;
+            height: calc(100vh - 290px);
+            background-color: #ffffff;
+            position: relative;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.15);
+            font-size: 12px;
+            line-height: 1.8;
+            z-index: 1000;
+        }
+        .legend-item { display: flex; align-items: center; }
+        .color-box { width: 16px; height: 16px; margin-right: 8px; border-radius: 3px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>Dichtstbijzijnde Gemeenschappelijke Voorouder (MRCA)</h1>
+    <p>Selecteer 1 tot 10 personen om hun kortste biologische afstammingslijnen te berekenen en te visualiseren.</p>
+</div>
+
+<div class="controls-panel">
+    <!-- Status en Handmatige File Picker -->
+    <div class="status-bar">
+        <span id="status">⏳ Gegevens ophalen uit lokaal geheugen...</span>
+        <div id="fileFallback" style="display: none;">
+            <input type="file" id="gedcomFileInput" accept=".ged,.GED,.txt" style="display: none;">
+            <button class="btn btn-secondary" onclick="document.getElementById('gedcomFileInput').click();">
+                📁 Selecteer GEDCOM-bestand handmatig
+            </button>
+        </div>
+    </div>
+
+    <div class="inputs-grid" id="inputContainer">
+        <!-- Genereren van 10 invoervelden via JavaScript -->
+    </div>
+    
+    <div class="button-bar">
+        <button class="btn btn-primary" onclick="calculateMRCA()">▶ Bereken & Toon Netwerk</button>
+        <button class="btn btn-secondary" onclick="exportToTxt()">📥 Exporteer ID's naar TXT</button>
+        <button class="btn btn-clear" onclick="clearSelection()">↺ Wis Alles</button>
+        <button class="btn btn-secondary" onclick="window.location.href='index.html'">🏠 Naar Startpagina</button>
+    </div>
+</div>
+
+<datalist id="personList"></datalist>
+
+<div id="mynetwork">
+    <div class="legend">
+        <strong>Legende:</strong><br>
+        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 3px solid #D32F2F;"></span> Opgegeven Man (Rode Rand / Ovaal)</div>
+        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 3px solid #D32F2F;"></span> Opgegeven Vrouw (Rode Rand / Ovaal)</div>
+        <div class="legend-item"><span class="color-box" style="background:#e0e0e0; border: 1px solid #555;"></span> Tussenliggende Voorouder (Rechthoek)</div>
+        <hr style="margin: 5px 0;">
+        <div class="legend-item"><span style="color:#2B7CE9; font-weight:bold;">➔</span> Ouder -> Kind afstamming</div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var personsDB = {};
+    var parentMap = {}; 
+    var network = null;
+    var nodesDataSet = new vis.DataSet();
+    var edgesDataSet = new vis.DataSet();
+    var currentAdjMap = {}; 
+
+    var inputContainer = document.getElementById('inputContainer');
+    for (var i = 1; i <= 10; i++) {
+        var div = document.createElement('div');
+        div.className = 'input-group';
+        div.innerHTML = '<label for="p' + i + '">Persoon ' + i + ':</label>' +
+                        '<input type="text" id="p' + i + '" class="search-input" list="personList" placeholder="Typ naam of geboortejaar...">';
+        inputContainer.appendChild(div);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        var savedData = localStorage.getItem('gedcomData');
+        if (savedData) {
+            parseGedcomText(savedData);
+            populateDatalist();
+            document.getElementById('status').innerText = "✅ Data succesvol geladen uit het lokaal geheugen (" + Object.keys(personsDB).length + " personen).";
+        } else {
+            document.getElementById('status').innerText = "⚠️ Geen stamboom gevonden in het geheugen. Ga eerst naar de startpagina of kies handmatig:";
+            document.getElementById('fileFallback').style.display = 'block';
+        }
+    });
+
+    document.getElementById('gedcomFileInput').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                var text = evt.target.result;
+                localStorage.setItem('gedcomData', text);
+                parseGedcomText(text);
+                populateDatalist();
+                document.getElementById('status').innerHTML = "✅ " + file.name + " geladen (<strong>" + Object.keys(personsDB).length + " personen</strong>).";
+                document.getElementById('fileFallback').style.display = 'none';
+            } catch (err) {
+                alert('Fout bij verwerken van GEDCOM bestand!');
+                document.getElementById('status').innerText = "❌ Ongeldig GEDCOM bestand.";
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    function cleanId(idStr) {
+        if (!idStr) return '';
+        return String(idStr).replace(/@/g, '').trim();
+    }
+
+    function parseGedcomText(gedcomText) {
+        personsDB = {};
+        parentMap = {};
+        var rawFams = {};
+        
+        var lines = gedcomText.split(/\r?\n/);
+        var currentRecordType = null;
+        var currentIndi = null;
+        var currentFam = null;
+        var currentSubTag = null;
+
+        lines.forEach(function(line) {
+            var trimmed = line.trim();
+            if (!trimmed) return;
+
+            var parts = trimmed.split(' ');
+            var level = parseInt(parts[0], 10);
+            var tag = '';
+            var val = '';
+            var id = '';
+
+            if (isNaN(level)) return;
+
+            if (parts[1] && parts[1].startsWith('@') && parts[1].endsWith('@')) {
+                id = parts[1].replace(/@/g, '');
+                tag = parts[2] ? parts[2].toUpperCase() : '';
+                val = parts.slice(3).join(' ');
+            } else {
+                tag = parts[1] ? parts[1].toUpperCase() : '';
+                val = parts.slice(2).join(' ');
+            }
+
+            if (level === 0) {
+                currentIndi = null;
+                currentFam = null;
+                currentRecordType = null;
+
+                if (tag === 'INDI') {
+                    currentRecordType = 'INDI';
+                    currentIndi = {
+                        type: "INDI",
+                        id: id,
+                        fname: 'Onbekend',
+                        lname: '',
+                        gender: 'M',
+                        birtYear: '',
+                        parents: [],
+                        children: [],
+                        spouses: []
+                    };
+                    personsDB[id] = currentIndi;
+                } else if (tag === 'FAM') {
+                    currentRecordType = 'FAM';
+                    currentFam = {
+                        id: id,
+                        husb: [],
+                        wife: [],
+                        children: []
+                    };
+                    rawFams[id] = currentFam;
+                }
+            } else if (level === 1) {
+                currentSubTag = tag;
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if (tag === 'SEX') {
+                        var sexVal = val.trim().toUpperCase();
+                        currentIndi.gender = ['F', 'FEMALE', 'VROUW'].includes(sexVal) ? 'F' : 'M';
+                    } else if (tag === 'NAME') {
+                        var fullName = val.replace(/\//g, '').trim();
+                        var nameParts = fullName.split(" ");
+                        currentIndi.fname = nameParts[0] || "Onbekend";
+                        currentIndi.lname = nameParts.slice(1).join(" ") || "";
+                    }
+                } else if (currentRecordType === 'FAM' && currentFam) {
+                    if (tag === 'HUSB') {
+                        var hId = cleanId(val);
+                        if (hId) currentFam.husb.push(hId);
+                    } else if (tag === 'WIFE') {
+                        var wId = cleanId(val);
+                        if (wId) currentFam.wife.push(wId);
+                    } else if (tag === 'CHIL') {
+                        var cId = cleanId(val);
+                        if (cId) currentFam.children.push(cId);
+                    }
+                }
+            } else if (level === 2 || level === 3) {
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if ((currentSubTag === 'BIRT' || currentSubTag === 'DEAT') && tag === 'DATE') {
+                        var match = String(val).match(/\b(1\d{3}|20\d{2})\b/);
+                        if (match && !currentIndi.birtYear) {
+                            currentIndi.birtYear = parseInt(match[1], 10);
+                        }
+                    }
+                }
+            }
+        });
+
+        Object.values(rawFams).forEach(function(fam) {
+            var parents = [].concat(fam.husb, fam.wife);
+            fam.husb.forEach(function(hId) {
+                fam.wife.forEach(function(wId) {
+                    if (personsDB[hId] && !personsDB[hId].spouses.includes(wId)) personsDB[hId].spouses.push(wId);
+                    if (personsDB[wId] && !personsDB[wId].spouses.includes(hId)) personsDB[wId].spouses.push(hId);
+                });
+            });
+            fam.children.forEach(function(childId) {
+                if (personsDB[childId]) {
+                    parents.forEach(function(pId) {
+                        if (personsDB[pId]) {
+                            if (!parentMap[childId]) parentMap[childId] = [];
+                            if (!parentMap[childId].includes(pId)) parentMap[childId].push(pId);
+                            if (!personsDB[childId].parents.includes(pId)) personsDB[childId].parents.push(pId);
+                            if (!personsDB[pId].children.includes(childId)) personsDB[pId].children.push(childId);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    function populateDatalist() {
+        var datalist = document.getElementById('personList');
+        datalist.innerHTML = "";
+        Object.keys(personsDB).forEach(function(id) {
+            var p = personsDB[id];
+            var fullName = (p.fname + " " + p.lname).trim() || "Onbekend";
+            var birthStr = p.birtYear ? " (" + p.birtYear + ")" : "";
+            var option = document.createElement('option');
+            option.value = fullName + birthStr + " [" + id + "]";
+            datalist.appendChild(option);
+        });
+    }
+
+    function getAncestorsWithPaths(startId, maxGenerations) {
+        maxGenerations = maxGenerations || 15;
+        var ancestors = {};
+        var queue = [[startId, [startId]]];
+
+        while (queue.length > 0) {
+            var item = queue.shift();
+            var current = item[0];
+            var path = item[1];
+
+            if (path.length > maxGenerations) continue;
+
+            var parents = parentMap[current] || [];
+            for (var i = 0; i < parents.length; i++) {
+                var p = parents[i];
+                if (!ancestors[p]) {
+                    var newPath = path.concat([p]);
+                    ancestors[p] = newPath;
+                    queue.push([p, newPath]);
+                }
+            }
+        }
+        return ancestors;
+    }
+
+    function getSelectedTargetIds() {
+        var selectedIds = [];
+        for (var i = 1; i <= 10; i++) {
+            var val = document.getElementById('p' + i).value;
+            var match = val.match(/\[([^\]]+)\]/);
+            if (match && match[1]) {
+                var id = match[1].trim();
+                if (personsDB[id] && selectedIds.indexOf(id) === -1) {
+                    selectedIds.push(id);
+                }
+            }
+        }
+        return selectedIds;
+    }
+
+    function calculateMRCA() {
+        var targetIds = getSelectedTargetIds();
+        if (targetIds.length < 1) {
+            alert("Selecteer minstens 1 persoon uit de keuzelijst.");
+            return;
+        }
+
+        document.getElementById('status').innerText = "Berekenen van relaties...";
+
+        setTimeout(function() {
+            var nodesToInclude = new Set(targetIds);
+            var bloodEdges = new Set();
+            var ancestorDict = {};
+
+            targetIds.forEach(function(tId) {
+                ancestorDict[tId] = getAncestorsWithPaths(tId, 15);
+            });
+
+            for (var i = 0; i < targetIds.length; i++) {
+                for (var j = i + 1; j < targetIds.length; j++) {
+                    var p1 = targetIds[i];
+                    var p2 = targetIds[j];
+
+                    var anc1 = ancestorDict[p1];
+                    var anc2 = ancestorDict[p2];
+
+                    var commonAncestors = Object.keys(anc1).filter(ca => anc2[ca]);
+
+                    if (commonAncestors.length > 0) {
+                        var minDist = Math.min(...commonAncestors.map(ca => anc1[ca].length + anc2[ca].length));
+                        var mrcas = commonAncestors.filter(ca => (anc1[ca].length + anc2[ca].length) === minDist);
+
+                        mrcas.forEach(function(mrca) {
+                            var path1 = anc1[mrca];
+                            var path2 = anc2[mrca];
+
+                            path1.forEach(id => nodesToInclude.add(id));
+                            path2.forEach(id => nodesToInclude.add(id));
+
+                            for (var k = 0; k < path1.length - 1; k++) {
+                                bloodEdges.add(path1[k+1] + "->" + path1[k]);
+                            }
+                            for (var k = 0; k < path2.length - 1; k++) {
+                                bloodEdges.add(path2[k+1] + "->" + path2[k]);
+                            }
+                        });
+                    }
+                }
+            }
+
+            renderNetwork(nodesToInclude, bloodEdges, targetIds);
+            document.getElementById('status').innerText = "Netwerk gegenereerd voor " + targetIds.length + " persoon/personen.";
+        }, 50);
+    }
+
+    function renderNetwork(nodesSet, edgesSet, targetIds) {
+        nodesDataSet.clear();
+        edgesDataSet.clear();
+        currentAdjMap = {};
+
+        nodesSet.forEach(function(ptr) {
+            var person = personsDB[ptr];
+            if (!person) return;
+
+            var fullName = (person.fname + " " + person.lname).trim() || "Onbekend";
+            var datesStr = person.birtYear ? "(" + person.birtYear + ")" : "";
+            var isTarget = targetIds.indexOf(ptr) !== -1;
+
+            var colorFill = (person.gender === 'F') ? "#FFC0CB" : "#97C2FC";
+            var borderColor = isTarget ? "#D32F2F" : "#555555";
+            var borderWidth = isTarget ? 4 : 1;
+            var shape = isTarget ? "ellipse" : "box";
+
+            nodesDataSet.add({
+                id: ptr,
+                label: fullName + "\n" + datesStr,
+                shape: shape,
+                color: {
+                    background: colorFill,
+                    border: borderColor,
+                    highlight: { background: "#FFE082", border: "#FF6F00" }
+                },
+                borderWidth: borderWidth,
+                title: "<b>" + fullName + "</b><br>ID: " + ptr + "<br>Geslacht: " + person.gender + "<br>Geboortejaar: " + person.birtYear
+            });
+            currentAdjMap[ptr] = [];
+        });
+
+        var edgeIndex = 0;
+        edgesSet.forEach(function(edgeStr) {
+            var parts = edgeStr.split("->");
+            var fromNode = parts[0];
+            var toNode = parts[1];
+            var eId = "e_" + (edgeIndex++);
+
+            edgesDataSet.add({
+                id: eId,
+                from: fromNode,
+                to: toNode,
+                color: { color: "#2B7CE9" },
+                arrows: { to: { enabled: true, type: "arrow" } }
+            });
+
+            if (currentAdjMap[fromNode]) currentAdjMap[fromNode].push({ neighbor: toNode, edgeId: eId });
+            if (currentAdjMap[toNode]) currentAdjMap[toNode].push({ neighbor: fromNode, edgeId: eId });
+        });
+
+        var container = document.getElementById('mynetwork');
+        var data = { nodes: nodesDataSet, edges: edgesDataSet };
+
+        var options = {
+            layout: {
+                hierarchical: {
+                    enabled: true,
+                    direction: 'UD',
+                    sortMethod: 'directed',
+                    nodeSpacing: 180,
+                    levelSeparation: 130
+                }
+            },
+            physics: {
+                hierarchicalRepulsion: {
+                    centralGravity: 0.0,
+                    springLength: 90,
+                    springConstant: 0.01,
+                    nodeDistance: 130
+                }
+            },
+            nodes: { font: { size: 12, face: 'Segoe UI' }, margin: 8 },
+            edges: { smooth: { type: 'cubicBezier', forceDirection: 'vertical' } },
+            interaction: { hover: true, tooltipDelay: 150, multiselect: true }
+        };
+
+        if (network) network.destroy();
+        network = new vis.Network(container, data, options);
+
+        network.on("select", function (params) {
+            if (params.nodes.length === 2) {
+                highlightPathBetween(params.nodes[0], params.nodes[1]);
+            } else if (params.nodes.length === 0) {
+                resetHighlighting();
+            }
+        });
+
+        network.on("deselectNode", function () {
+            var selected = network.getSelectedNodes();
+            if (selected.length === 2) {
+                highlightPathBetween(selected[0], selected[1]);
+            } else if (selected.length === 0) {
+                resetHighlighting();
+            }
+        });
+
+        network.on("dragEnd", function (params) {
+            if (params.nodes.length > 0) {
+                var nodeId = params.nodes[0];
+                var position = network.getPositions([nodeId])[nodeId];
+                nodesDataSet.update({
+                    id: nodeId,
+                    x: position.x,
+                    y: position.y,
+                    fixed: { x: true, y: true }
+                });
+            }
+        });
+
+        network.on("doubleClick", function (params) {
+            if (params.nodes.length > 0) {
+                var nodeId = params.nodes[0];
+                nodesDataSet.update({
+                    id: nodeId,
+                    fixed: { x: false, y: false }
+                });
+            }
+        });
+    }
+
+    function highlightPathBetween(startId, endId) {
+        var queue = [[startId]];
+        var visited = new Set([startId]);
+        var targetPath = null;
+
+        while (queue.length > 0) {
+            var path = queue.shift();
+            var current = path[path.length - 1];
+            if (current === endId) { targetPath = path; break; }
+            (currentAdjMap[current] || []).forEach(function(item) {
+                if (!visited.has(item.neighbor)) {
+                    visited.add(item.neighbor);
+                    queue.push(path.concat([item.neighbor]));
+                }
+            });
+        }
+        if (!targetPath) return;
+
+        var pathNodesSet = new Set(targetPath);
+        var pathEdgesSet = new Set();
+        for (var i = 0; i < targetPath.length - 1; i++) {
+            var u = targetPath[i], v = targetPath[i + 1];
+            (currentAdjMap[u] || []).forEach(function(item) { if (item.neighbor === v) pathEdgesSet.add(item.edgeId); });
+        }
+
+        nodesDataSet.forEach(function(n) {
+            nodesDataSet.update({ id: n.id, opacity: pathNodesSet.has(n.id) ? 1 : 0.25 });
+        });
+        edgesDataSet.forEach(function(e) {
+            edgesDataSet.update({ id: e.id, color: { color: pathEdgesSet.has(e.id) ? "#FF6F00" : "#E0E0E0" }, width: pathEdgesSet.has(e.id) ? 4 : 1 });
+        });
+    }
+
+    function resetHighlighting() {
+        nodesDataSet.forEach(function(n) {
+            nodesDataSet.update({ id: n.id, opacity: 1 });
+        });
+        edgesDataSet.forEach(function(e) {
+            edgesDataSet.update({ id: e.id, color: { color: "#2B7CE9" }, width: 1 });
+        });
+    }
+
+    function exportToTxt() {
+        var targetIds = getSelectedTargetIds();
+        if (targetIds.length === 0) {
+            alert("Geen geldige personen geselecteerd om te exporteren.");
+            return;
+        }
+
+        var content = targetIds.join("\n");
+        var blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'geselecteerde_personen.txt';
+        a.click();
+    }
+
+    function clearSelection() {
+        for (var i = 1; i <= 10; i++) {
+            document.getElementById('p' + i).value = "";
+        }
+        nodesDataSet.clear();
+        edgesDataSet.clear();
+        if (network) network.destroy();
+        document.getElementById('status').innerText = "Selectie gewist.";
+    }
+</script>
+
+</body>
+</html>
