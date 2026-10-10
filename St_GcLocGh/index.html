@@ -84,10 +84,10 @@
 
     <!-- Status & Inleesgedeelte -->
     <div class="status-box" id="statusBox">
-        <span id="statusText">⏳ Bezig met inladen van <strong>D:\Gedcom.ged</strong>...</span>
+        <span id="statusText">⏳ Bezig met inladen van <strong>Gedcom.ged</strong> vanaf GitHub...</span>
         <div id="fileFallback" style="display: none;">
             <p style="margin: 8px 0; font-size: 0.9rem; color: #555;">
-                Kan de lokale schijf niet automatisch benaderen. Selecteer handmatig je GEDCOM-bestand:
+                Kan <strong>Gedcom.ged</strong> niet automatisch inlezen. Selecteer handmatig je GEDCOM-bestand:
             </p>
             <input type="file" id="gedcomFileInput" style="display: none;">
             <button onclick="document.getElementById('gedcomFileInput').click();">📁 Selecteer GEDCOM-bestand</button>
@@ -132,10 +132,10 @@
 </div>
 
 <script>
-    const DEFAULT_FILE = 'D:/Gedcom.ged';
+    const DEFAULT_FILE = 'Gedcom.ged';
 
     window.addEventListener('DOMContentLoaded', () => {
-        // Controleer of er al data in localStorage zit, anders automatisch fetchen
+        // Probeer het bestand automatisch uit dezelfde map in te lezen
         fetch(DEFAULT_FILE)
             .then(res => {
                 if (res.ok) return res.text();
@@ -146,9 +146,9 @@
                 showSuccess('✅ GEDCOM automatisch geladen vanaf <strong>' + DEFAULT_FILE + '</strong> en opgeslagen in de browser.');
             })
             .catch(() => {
-                // Als fetch faalt (door beveiliging), check of er al iets in localStorage staat
+                // Als fetch faalt, check of er al iets in localStorage staat
                 if (localStorage.getItem('gedcomData')) {
-                    showSuccess('✅ GEDCOM geladen uit lokaal geheugen van de browser.');
+                    showSuccess('✅ GEDCOM geladen uit het lokaal geheugen van de browser.');
                 } else {
                     showFilePickerFallback();
                 }
@@ -186,7 +186,7 @@
         box.style.backgroundColor = '#fffaf0';
         box.style.borderColor = '#dd6b20';
         box.style.color = '#7b341e';
-        document.getElementById('statusText').innerHTML = '⚠️ Kan <strong>D:\\Gedcom.ged</strong> niet automatisch inlezen.';
+        document.getElementById('statusText').innerHTML = '⚠️ Kan <strong>Gedcom.ged</strong> niet automatisch inlezen.';
         document.getElementById('fileFallback').style.display = 'block';
     }
 </script>
