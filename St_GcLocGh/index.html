@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stamboom & Relaties Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            max-width: 900px;
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        h1 { color: #1a252f; margin-bottom: 8px; font-size: 26px; }
+        p.subtitle { color: #6c757d; margin-bottom: 20px; font-size: 15px; }
+        .status-box {
+            background: #e8f4fd;
+            border: 1px dashed #3498db;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .status-box button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .status-box button:hover { background-color: #2980b9; }
+        .section-title {
+            font-size: 18px;
+            color: #2c3e50;
+            margin: 20px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #e1e4e8;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .card {
+            display: block;
+            text-decoration: none;
+            background: #ffffff;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 14px;
+            transition: all 0.2s ease-in-out;
+        }
+        .card:hover {
+            border-color: #0366d6;
+            box-shadow: 0 4px 12px rgba(3, 102, 214, 0.15);
+            transform: translateY(-2px);
+        }
+        .card h2 { font-size: 15px; color: #0366d6; margin-bottom: 4px; word-break: break-word; }
+        .card p { font-size: 12px; color: #586069; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Stamboom & Relaties Overzicht</h1>
+    <p class="subtitle">Centraal dashboard voor al je stamboomvisualisaties:</p>
+
+    <!-- Status & Inleesgedeelte -->
+    <div class="status-box" id="statusBox">
+        <span id="statusText">⏳ Bezig met inladen van <strong>D:\Gedcom.ged</strong>...</span>
+        <div id="fileFallback" style="display: none;">
+            <p style="margin: 8px 0; font-size: 0.9rem; color: #555;">
+                Kan de lokale schijf niet automatisch benaderen. Selecteer handmatig je GEDCOM-bestand:
+            </p>
+            <input type="file" id="gedcomFileInput" style="display: none;">
+            <button onclick="document.getElementById('gedcomFileInput').click();">📁 Selecteer GEDCOM-bestand</button>
+        </div>
+    </div>
+
+    <div class="section-title">Stambomen & Dashboards</div>
+    <div class="grid">
+        <a href="UitklapStamboom.html" class="card" target="_blank">
+            <h2>JS Stamboom Uitklap</h2>
+            <p>Uitklap weergave</p>
+        </a>
+        <a href="Relaties.html" class="card" target="_blank">
+            <h2>JS Oplichten pad</h2>
+            <p>Vastklikken en pad markeren</p>
+        </a>
+        <a href="RelatiesRand.html" class="card" target="_blank">
+            <h2>JS Oplichten pad met rand</h2>
+            <p>Geavanceerd netwerk</p>
+        </a>
+        <a href="GedcomJsonTotalen.html" class="card" target="_blank">
+            <h2>JS Totalen</h2>
+            <p>Overzicht totalen</p>
+        </a>
+        <a href="DichtsBijzijndeVoorouder.html" class="card" target="_blank">
+            <h2>JS Dichtst bijzijnde voorouder</h2>
+            <p>Voorouder berekening</p>
+        </a>
+        <a href="Zandloper.html" class="card" target="_blank">
+            <h2>JS Zandloper</h2>
+            <p>Zandloper weergave</p>
+        </a>
+        <a href="RelatieZoeker.html" class="card" target="_blank">
+            <h2>JS Relatiezoeker</h2>
+            <p>Relaties zoeken</p>
+        </a>
+        <a href="Statistiek.html" class="card" target="_blank">
+            <h2>JS Statistiek</h2>
+            <p>Volledige statistieken</p>
+        </a>
+    </div>
+</div>
+
+<script>
+    const DEFAULT_FILE = 'D:/Gedcom.ged';
+
+    window.addEventListener('DOMContentLoaded', () => {
+        // Controleer of er al data in localStorage zit, anders automatisch fetchen
+        fetch(DEFAULT_FILE)
+            .then(res => {
+                if (res.ok) return res.text();
+                throw new Error('Niet geladen');
+            })
+            .then(text => {
+                localStorage.setItem('gedcomData', text);
+                showSuccess('✅ GEDCOM automatisch geladen vanaf <strong>' + DEFAULT_FILE + '</strong> en opgeslagen in de browser.');
+            })
+            .catch(() => {
+                // Als fetch faalt (door beveiliging), check of er al iets in localStorage staat
+                if (localStorage.getItem('gedcomData')) {
+                    showSuccess('✅ GEDCOM geladen uit lokaal geheugen van de browser.');
+                } else {
+                    showFilePickerFallback();
+                }
+            });
+    });
+
+    document.getElementById('gedcomFileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const text = evt.target.result;
+                localStorage.setItem('gedcomData', text);
+                showSuccess('✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen!');
+            } catch (err) {
+                alert('Fout bij het inlezen van het bestand!');
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    function showSuccess(msg) {
+        const box = document.getElementById('statusBox');
+        box.style.backgroundColor = '#e6fffa';
+        box.style.borderColor = '#38b2ac';
+        box.style.color = '#234e52';
+        document.getElementById('statusText').innerHTML = msg;
+        document.getElementById('fileFallback').style.display = 'none';
+    }
+
+    function showFilePickerFallback() {
+        const box = document.getElementById('statusBox');
+        box.style.backgroundColor = '#fffaf0';
+        box.style.borderColor = '#dd6b20';
+        box.style.color = '#7b341e';
+        document.getElementById('statusText').innerHTML = '⚠️ Kan <strong>D:\\Gedcom.ged</strong> niet automatisch inlezen.';
+        document.getElementById('fileFallback').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volledig GEDCOM Statistieken Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 30px;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .status-banner {
+            text-align: center;
+            padding: 15px;
+            background: #e8f4fd;
+            border: 2px dashed #3498db;
+            color: #2980b9;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+        .file-select-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .file-select-btn:hover {
+            background-color: #2980b9;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .stat-icon { font-size: 1.8rem; margin-bottom: 5px; }
+        .stat-number { font-size: 1.6em; font-weight: bold; color: #2980b9; margin: 8px 0; }
+        .stat-label { color: #7f8c8d; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.5px; }
+        .section-title {
+            color: #2c3e50;
+            font-size: 1.2rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .data-table th, .data-table td {
+            padding: 10px 15px;
+            text-align: left;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 0.9rem;
+        }
+        .data-table th {
+            background-color: #f8fafc;
+            color: #4a5568;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+        .badge-count {
+            background: #ebf8ff;
+            color: #2b6cb0;
+            font-weight: bold;
+            padding: 3px 10px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌳 Volledig GEDCOM Statistieken Dashboard</h1>
+
+    <div class="status-banner" id="statusBanner">
+        <span id="statusText">⏳ Gegevens ophalen uit lokaal geheugen...</span>
+        <div id="fileFallback" style="display: none; margin-top: 10px;">
+            <p style="margin: 5px 0; font-size: 0.9rem; color: #555;">
+                Geen opgeslagen stamboom gevonden. Ga eerst naar de <a href="index.html">Startpagina</a> of selecteer hier een bestand:
+            </p>
+            <input type="file" id="gedcomFileInput" style="display: none;">
+            <button class="file-select-btn" onclick="document.getElementById('gedcomFileInput').click();">
+                📁 Selecteer GEDCOM-bestand
+            </button>
+        </div>
+    </div>
+
+    <!-- Hoofdstatistieken -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-number" id="totalPersons">0</div>
+            <div class="stat-label">Personen</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🏠</div>
+            <div class="stat-number" id="totalFamilies">0</div>
+            <div class="stat-label">Gezinnen</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🕊️</div>
+            <div class="stat-number" id="avgAgeOverall">0 jr</div>
+            <div class="stat-label">Gem. Leeftijd</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">💍</div>
+            <div class="stat-number" id="avgMarriageAgeOverall">0 jr</div>
+            <div class="stat-label">Gem. Huwelijksleeftijd</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">👶</div>
+            <div class="stat-number" id="avgFamilySize">0</div>
+            <div class="stat-label">Kind./gezin (gem.)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📈</div>
+            <div class="stat-number" id="maxGenerations">0</div>
+            <div class="stat-label">Generaties diep</div>
+        </div>
+    </div>
+
+    <!-- Huwelijk & Gezin & Datakwaliteit -->
+    <div class="grid-2">
+        <div>
+            <h2 class="section-title">💍 Huwelijk & Gezin</h2>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Statistiek</th><th style="text-align: right;">Waarde</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Gem. huwelijksleeftijd mannen</td><td style="text-align: right;" id="avgMarriageMen">-</td></tr>
+                    <tr><td>Gem. huwelijksleeftijd vrouwen</td><td style="text-align: right;" id="avgMarriageWomen">-</td></tr>
+                    <tr><td>Gemiddeld aantal kinderen per gezin</td><td style="text-align: right;" id="valAvgChildren">-</td></tr>
+                    <tr><td>Totaal aantal getrouwde gezinnen</td><td style="text-align: right;" id="valTotalMarrFamilies">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h2 class="section-title">🔍 Datakwaliteit & Compleetheid</h2>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Gegeven / Ontbrekend</th><th style="text-align: right;">Percentage</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Personen met geboortedatum</td><td style="text-align: right;" id="pctBirth">-</td></tr>
+                    <tr><td>Personen die overlijdensdatum missen</td><td style="text-align: right;" id="pctMissingDeath">-</td></tr>
+                    <tr><td>Gezinnen die huwelijksdatum missen</td><td style="text-align: right;" id="pctMissingMarriage">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Leeftijd bij Overlijden & Top Geboorteplaatsen -->
+    <div class="grid-2">
+        <div>
+            <h2 class="section-title">⌛ Leeftijd bij Overlijden</h2>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Categorie</th><th style="text-align: right;">Gemiddeld</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Mannen</td><td style="text-align: right;" id="avgAgeMen">-</td></tr>
+                    <tr><td>Vrouwen</td><td style="text-align: right;" id="avgAgeWomen">-</td></tr>
+                    <tr><td>Totaal</td><td style="text-align: right;" id="avgAgeTotal">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h2 class="section-title">📍 Top Geboorteplaatsen</h2>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Plaats</th><th style="text-align: right;">Aantal</th></tr>
+                </thead>
+                <tbody id="placesTableBody">
+                    <tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Geboorten per eeuw -->
+    <h2 class="section-title">⏳ Aantal geboorten per eeuw</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Eeuw (Periode)</th>
+                <th style="text-align: right;">Aantal Geboorten</th>
+            </tr>
+        </thead>
+        <tbody id="centuryTableBody">
+            <tr>
+                <td colspan="2" style="text-align: center; color: #a0aec0;">Geen data geladen...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedData = localStorage.getItem('gedcomData');
+        if (savedData) {
+            showSuccess('✅ Data succesvol geladen uit het lokaal geheugen.');
+            const parsedData = parseGedcom(savedData);
+            processGedcomData(parsedData);
+        } else {
+            showFilePickerFallback();
+        }
+    });
+
+    document.getElementById('gedcomFileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const text = evt.target.result;
+                localStorage.setItem('gedcomData', text);
+                showSuccess('✅ Bestand <strong>' + file.name + '</strong> ingelezen!');
+                const parsedData = parseGedcom(text);
+                processGedcomData(parsedData);
+            } catch (err) {
+                alert('Fout bij het parsen van het GEDCOM bestand!');
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    function showSuccess(msg) {
+        const banner = document.getElementById('statusBanner');
+        banner.style.backgroundColor = '#e6fffa';
+        banner.style.borderColor = '#38b2ac';
+        banner.style.color = '#234e52';
+        document.getElementById('statusText').innerHTML = msg;
+        document.getElementById('fileFallback').style.display = 'none';
+    }
+
+    function showFilePickerFallback() {
+        const banner = document.getElementById('statusBanner');
+        banner.style.backgroundColor = '#fffaf0';
+        banner.style.borderColor = '#dd6b20';
+        banner.style.color = '#7b341e';
+        document.getElementById('statusText').innerHTML = '⚠️ Geen geladen stamboom gevonden in het geheugen.';
+        document.getElementById('fileFallback').style.display = 'block';
+    }
+
+    function parseGedcom(gedcomText) {
+        const lines = gedcomText.split(/\r?\n/);
+        let records = [];
+        let currentRecord = null;
+        let currentEvent = null;
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+
+            const parts = trimmed.split(' ');
+            const level = parseInt(parts[0], 10);
+            
+            if (isNaN(level)) return;
+
+            if (level === 0) {
+                if (currentRecord) records.push(currentRecord);
+                currentEvent = null;
+                
+                let id = '';
+                let tag = '';
+                if (parts[1].startsWith('@')) {
+                    id = parts[1].replace(/@/g, '');
+                    tag = parts[2] ? parts[2].toUpperCase() : '';
+                } else {
+                    tag = parts[1].toUpperCase();
+                }
+
+                currentRecord = { TAG: tag, id: id, children: [] };
+            } else if (currentRecord) {
+                let tag = parts[1] ? parts[1].toUpperCase() : '';
+                let value = parts.slice(2).join(' ');
+
+                if (value.startsWith('@') && value.endsWith('@')) {
+                    value = value.replace(/@/g, '');
+                }
+
+                const node = { tag: tag, value: value, children: [] };
+
+                if (level === 1) {
+                    currentRecord[tag] = value;
+                    currentRecord.children.push(node);
+                    currentEvent = node;
+                } else if (level === 2 && currentEvent) {
+                    currentEvent.children.push(node);
+                    if (tag === 'DATE') currentEvent.DATE = value;
+                    if (tag === 'PLAC') currentEvent.PLAC = value;
+                }
+            }
+        });
+        if (currentRecord) records.push(currentRecord);
+        return records;
+    }
+
+    function extractItems(data) {
+        if (Array.isArray(data)) return data;
+        return [];
+    }
+
+    function cleanId(idStr) {
+        if (!idStr) return '';
+        return String(idStr).replace(/@/g, '').trim();
+    }
+
+    function extractId(item) {
+        return cleanId(item.id || '');
+    }
+
+    function extractSex(item) {
+        if (item.SEX) return String(item.SEX);
+        const children = item.children || [];
+        const sexNode = children.find(c => c && c.tag === 'SEX');
+        return sexNode ? String(sexNode.value) : '';
+    }
+
+    function extractEventYearAndPlace(item, eventTag) {
+        let dateStr = '';
+        let placeStr = '';
+
+        const evObj = item.children ? item.children.find(c => c.tag === eventTag) : null;
+        if (evObj) {
+            dateStr = evObj.DATE || '';
+            placeStr = evObj.PLAC || '';
+            
+            if (!dateStr || !placeStr) {
+                (evObj.children || []).forEach(sub => {
+                    if (sub.tag === 'DATE' && !dateStr) dateStr = sub.value;
+                    if (sub.tag === 'PLAC' && !placeStr) placeStr = sub.value;
+                });
+            }
+        }
+
+        let year = null;
+        if (dateStr) {
+            const match = String(dateStr).match(/\b(\d{3,4})\b/);
+            if (match) {
+                const y = parseInt(match[1], 10);
+                if (y >= 500 && y <= 2100) year = y;
+            }
+        }
+
+        return { year: year, place: String(placeStr).trim() };
+    }
+
+    function extractFamMembers(famItem) {
+        let husb = cleanId(famItem.HUSB || '');
+        let wife = cleanId(famItem.WIFE || '');
+        let childrenIds = [];
+
+        (famItem.children || []).forEach(c => {
+            if (c.tag === 'HUSB' && !husb) husb = cleanId(c.value);
+            if (c.tag === 'WIFE' && !wife) wife = cleanId(c.value);
+            if (c.tag === 'CHIL' && c.value) childrenIds.push(cleanId(c.value));
+        });
+
+        return {
+            husb: husb,
+            wife: wife,
+            children: [...new Set(childrenIds)].filter(Boolean)
+        };
+    }
+
+    function processGedcomData(data) {
+        const items = extractItems(data);
+
+        let totalPersons = 0;
+        let totalMen = 0;
+        let totalWomen = 0;
+        let totalFamilies = 0;
+
+        let withBirthCount = 0;
+        let withDeathCount = 0;
+
+        let centuryCounts = {};
+        let birthPlaces = {};
+
+        let agesMen = [];
+        let agesWomen = [];
+        let marriageAgesMen = [];
+        let marriageAgesWomen = [];
+
+        let familySizes = [];
+        let marriedFamiliesCount = 0;
+
+        const personsMap = {};
+        const familiesMap = {};
+
+        items.forEach(item => {
+            const tag = (item.TAG || '').toUpperCase();
+            const id = extractId(item);
+            if (id) {
+                if (tag === 'INDI') personsMap[id] = item;
+                if (tag === 'FAM') familiesMap[id] = item;
+            }
+        });
+
+        items.forEach(item => {
+            const tag = (item.TAG || '').toUpperCase();
+
+            if (tag === 'INDI') {
+                totalPersons++;
+
+                const sexVal = extractSex(item).trim().toUpperCase();
+                const isMale = ['M', 'MALE', 'MAN'].includes(sexVal);
+                const isFemale = ['F', 'FEMALE', 'VROUW'].includes(sexVal);
+
+                if (isMale) totalMen++;
+                else if (isFemale) totalWomen++;
+
+                const birth = extractEventYearAndPlace(item, 'BIRT');
+                const death = extractEventYearAndPlace(item, 'DEAT');
+
+                if (birth.year !== null) {
+                    withBirthCount++;
+                    const century = Math.floor(birth.year / 100) + 1;
+                    const startYear = (century - 1) * 100;
+                    const centuryKey = `${century}e eeuw (${startYear} - ${startYear + 99})`;
+                    if (!centuryCounts[centuryKey]) {
+                        centuryCounts[centuryKey] = { centuryNum: century, label: centuryKey, count: 0 };
+                    }
+                    centuryCounts[centuryKey].count++;
+
+                    if (birth.place) {
+                        birthPlaces[birth.place] = (birthPlaces[birth.place] || 0) + 1;
+                    }
+                }
+
+                if (death.year !== null) {
+                    withDeathCount++;
+                }
+
+                if (birth.year !== null && death.year !== null) {
+                    const age = death.year - birth.year;
+                    if (age >= 0 && age <= 120) {
+                        if (isMale) agesMen.push(age);
+                        else if (isFemale) agesWomen.push(age);
+                    }
+                }
+
+            } else if (tag === 'FAM') {
+                totalFamilies++;
+                const members = extractFamMembers(item);
+                const marriage = extractEventYearAndPlace(item, 'MARR');
+                const famChildrenCount = members.children.length;
+
+                familySizes.push(famChildrenCount);
+
+                if (marriage.year !== null) {
+                    marriedFamiliesCount++;
+                    const mYear = marriage.year;
+
+                    if (members.husb && personsMap[members.husb]) {
+                        const hBirth = extractEventYearAndPlace(personsMap[members.husb], 'BIRT');
+                        if (hBirth.year !== null) {
+                            const mAge = mYear - hBirth.year;
+                            if (mAge >= 12 && mAge <= 100) marriageAgesMen.push(mAge);
+                        }
+                    }
+
+                    if (members.wife && personsMap[members.wife]) {
+                        const wBirth = extractEventYearAndPlace(personsMap[members.wife], 'BIRT');
+                        if (wBirth.year !== null) {
+                            const mAge = mYear - wBirth.year;
+                            if (mAge >= 12 && mAge <= 100) marriageAgesWomen.push(mAge);
+                        }
+                    }
+                }
+            }
+        });
+
+        let maxGenerations = estimateTreeDepth(personsMap, familiesMap);
+
+        document.getElementById('totalPersons').innerText = totalPersons;
+        document.getElementById('totalFamilies').innerText = totalFamilies;
+
+        const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+        const avgM = avg(agesMen);
+        const avgW = avg(agesWomen);
+        const allAges = [...agesMen, ...agesWomen];
+        const avgT = avg(allAges);
+
+        const avgMarM = avg(marriageAgesMen);
+        const avgMarW = avg(marriageAgesWomen);
+        const allMarAges = [...marriageAgesMen, ...marriageAgesWomen];
+        const avgMarT = avg(allMarAges);
+
+        const avgFamSize = familySizes.length ? (familySizes.reduce((a, b) => a + b, 0) / familySizes.length).toFixed(1) : '0';
+
+        document.getElementById('avgAgeMen').innerText = avgM !== null ? avgM + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgAgeWomen').innerText = avgW !== null ? avgW + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgAgeTotal').innerText = avgT !== null ? avgT + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgAgeOverall').innerText = avgT !== null ? avgT + ' jr' : '-';
+
+        document.getElementById('avgMarriageMen').innerText = avgMarM !== null ? avgMarM + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgMarriageWomen').innerText = avgMarW !== null ? avgMarW + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgMarriageAgeOverall').innerText = avgMarT !== null ? avgMarT + ' jr' : '-';
+
+        document.getElementById('valAvgChildren').innerText = avgFamSize;
+        document.getElementById('valTotalMarrFamilies').innerText = marriedFamiliesCount;
+        document.getElementById('maxGenerations').innerText = maxGenerations > 0 ? maxGenerations : 'Onbekend';
+
+        const pctBirthVal = totalPersons ? Math.round((withBirthCount / totalPersons) * 100) : 0;
+        const missingDeathVal = totalPersons ? Math.round(((totalPersons - withDeathCount) / totalPersons) * 100) : 0;
+        
+        document.getElementById('pctBirth').innerText = pctBirthVal + '%';
+        document.getElementById('pctMissingDeath').innerText = missingDeathVal + '%';
+        document.getElementById('pctMissingMarriage').innerText = totalFamilies ? Math.round(((totalFamilies - marriedFamiliesCount) / totalFamilies) * 100) + '%' : '0%';
+
+        renderTopTable('placesTableBody', birthPlaces, 5);
+        renderCenturyTable(centuryCounts);
+    }
+
+    function estimateTreeDepth(personsMap, familiesMap) {
+        let maxDepth = 0;
+        const personDepths = {};
+
+        function getDepth(personId, visited = new Set()) {
+            if (visited.has(personId)) return 0;
+            if (personDepths[personId] !== undefined) return personDepths[personId];
+            visited.add(personId);
+
+            const person = personsMap[personId];
+            if (!person) return 1;
+
+            let parentFamIds = [];
+            (person.children || []).forEach(c => {
+                if (c.tag === 'FAMC' && c.value) parentFamIds.push(cleanId(c.value));
+            });
+
+            let maxParentDepth = 0;
+            parentFamIds.forEach(famId => {
+                const fam = familiesMap[famId];
+                if (fam) {
+                    const members = extractFamMembers(fam);
+                    if (members.husb) maxParentDepth = Math.max(maxParentDepth, getDepth(members.husb, visited));
+                    if (members.wife) maxParentDepth = Math.max(maxParentDepth, getDepth(members.wife, visited));
+                }
+            });
+
+            const depth = 1 + maxParentDepth;
+            personDepths[personId] = depth;
+            return depth;
+        }
+
+        Object.keys(personsMap).forEach(id => {
+            const d = getDepth(id);
+            if (d > maxDepth) maxDepth = d;
+        });
+
+        return maxDepth;
+    }
+
+    function renderTopTable(elementId, dataObj, limit) {
+        const tbody = document.getElementById(elementId);
+        tbody.innerHTML = '';
+        const sorted = Object.entries(dataObj).sort((a, b) => b[1] - a[1]).slice(0, limit);
+
+        if (sorted.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data beschikbaar</td></tr>';
+            return;
+        }
+
+        sorted.forEach(([key, val]) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><strong>${key}</strong></td><td style="text-align: right;"><span class="badge-count">${val}</span></td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderCenturyTable(centuryCounts) {
+        const tbody = document.getElementById('centuryTableBody');
+        tbody.innerHTML = '';
+        const sortedCenturies = Object.values(centuryCounts).sort((a, b) => a.centuryNum - b.centuryNum);
+
+        if (sortedCenturies.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen geboortedatums gevonden.</td></tr>';
+            return;
+        }
+
+        sortedCenturies.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><strong>${item.label}</strong></td><td style="text-align: right;"><span class="badge-count">${item.count}</span></td>`;
+            tbody.appendChild(tr);
+        });
+    }
+</script>
+
+</body>
+</html>

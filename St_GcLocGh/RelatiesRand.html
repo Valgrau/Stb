@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatienetwerk - 5 Invoervelden met Autocomplete</title>
+    <!-- Vis.js bibliotheek voor het renderen van het netwerk -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style type="text/css">
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+            background-color: #FFFFFF;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+        #mynetwork {
+            width: 100%;
+            height: calc(100vh - 210px);
+            border: 1px solid #BDBDBD;
+            background-color: #F8F9FA;
+            border-radius: 4px;
+            position: relative;
+        }
+        .toolbar {
+            margin-bottom: 8px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: #F1F3F4;
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+        .input-group {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .input-group label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 2px;
+        }
+        .search-box {
+            padding: 5px 8px;
+            font-size: 13px;
+            width: 180px;
+            border: 1px solid #CCC;
+            border-radius: 4px;
+        }
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #d4d4d4;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: #fff;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0px 4px 6px rgba(0,0,0,0.1);
+            border-radius: 0 0 4px 4px;
+        }
+        .autocomplete-items div {
+            padding: 8px 10px;
+            cursor: pointer;
+            background-color: #fff;
+            border-bottom: 1px solid #d4d4d4;
+            font-size: 12px;
+        }
+        .autocomplete-items div:hover {
+            background-color: #e9e9e9;
+        }
+        .autocomplete-active {
+            background-color: #2196F3 !important;
+            color: #ffffff;
+        }
+
+        .btn {
+            padding: 7px 12px;
+            font-size: 13px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-calc { background-color: #4CAF50; color: white; }
+        .btn-mode { background-color: #2196F3; color: white; }
+        .btn-mode.active { background-color: #0D47A1; }
+        .btn-file { background-color: #FF9800; color: white; }
+        .btn-copy { background-color: #673AB7; color: white; }
+        
+        .num-box {
+            padding: 5px;
+            font-size: 13px;
+            width: 50px;
+            border: 1px solid #CCC;
+            border-radius: 4px;
+        }
+        .info-panel {
+            background: #E3F2FD;
+            border-left: 5px solid #2196F3;
+            padding: 6px 12px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            border-radius: 4px;
+        }
+        #status {
+            font-weight: bold;
+            color: #1565C0;
+        }
+        .drop-zone {
+            border: 2px dashed #2196F3;
+            background-color: #E3F2FD;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .legend {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 10px 14px;
+            border-radius: 6px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.15);
+            font-size: 12px;
+            line-height: 1.6;
+            z-index: 1000;
+            border: 1px solid #CCC;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 3px; }
+        .color-box { width: 14px; height: 14px; margin-right: 8px; border-radius: 2px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<h2>🩸 Relatienetwerk & Bloedverwantschap</h2>
+
+<div class="toolbar">
+    <div class="input-group">
+        <label>Persoon 1</label>
+        <input type="text" id="target1" class="search-box" placeholder="Typ naam..." autocomplete="off">
+        <input type="hidden" id="targetId1">
+    </div>
+    <div class="input-group">
+        <label>Persoon 2</label>
+        <input type="text" id="target2" class="search-box" placeholder="Typ naam..." autocomplete="off">
+        <input type="hidden" id="targetId2">
+    </div>
+    <div class="input-group">
+        <label>Persoon 3 (optioneel)</label>
+        <input type="text" id="target3" class="search-box" placeholder="Typ naam..." autocomplete="off">
+        <input type="hidden" id="targetId3">
+    </div>
+    <div class="input-group">
+        <label>Persoon 4 (optioneel)</label>
+        <input type="text" id="target4" class="search-box" placeholder="Typ naam..." autocomplete="off">
+        <input type="hidden" id="targetId4">
+    </div>
+    <div class="input-group">
+        <label>Persoon 5 (optioneel)</label>
+        <input type="text" id="target5" class="search-box" placeholder="Typ naam..." autocomplete="off">
+        <input type="hidden" id="targetId5">
+    </div>
+
+    <div class="input-group">
+        <label>Max Gen</label>
+        <input type="number" id="maxGenInput" class="num-box" value="8" min="1" max="25">
+    </div>
+
+    <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
+        <button class="btn btn-calc" onclick="calculateAndRender()">⚡ Berekenen</button>
+        <button id="btnBlood" class="btn btn-mode active" onclick="setMode('blood')">Zuiver Bloed</button>
+        <button id="btnShortest" class="btn btn-mode" onclick="setMode('shortest')">Kortste Route</button>
+        <button class="btn btn-file" onclick="document.getElementById('fileInput').click()">📁 Open GEDCOM</button>
+        <button class="btn btn-copy" onclick="copySelectedPath()">📋 Kopieer Pad</button>
+    </div>
+    
+    <input type="file" id="fileInput" accept=".ged,.GED,.txt" style="display: none;" onchange="handleFileSelect(event)">
+</div>
+
+<div class="info-panel" id="infoPanel">
+    <span id="status">Initiëren van script...</span>
+</div>
+
+<div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()" style="display:none;">
+    📂 <b>Klik hier om een GEDCOM-bestand te selecteren</b> of sleep het bestand naar dit vak.
+</div>
+
+<div id="mynetwork">
+    <div class="legend">
+        <strong>Legende (Sleep = verplaatsbaar | Dubbelklik = vastzetten):</strong><br>
+        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 2px solid #D32F2F;"></span> Opgegeven Man (Rode Rand)</div>
+        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 2px solid #D32F2F;"></span> Opgegeven Vrouw (Rode Rand)</div>
+        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 1px solid #555;"></span> Tussenliggende Man</div>
+        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 1px solid #555;"></span> Tussenliggende Vrouw</div>
+        <hr style="margin: 4px 0;">
+        <div class="legend-item"><span style="color:#4CAF50; font-weight:bold; margin-right:5px;">➔</span> Ouder-kind</div>
+        <div class="legend-item"><span style="color:#E91E63; font-weight:bold; margin-right:5px;">---</span> Partner</div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    function log(msg, type) {
+        console.log('[' + (type || 'info').toUpperCase() + '] ' + msg);
+    }
+
+    var personsDB = {};
+    var currentMode = 'blood';
+    var lastSelectedPathNames = []; 
+    var lastPathStartName = "";
+    var lastPathEndName = "";
+    var lastPathCode = "";
+    var changeIndices = [];
+
+    var nodesDataSet = new vis.DataSet();
+    var edgesDataSet = new vis.DataSet();
+
+    var container = document.getElementById('mynetwork');
+    var data = { nodes: nodesDataSet, edges: edgesDataSet };
+
+    var options = {
+        nodes: { font: { size: 13, face: 'Segoe UI' }, margin: 8 },
+        edges: { font: { size: 10, align: 'middle' }, smooth: { type: 'cubicBezier', roundness: 0.2 } },
+        physics: {
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: { gravitationalConstant: -40, centralGravity: 0.01, springLength: 70, springConstant: 0.08 },
+            maxVelocity: 30,
+            stabilization: { iterations: 150 }
+        },
+        interaction: { hover: true, tooltipDelay: 150, multiselect: true }
+    };
+
+    var network = new vis.Network(container, data, options);
+
+    network.on("dragEnd", function (params) {
+        if (params.nodes.length > 0) {
+            params.nodes.forEach(function (nodeId) {
+                var pointerPos = network.getPositions([nodeId]);
+                if (pointerPos[nodeId]) {
+                    nodesDataSet.update({ id: nodeId, fixed: { x: true, y: true } });
+                }
+            });
+        }
+    });
+
+    network.on("doubleClick", function (params) {
+        if (params.nodes.length > 0) {
+            params.nodes.forEach(function (nodeId) {
+                nodesDataSet.update({ id: nodeId, fixed: false });
+            });
+        }
+    });
+
+    network.on("select", function (params) {
+        if (params.nodes.length === 2) {
+            highlightPathBetween(params.nodes[0], params.nodes[1]);
+        } else if (params.nodes.length === 0) {
+            resetHighlighting();
+        }
+    });
+
+    network.on("deselectNode", function () {
+        var selected = network.getSelectedNodes();
+        if (selected.length === 2) {
+            highlightPathBetween(selected[0], selected[1]);
+        } else if (selected.length === 0) {
+            resetHighlighting();
+        }
+    });
+
+    function setStatus(msg, isError) {
+        var statusEl = document.getElementById('status');
+        if (statusEl) {
+            statusEl.innerText = msg;
+            statusEl.style.color = isError ? '#D32F2F' : '#1565C0';
+        }
+        if (isError) {
+            document.getElementById('dropZone').style.display = 'block';
+        }
+    }
+
+    function parseYearString(str) {
+        if (!str) return '';
+        var match = String(str).match(/\b(1\d{3}|20\d{2})\b/);
+        return match ? match[1] : '';
+    }
+
+    // Volledige GEDCOM Parser (.ged formaat)
+    function parseGedcomText(gedcomText) {
+        personsDB = {};
+        var rawFams = {};
+        
+        var lines = gedcomText.split(/\r?\n/);
+        var currentRecordType = null;
+        var currentIndi = null;
+        var currentFam = null;
+        var currentSubTag = null;
+
+        lines.forEach(function(line) {
+            var trimmed = line.trim();
+            if (!trimmed) return;
+
+            var parts = trimmed.split(' ');
+            var level = parseInt(parts[0], 10);
+            var tag = '';
+            var val = '';
+            var id = '';
+
+            if (isNaN(level)) return;
+
+            if (parts[1] && parts[1].startsWith('@') && parts[1].endsWith('@')) {
+                id = parts[1].replace(/@/g, '');
+                tag = parts[2] ? parts[2].toUpperCase() : '';
+                val = parts.slice(3).join(' ');
+            } else {
+                tag = parts[1] ? parts[1].toUpperCase() : '';
+                val = parts.slice(2).join(' ');
+            }
+
+            if (level === 0) {
+                currentIndi = null;
+                currentFam = null;
+                currentRecordType = null;
+
+                if (tag === 'INDI') {
+                    currentRecordType = 'INDI';
+                    currentIndi = {
+                        id: id,
+                        name: 'Onbekend',
+                        gender: 'U',
+                        birt: '',
+                        deat: '',
+                        years: '',
+                        famc: [],
+                        fams: [],
+                        parents: [],
+                        children: [],
+                        spouses: []
+                    };
+                    personsDB[id] = currentIndi;
+                } else if (tag === 'FAM') {
+                    currentRecordType = 'FAM';
+                    currentFam = {
+                        id: id,
+                        husb: [],
+                        wife: [],
+                        children: []
+                    };
+                    rawFams[id] = currentFam;
+                }
+            } else if (level === 1) {
+                currentSubTag = tag;
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if (tag === 'SEX') {
+                        currentIndi.gender = val.trim().toUpperCase();
+                    } else if (tag === 'NAME') {
+                        currentIndi.name = val.replace(/\//g, '').trim();
+                    } else if (tag === 'FAMC') {
+                        var fId = val.replace(/@/g, '').trim();
+                        if (fId) currentIndi.famc.push(fId);
+                    } else if (tag === 'FAMS') {
+                        var fId = val.replace(/@/g, '').trim();
+                        if (fId) currentIndi.fams.push(fId);
+                    }
+                } else if (currentRecordType === 'FAM' && currentFam) {
+                    if (tag === 'HUSB') {
+                        var hId = val.replace(/@/g, '').trim();
+                        if (hId) currentFam.husb.push(hId);
+                    } else if (tag === 'WIFE') {
+                        var wId = val.replace(/@/g, '').trim();
+                        if (wId) currentFam.wife.push(wId);
+                    } else if (tag === 'CHIL') {
+                        var cId = val.replace(/@/g, '').trim();
+                        if (cId) currentFam.children.push(cId);
+                    }
+                }
+            } else if (level === 2 || level === 3) {
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if ((currentSubTag === 'BIRT' || currentSubTag === 'DEAT') && tag === 'DATE') {
+                        var yr = parseYearString(val);
+                        if (yr) {
+                            if (currentSubTag === 'BIRT') currentIndi.birt = yr;
+                            if (currentSubTag === 'DEAT') currentIndi.deat = yr;
+                        }
+                    }
+                }
+            }
+        });
+
+        // Bereken jaren weergave string
+        Object.values(personsDB).forEach(function(p) {
+            if (p.birt || p.deat) {
+                p.years = "(" + p.birt + " - " + p.deat + ")";
+            }
+        });
+
+        // Verwerk families naar relaties
+        Object.values(rawFams).forEach(function(fam) {
+            var parents = [].concat(fam.husb, fam.wife);
+            fam.husb.forEach(function(hId) {
+                fam.wife.forEach(function(wId) {
+                    if (personsDB[hId] && !personsDB[hId].spouses.includes(wId)) personsDB[hId].spouses.push(wId);
+                    if (personsDB[wId] && !personsDB[wId].spouses.includes(hId)) personsDB[wId].spouses.push(hId);
+                });
+            });
+            fam.children.forEach(function(childId) {
+                if (personsDB[childId]) {
+                    parents.forEach(function(pId) {
+                        if (personsDB[pId]) {
+                            if (!personsDB[childId].parents.includes(pId)) personsDB[childId].parents.push(pId);
+                            if (!personsDB[pId].children.includes(childId)) personsDB[pId].children.push(childId);
+                        }
+                    });
+                }
+            });
+        });
+
+        setupAutocomplete();
+    }
+
+    function setupAutocomplete() {
+        for (let i = 1; i <= 5; i++) {
+            let input = document.getElementById("target" + i);
+            let hiddenId = document.getElementById("targetId" + i);
+
+            input.removeEventListener("input", input._autocompleteHandler);
+            input._autocompleteHandler = function() {
+                let val = this.value;
+                closeAllLists();
+                if (!val || val.length < 2) {
+                    hiddenId.value = "";
+                    return;
+                }
+
+                let listDiv = document.createElement("DIV");
+                listDiv.setAttribute("id", this.id + "-autocomplete-list");
+                listDiv.setAttribute("class", "autocomplete-items");
+                this.parentNode.appendChild(listDiv);
+
+                let personsArray = Object.values(personsDB);
+                for (let p of personsArray) {
+                    if (p.name.toLowerCase().indexOf(val.toLowerCase()) !== -1) {
+                        let itemDiv = document.createElement("DIV");
+                        itemDiv.innerHTML = "<strong>" + p.name + "</strong> " + (p.years ? p.years : "") + " <span style='color:#777;'>(" + p.id + ")</span>";
+                        
+                        itemDiv.addEventListener("click", function() {
+                            input.value = p.name;
+                            hiddenId.value = p.id;
+                            closeAllLists();
+                        });
+                        listDiv.appendChild(itemDiv);
+                    }
+                }
+            };
+            input.addEventListener("input", input._autocompleteHandler);
+
+            input.addEventListener("blur", function() {
+                setTimeout(() => {
+                    if (!input.value) hiddenId.value = "";
+                }, 200);
+            });
+        }
+    }
+
+    function closeAllLists(elmnt) {
+        let items = document.getElementsByClassName("autocomplete-items");
+        for (let i = 0; i < items.length; i++) {
+            if (elmnt != items[i] && elmnt != event?.target) {
+                items[i].parentNode.removeChild(items[i]);
+            }
+        }
+    }
+
+    document.addEventListener("click", function (e) {
+        closeAllLists(e.target);
+    });
+
+    function initTree(fileContent, fileName) {
+        try {
+            parseGedcomText(fileContent);
+            var pIds = Object.keys(personsDB);
+            if (pIds.length === 0) {
+                setStatus("⚠️ Geen geldige personen gevonden in het GEDCOM-bestand.", true);
+                return;
+            }
+            document.getElementById('dropZone').style.display = 'none';
+            setStatus("✅ Data geladen (" + pIds.length + " personen).", false);
+
+            if (personsDB["I5147"]) {
+                document.getElementById("targetId1").value = "I5147";
+                document.getElementById("target1").value = personsDB["I5147"].name;
+            } else if (pIds.length > 0) {
+                document.getElementById("targetId1").value = pIds[0];
+                document.getElementById("target1").value = personsDB[pIds[0]].name;
+            }
+
+            calculateAndRender();
+        } catch (err) {
+            setStatus("⚠️ Fout bij verwerken data: " + err.message, true);
+        }
+    }
+
+    function handleFileSelect(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        readFile(file);
+    }
+
+    function readFile(file) {
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+            var text = evt.target.result;
+            localStorage.setItem('gedcomData', text);
+            initTree(text, file.name);
+        };
+        reader.readAsText(file);
+    }
+
+    window.addEventListener('load', function() {
+        var savedData = localStorage.getItem('gedcomData');
+        if (savedData) {
+            initTree(savedData, 'Lokaal geheugen');
+        } else {
+            setStatus("⚠️ Geen stamboom gevonden in geheugen. Ga naar de <a href='index.html'>Startpagina</a> of klik op 'Open GEDCOM'.", true);
+        }
+    });
+
+    ['dragover', 'drop'].forEach(function(eventName) {
+        window.addEventListener(eventName, function(e) { e.preventDefault(); e.stopPropagation(); });
+    });
+
+    window.addEventListener('drop', function(e) {
+        if (e.dataTransfer && e.dataTransfer.files.length > 0) readFile(e.dataTransfer.files[0]);
+    });
+
+    function getAncestorsWithPaths(startId, maxGenerations) {
+        var ancestors = {};
+        var queue = [{ id: startId, path: [startId] }];
+        while (queue.length > 0) {
+            var item = queue.shift();
+            if (item.path.length > maxGenerations) continue;
+            var pObj = personsDB[item.id];
+            if (!pObj) continue;
+            pObj.parents.forEach(function(pId) {
+                if (!ancestors[pId]) {
+                    var newPath = item.path.concat([pId]);
+                    ancestors[pId] = newPath;
+                    queue.push({ id: pId, path: newPath });
+                }
+            });
+        }
+        return ancestors;
+    }
+
+    function findBloodRelationships(targetList, maxGen) {
+        var nodesToInclude = new Set(targetList);
+        var ancestorDict = {};
+        targetList.forEach(function(tId) {
+            ancestorDict[tId] = getAncestorsWithPaths(tId, maxGen);
+        });
+
+        for (var i = 0; i < targetList.length; i++) {
+            for (var j = i + 1; j < targetList.length; j++) {
+                var p1 = targetList[i], p2 = targetList[j];
+                var anc1 = ancestorDict[p1] || {}, anc2 = ancestorDict[p2] || {};
+                var common = Object.keys(anc1).filter(a => a in anc2);
+                common.forEach(function(mrca) {
+                    (anc1[mrca] || []).forEach(n => nodesToInclude.add(n));
+                    (anc2[mrca] || []).forEach(n => nodesToInclude.add(n));
+                });
+            }
+        }
+        return nodesToInclude;
+    }
+
+    function findShortestAnyPath(targetList) {
+        var nodesToInclude = new Set(targetList);
+        targetList.forEach(function(startId) {
+            var visited = new Set([startId]);
+            var queue = [[startId]];
+            while (queue.length > 0) {
+                var path = queue.shift();
+                var node = path[path.length - 1];
+                if (targetList.includes(node) && node !== startId) {
+                    path.forEach(n => nodesToInclude.add(n));
+                }
+                var pObj = personsDB[node];
+                if (!pObj) continue;
+                var neighbors = [].concat(pObj.parents, pObj.children, pObj.spouses);
+                neighbors.forEach(function(nbr) {
+                    if (nbr && !visited.has(nbr)) {
+                        visited.add(nbr);
+                        queue.push(path.concat([nbr]));
+                    }
+                });
+            }
+        });
+        return nodesToInclude;
+    }
+
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('btnBlood').className = 'btn btn-mode' + (mode === 'blood' ? ' active' : '');
+        document.getElementById('btnShortest').className = 'btn btn-mode' + (mode === 'shortest' ? ' active' : '');
+        calculateAndRender();
+    }
+
+    function calculateAndRender() {
+        var targetList = [];
+        var targetSet = new Set();
+
+        for (let i = 1; i <= 5; i++) {
+            let hiddenId = document.getElementById("targetId" + i).value;
+            let textVal = document.getElementById("target" + i).value.trim();
+
+            if (hiddenId && personsDB[hiddenId]) {
+                targetList.push(hiddenId);
+                targetSet.add(hiddenId);
+            } else if (textVal) {
+                let found = Object.values(personsDB).find(p => p.name.toLowerCase() === textVal.toLowerCase());
+                if (found) {
+                    targetList.push(found.id);
+                    targetSet.add(found.id);
+                }
+            }
+        }
+
+        var maxGen = parseInt(document.getElementById('maxGenInput').value, 10);
+        if (isNaN(maxGen) || maxGen < 1) maxGen = 10;
+
+        if (targetList.length === 0) {
+            setStatus("⚠️ Kies ten minste 1 persoon uit de invulvelden.", true);
+            return;
+        }
+
+        var nodesToInclude = (currentMode === 'blood') 
+            ? findBloodRelationships(targetList, maxGen) 
+            : findShortestAnyPath(targetList);
+
+        if (nodesToInclude.size === 0) {
+            setStatus("⚠️ Geen relaties gevonden voor deze personen binnen deze limiet.", true);
+            return;
+        }
+
+        renderNetworkGraph(nodesToInclude, targetSet, targetList);
+        setStatus("✅ Weergave van " + nodesToInclude.size + " personen.", false);
+    }
+
+    var currentAdjMap = {};
+
+    function renderNetworkGraph(nodesToInclude, targetSet, targetList) {
+        nodesDataSet.clear();
+        edgesDataSet.clear();
+        currentAdjMap = {};
+        lastSelectedPathNames = [];
+        lastPathStartName = "";
+        lastPathEndName = "";
+        lastPathCode = "";
+        changeIndices = [];
+
+        var newNodes = [];
+        var edgesSet = new Set();
+
+        var widthRange = 250;
+        var heightRange = 180;
+        
+        var edgePositions = [
+            { x: -widthRange, y: -heightRange },
+            { x: widthRange,  y: -heightRange },
+            { x: -widthRange, y: heightRange },
+            { x: widthRange,  y: heightRange },
+            { x: 0,           y: -heightRange-40 }
+        ];
+
+        nodesToInclude.forEach(function(id) {
+            var p = personsDB[id];
+            if (!p) return;
+
+            var isTarget = targetSet.has(id);
+            var colorFill = p.gender === 'F' ? "#FFC0CB" : "#97C2FC";
+            var borderColor = isTarget ? "#D32F2F" : "#555555";
+            var borderWidth = isTarget ? 4 : 1;
+            var shape = isTarget ? "ellipse" : "box";
+
+            var nodeConfig = {
+                id: id,
+                label: p.name + (p.years ? "\n" + p.years : ""),
+                shape: shape,
+                color: { background: colorFill, border: borderColor, highlight: { background: "#FFE082", border: "#FF6F00" } },
+                borderWidth: borderWidth,
+                title: "<b>" + p.name + "</b><br>ID: " + id + "<br>Jaren: " + p.years
+            };
+
+            var targetIdx = targetList.indexOf(id);
+            if (targetIdx !== -1) {
+                var pos = edgePositions[targetIdx % edgePositions.length];
+                nodeConfig.x = pos.x;
+                nodeConfig.y = pos.y;
+                nodeConfig.fixed = false;
+            }
+
+            newNodes.push(nodeConfig);
+            currentAdjMap[id] = [];
+        });
+
+        nodesToInclude.forEach(function(id) {
+            var p = personsDB[id];
+            if (!p) return;
+
+            p.spouses.forEach(function(sId) {
+                if (nodesToInclude.has(sId)) {
+                    var pairKey = [id, sId].sort().join('-partner-');
+                    edgesSet.add(JSON.stringify({ key: pairKey, from: id, to: sId, label: "partner", color: { color: "#E91E63" }, dashes: true, arrows: { to: false } }));
+                }
+            });
+
+            p.children.forEach(function(cId) {
+                if (nodesToInclude.has(cId)) {
+                    var pairKey = id + '->' + cId + '-parent';
+                    edgesSet.add(JSON.stringify({ key: pairKey, from: id, to: cId, label: "ouder van", color: { color: "#4CAF50" }, arrows: { to: { enabled: true, type: "arrow" } } }));
+                }
+            });
+        });
+
+        var newEdges = [];
+        var edgeIndex = 0;
+        edgesSet.forEach(function(str) {
+            var e = JSON.parse(str);
+            e.id = "e_" + (edgeIndex++);
+            newEdges.push(e);
+            if (currentAdjMap[e.from]) currentAdjMap[e.from].push({ neighbor: e.to, edgeId: e.id });
+            if (currentAdjMap[e.to]) currentAdjMap[e.to].push({ neighbor: e.from, edgeId: e.id });
+        });
+
+        nodesDataSet.add(newNodes);
+        edgesDataSet.add(newEdges);
+        network.fit();
+    }
+
+    function getRelationCodeChar(fromId, toId) {
+        var fromP = personsDB[fromId];
+        var toP = personsDB[toId];
+        if (!fromP || !toP) return '?';
+
+        if (fromP.parents.includes(toId)) {
+            return toP.gender === 'F' ? 'M' : 'V';
+        }
+        if (fromP.children.includes(toId)) {
+            return 'K';
+        }
+        if (fromP.spouses.includes(toId)) {
+            return 'P';
+        }
+        return '?';
+    }
+
+    function highlightPathBetween(startId, endId) {
+        var queue = [[startId]];
+        var visited = new Set([startId]);
+        var targetPath = null;
+
+        while (queue.length > 0) {
+            var path = queue.shift();
+            var current = path[path.length - 1];
+            if (current === endId) { targetPath = path; break; }
+            (currentAdjMap[current] || []).forEach(function(item) {
+                if (!visited.has(item.neighbor)) {
+                    visited.add(item.neighbor);
+                    queue.push(path.concat([item.neighbor]));
+                }
+            });
+        }
+        if (!targetPath) return;
+
+        var startPerson = personsDB[startId];
+        var endPerson = personsDB[endId];
+        lastPathStartName = startPerson ? startPerson.name : startId;
+        lastPathEndName = endPerson ? endPerson.name : endId;
+
+        var codeChars = [];
+        var lastGroup = ''; 
+        changeIndices = [];
+
+        for (var i = 0; i < targetPath.length - 1; i++) {
+            var charCode = getRelationCodeChar(targetPath[i], targetPath[i+1]);
+            var currentGroup = (charCode === 'V' || charCode === 'M') ? 'PARENT' : charCode;
+
+            if (lastGroup !== '' && lastGroup !== currentGroup) {
+                codeChars.push('-');
+                changeIndices.push(i);
+            }
+            codeChars.push(charCode);
+            lastGroup = currentGroup;
+        }
+        lastPathCode = codeChars.join('');
+
+        lastSelectedPathNames = targetPath.map(function(id, idx) {
+            var p = personsDB[id];
+            var namePart = p ? (p.name + (p.years ? " " + p.years : "") + " (@" + id + "@)") : id;
+            if (changeIndices.includes(idx)) {
+                return "🔴 " + namePart + " (Richtsverandering)";
+            }
+            return namePart;
+        });
+
+        var pathNodesSet = new Set(targetPath);
+        var pathEdgesSet = new Set();
+        for (var i = 0; i < targetPath.length - 1; i++) {
+            var u = targetPath[i], v = targetPath[i + 1];
+            (currentAdjMap[u] || []).forEach(function(item) { if (item.neighbor === v) pathEdgesSet.add(item.edgeId); });
+        }
+
+        nodesDataSet.forEach(function(n) {
+            nodesDataSet.update({ id: n.id, opacity: pathNodesSet.has(n.id) ? 1 : 0.25 });
+        });
+        edgesDataSet.forEach(function(e) {
+            edgesDataSet.update({ id: e.id, color: { color: pathEdgesSet.has(e.id) ? "#FF6F00" : "#E0E0E0" }, width: pathEdgesSet.has(e.id) ? 4 : 1 });
+        });
+    }
+
+    function resetHighlighting() {
+        lastSelectedPathNames = [];
+        lastPathStartName = "";
+        lastPathEndName = "";
+        lastPathCode = "";
+        changeIndices = [];
+        nodesDataSet.forEach(function(n) {
+            nodesDataSet.update({ id: n.id, opacity: 1 });
+        });
+        edgesDataSet.forEach(function(e) {
+            edgesDataSet.update({ id: e.id, color: { color: e.label === "ouder van" ? "#4CAF50" : "#E91E63" }, width: 1 });
+        });
+    }
+
+    function copySelectedPath() {
+        if (!lastSelectedPathNames || lastSelectedPathNames.length === 0) {
+            alert("Selecteer eerst exact 2 personen in het netwerk door erop te klikken zodat het pad oplicht.");
+            return;
+        }
+
+        var titleLine = "Pad van " + lastPathStartName + " naar " + lastPathEndName + " (" + lastSelectedPathNames.length + " personen, relatiecode: " + lastPathCode + "):";
+        var textToCopy = titleLine + "\n" + lastSelectedPathNames.join(" ➔ ");
+
+        navigator.clipboard.writeText(textToCopy).then(function() {
+            setStatus("✅ Het pad inclusief aantal personen en relatiecode (" + lastPathCode + ") is naar het klembord gekopieerd!", false);
+        }).catch(function(err) {
+            alert("Kopiëren mislukt: " + err);
+        });
+    }
+</script>
+
+</body>
+</html>
