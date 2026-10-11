@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sepia Zandloper Stamboom Viewer</title>
+  <style>
+    body {
+      font-family: 'Georgia', 'Segoe UI', serif;
+      background-color: #f4efe6;
+      color: #4a3b32;
+      margin: 0;
+      padding: 15px;
+      text-align: center;
+      position: relative;
+    }
+
+    h1 { margin-bottom: 5px; color: #2c1d11; font-size: 1.7em; font-family: 'Georgia', serif; }
+    p.subtitle { color: #7a6855; margin-bottom: 15px; font-size: 0.85em; font-style: italic; }
+
+    .control-panel {
+      background: #e8dfd1;
+      border: 1px solid #c8b9a6;
+      padding: 12px 18px;
+      border-radius: 10px;
+      display: inline-flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 3px 8px rgba(74, 59, 50, 0.15);
+      position: relative;
+      z-index: 1000;
+    }
+
+    .status-bar {
+      background: #e8dfd1;
+      border: 1px dashed #8c6d53;
+      padding: 10px 15px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .control-label {
+      font-size: 0.75em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #6b5847;
+      font-weight: bold;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-nav {
+      background: #8c6d53;
+      color: #ffffff;
+      border: 1px solid #6b523e;
+      padding: 7px 12px;
+      border-radius: 6px;
+      font-size: 0.85em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-nav:hover:not(:disabled) {
+      background: #6b523e;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .btn-nav:disabled {
+      background: #c8b9a6;
+      border-color: #b5a490;
+      color: #7a6855;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .route-selector {
+      background: #faf7f2;
+      border: 1px solid #b5a490;
+      color: #3b2c20;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.85em;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .route-selector:focus { border-color: #2d7d46; }
+
+    .search-container {
+      position: relative;
+      width: 240px;
+    }
+
+    input.search-input {
+      width: 100%;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #b5a490;
+      background: #faf7f2;
+      color: #3b2c20;
+      font-size: 0.85em;
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    input.search-input:focus {
+      border-color: #2d7d46;
+      box-shadow: 0 0 6px rgba(45, 125, 70, 0.3);
+    }
+
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: #ffffff;
+      border: 1.5px solid #2d7d46;
+      border-radius: 6px;
+      max-height: 280px;
+      overflow-y: auto;
+      z-index: 2000 !important;
+      display: none;
+      text-align: left;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+    .search-item {
+      padding: 8px 10px;
+      cursor: pointer;
+      border-bottom: 1px solid #eae2d5;
+      font-size: 0.8em;
+    }
+
+    .search-item:hover { background: #f0e6d6; color: #2d7d46; font-weight: bold; }
+
+    #route-status {
+      background: #e2f0d9;
+      border: 1px solid #2d7d46;
+      color: #1e522d;
+      padding: 8px 14px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 0.85em;
+      margin-bottom: 15px;
+      position: relative;
+      z-index: 20;
+    }
+
+    #hourglass-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 25px;
+      max-width: 1350px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 20;
+    }
+
+    .section-block { width: 100%; }
+    .section-title {
+      font-size: 0.75em;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #8c7865;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    .tree-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .person-card {
+      background: #faf6f0;
+      border: 1.5px solid #c4b5a3;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      min-width: 145px;
+      max-width: 190px;
+      font-size: 0.8em;
+      box-shadow: 0 2px 6px rgba(74, 59, 50, 0.12);
+      position: relative;
+      z-index: 20;
+    }
+
+    .person-card.gender-M { border-left: 5px solid #4a6b82 !important; }
+    .person-card.gender-F { border-left: 5px solid #a35265 !important; }
+
+    .gender-icon {
+      font-weight: bold;
+      font-size: 0.95em;
+      margin-left: 3px;
+    }
+    .gender-M .gender-icon { color: #4a6b82; }
+    .gender-F .gender-icon { color: #a35265; }
+
+    .person-card:hover {
+      transform: translateY(-2px);
+      border-color: #2d7d46 !important;
+      box-shadow: 0 4px 14px rgba(45, 125, 70, 0.35);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      border-bottom: 1px dashed #dcd0bf;
+      padding-bottom: 3px;
+    }
+
+    .sosa-tag {
+      font-size: 0.7em;
+      font-weight: bold;
+      background: #2c1d11;
+      color: #ffffff;
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+    }
+
+    .role-badge {
+      font-size: 0.65em;
+      text-transform: uppercase;
+      color: #6b5847;
+      font-weight: bold;
+    }
+
+    .dates {
+      font-size: 0.75em;
+      color: #6e5c4c;
+      margin-top: 3px;
+    }
+
+    .meta-badges {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      margin-top: 6px;
+    }
+
+    .path-row {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.65em;
+    }
+
+    .path-lbl {
+      color: #7a6855;
+      font-weight: bold;
+      font-size: 0.85em;
+    }
+
+    .path-string-badge {
+      font-size: 0.95em;
+      font-weight: bold;
+      background: #8c6d53;
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      display: inline-block;
+      margin: 2px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .path-string-badge.to-me { background: #4a6b82; }
+    .path-string-badge:active { transform: scale(0.92); opacity: 0.8; }
+
+    .dna-badge {
+      display: inline-block;
+      font-size: 0.68em;
+      font-weight: bold;
+      color: #1e522d;
+      background: rgba(45, 125, 70, 0.12);
+      border: 1px solid #2d7d46;
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-top: 2px;
+    }
+
+    .dna-badge.zero {
+      color: #8c7a6b;
+      background: rgba(0, 0, 0, 0.04);
+      border-color: #b5a490;
+    }
+
+    .gen-p3 { border-color: #d9822b; background: #fdf3e7; }
+    .gen-p2 { border-color: #e6a100; background: #fdf8e6; }
+    .gen-p1 { border-color: #c9a000; background: #faf6e1; }
+    
+    .gen-0  { 
+      border-color: #b33939; 
+      background: #f8d7da; 
+      color: #721c24; 
+      font-weight: bold; 
+      transform: scale(1.04); 
+      box-shadow: 0 0 10px rgba(179, 57, 57, 0.3);
+    }
+
+    .gen-c1 { border-color: #2b90b8; background: #e8f4f8; }
+    .gen-c2 { border-color: #3867d6; background: #ebf0fa; }
+    .gen-c3 { border-color: #4b6584; background: #f0f2f5; }
+
+    .person-card.on-route {
+      border-color: #2d7d46 !important;
+      background: #d4edda !important;
+      color: #155724 !important;
+      box-shadow: 0 0 12px rgba(45, 125, 70, 0.5) !important;
+    }
+
+    .person-card.is-me {
+      border-color: #1e522d !important;
+      background: #c3e6cb !important;
+      color: #0c3818 !important;
+      font-weight: bold;
+      box-shadow: 0 0 15px rgba(30, 82, 45, 0.7) !important;
+    }
+
+    .next-step-badge {
+      background: #2d7d46;
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 0.6em;
+      padding: 1px 4px;
+      border-radius: 3px;
+      display: inline-block;
+      text-transform: uppercase;
+    }
+
+    .empty-msg { color: #a39281; font-style: italic; font-size: 0.75em; }
+
+    line.tree-line { transition: all 0.25s ease-in-out; }
+    line.tree-line.hovered-line {
+      stroke: #d9381e !important;
+      stroke-width: 4px !important;
+      opacity: 1 !important;
+    }
+    line.tree-line.dimmed-line { opacity: 0.15 !important; }
+
+    .custom-modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .custom-modal-box {
+      background: #faf6f0;
+      border: 2px solid #8c6d53;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 90%;
+      padding: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      text-align: left;
+    }
+
+    .custom-modal-title {
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #2c1d11;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #c8b9a6;
+      padding-bottom: 8px;
+    }
+
+    .custom-modal-body {
+      font-size: 0.95em;
+      color: #3b2c20;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      word-break: break-word;
+    }
+
+    .custom-modal-btn {
+      background: #8c6d53;
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      float: right;
+      font-size: 0.9em;
+    }
+
+    .custom-modal-btn:active { background: #6b523e; }
+  </style>
+</head>
+<body>
+
+  <svg id="svg-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;"></svg>
+
+  <div id="routeModal" class="custom-modal-backdrop" onclick="closeRouteModal()">
+    <div class="custom-modal-box" onclick="event.stopPropagation()">
+      <div id="modalTitle" class="custom-modal-title">Route details</div>
+      <div id="modalBody" class="custom-modal-body">...</div>
+      <button class="custom-modal-btn" onclick="closeRouteModal()">Sluiten</button>
+      <div style="clear:both;"></div>
+    </div>
+  </div>
+
+  <h1>Zandloper Stamboom Viewer</h1>
+  <p class="subtitle" id="subtitleText">Gegevens ophalen uit lokaal geheugen...</p>
+
+  <!-- Status balk & Handmatige bestandsselectie -->
+  <div class="status-bar">
+    <span id="status">⏳ Gegevens ophalen uit lokaal geheugen...</span>
+    <div id="fileFallback" style="display: none;">
+      <input type="file" id="gedcomFileInput" accept=".ged,.GED,.txt" style="display: none;">
+      <button class="btn-nav" onclick="document.getElementById('gedcomFileInput').click();">
+        📁 Selecteer GEDCOM-bestand
+      </button>
+    </div>
+  </div>
+
+  <div class="control-panel" id="controlPanel" style="display: none;">
+    <div class="control-group">
+      <span class="control-label">Navigatie:</span>
+      <div class="nav-buttons">
+        <button id="btn-home" class="btn-nav" onclick="goHomeView()">🏠 Begin</button>
+        <button id="btn-back" class="btn-nav" onclick="goBackView()" disabled>⬅ Vorige</button>
+        <button id="btn-forward" class="btn-nav" onclick="goForwardView()" disabled>Volgende ➡</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">🎯 Hoofdpersoon (Sosa 1):</span>
+      <div class="search-container">
+        <input type="text" id="target-search" class="search-input" placeholder="Zoek voor- en/of achternaam..." oninput="handleSearch('target')">
+        <div id="target-results" class="search-results"></div>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">★ Centrale Persoon:</span>
+      <div class="search-container">
+        <input type="text" id="center-search" class="search-input" placeholder="Zoek voor- en/of achternaam..." oninput="handleSearch('center')">
+        <div id="center-results" class="search-results"></div>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">⚙️ Zoekmethode:</span>
+      <select id="route-mode" class="route-selector" onchange="onRouteModeChange()">
+        <option value="shortest">⚡ Kortste weg (Inc. aangetrouwd & stief)</option>
+        <option value="ancestor">🔄 Bloedverwant (Via gemeenschappelijke voorouder)</option>
+        <option value="strict">🩸 Strikte Directe Lijn (Rechtstreeks omhoog/omlaag)</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="route-status" style="display: none;">Berekenen van de route...</div>
+
+  <div id="hourglass-container" style="display: none;">
+    <div class="section-block"><div class="section-title">▲ Overgrootouders (+3)</div><div id="row-p3" class="tree-row"></div></div>
+    <div class="section-block"><div class="section-title">▲ Grootouders (+2)</div><div id="row-p2" class="tree-row"></div></div>
+    <div class="section-block"><div class="section-title">▲ Ouders (+1)</div><div id="row-p1" class="tree-row"></div></div>
+
+    <div class="section-block"><div class="section-title">★ Centrale Persoon</div><div id="row-0" class="tree-row"></div></div>
+
+    <div class="section-block"><div class="section-title">▼ Kinderen (-1)</div><div id="row-c1" class="tree-row"></div></div>
+    <div class="section-block"><div class="section-title">▼ Kleinkinderen (-2)</div><div id="row-c2" class="tree-row"></div></div>
+    <div class="section-block"><div class="section-title">▼ Achterkleinkinderen (-3)</div><div id="row-c3" class="tree-row"></div></div>
+  </div>
+
+  <script>
+    let peopleData = {};
+    let targetMeId = "I5147";       // Standaard Hoofdpersoon (Grauwels Valere)
+    let currentCenterId = "I5147";  // Standaard Centrale Persoon
+    let currentActiveRouteNodes = new Set();
+    let sosaMap = {};
+    let navigationHistory = [];
+    let nextHistory = [];
+
+    // 1. Inlezen bij opstarten via localStorage, met fallback naar bestandskiezer
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedData = localStorage.getItem('gedcomData');
+        if (savedData) {
+            try {
+                peopleData = parseGedcomToPeopleData(savedData);
+                initApp("lokaal geheugen");
+            } catch (err) {
+                console.error(err);
+                showFileFallback("Fout bij het verwerken van de opgeslagen data.");
+            }
+        } else {
+            showFileFallback("Geen stamboom gevonden in het geheugen. Ga eerst naar de <a href='index.html'>Startpagina</a> of selecteer een bestand:");
+        }
+    });
+
+    document.getElementById('gedcomFileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const gedcomText = evt.target.result;
+                localStorage.setItem('gedcomData', gedcomText);
+                peopleData = parseGedcomToPeopleData(gedcomText);
+                initApp(file.name);
+            } catch (err) {
+                console.error(err);
+                alert('Fout bij het verwerken van het GEDCOM bestand!');
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    function showFileFallback(msg) {
+        document.getElementById('status').innerHTML = "⚠️ " + msg;
+        document.getElementById('fileFallback').style.display = 'block';
+    }
+
+    // 2. Parser voor het GEDCOM bestandsformaat (.ged)
+    function parseGedcomToPeopleData(gedcomText) {
+        const lines = gedcomText.split(/\r?\n/);
+        let rawIndis = {};
+        let rawFams = {};
+        
+        let currentRecordType = null; // 'INDI' of 'FAM'
+        let currentId = null;
+        let currentSubTag = null;
+        let currentIndi = null;
+        let currentFam = null;
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+
+            const parts = trimmed.split(' ');
+            const level = parseInt(parts[0], 10);
+            let tag = '';
+            let val = '';
+            let id = '';
+
+            if (isNaN(level)) return;
+
+            if (parts[1] && parts[1].startsWith('@') && parts[1].endsWith('@')) {
+                id = parts[1].replace(/@/g, '');
+                tag = parts[2] ? parts[2].toUpperCase() : '';
+                val = parts.slice(3).join(' ');
+            } else {
+                tag = parts[1] ? parts[1].toUpperCase() : '';
+                val = parts.slice(2).join(' ');
+            }
+
+            if (level === 0) {
+                currentIndi = null;
+                currentFam = null;
+                currentRecordType = null;
+                currentId = null;
+
+                if (tag === 'INDI') {
+                    currentId = id;
+                    currentRecordType = 'INDI';
+                    currentIndi = {
+                        id: id,
+                        name: 'Onbekend',
+                        gender: 'U',
+                        birt: '',
+                        deat: '',
+                        parents: [],
+                        children: [],
+                        spouses: []
+                    };
+                    rawIndis[id] = currentIndi;
+                } else if (tag === 'FAM') {
+                    currentId = id;
+                    currentRecordType = 'FAM';
+                    currentFam = {
+                        husb: '',
+                        wife: '',
+                        children: []
+                    };
+                    rawFams[id] = currentFam;
+                }
+            } else if (level === 1) {
+                currentSubTag = tag;
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if (tag === 'SEX') {
+                        currentIndi.gender = val.trim().toUpperCase();
+                    } else if (tag === 'NAME') {
+                        currentIndi.name = val.replace(/\//g, '').trim();
+                    }
+                } else if (currentRecordType === 'FAM' && currentFam) {
+                    if (tag === 'HUSB') {
+                        currentFam.husb = val.replace(/@/g, '').trim();
+                    } else if (tag === 'WIFE') {
+                        currentFam.wife = val.replace(/@/g, '').trim();
+                    } else if (tag === 'CHIL') {
+                        const chilId = val.replace(/@/g, '').trim();
+                        if (chilId && !currentFam.children.includes(chilId)) {
+                            currentFam.children.push(chilId);
+                        }
+                    }
+                }
+            } else if (level === 2) {
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if ((currentSubTag === 'BIRT' || currentSubTag === 'DEAT') && tag === 'DATE') {
+                        const match = val.match(/\b\d{4}\b/);
+                        if (match) {
+                            if (currentSubTag === 'BIRT') currentIndi.birt = match[0];
+                            if (currentSubTag === 'DEAT') currentIndi.deat = match[0];
+                        }
+                    }
+                }
+            } else if (level === 3) {
+                if (currentRecordType === 'INDI' && currentIndi && tag === 'DATE') {
+                    const match = val.match(/\b\d{4}\b/);
+                    if (match) {
+                        if (currentSubTag === 'BIRT') currentIndi.birt = match[0];
+                        if (currentSubTag === 'DEAT') currentIndi.deat = match[0];
+                    }
+                }
+            }
+        });
+
+        // Koppel relaties vanuit families naar personen
+        Object.values(rawFams).forEach(fam => {
+            const husb = fam.husb;
+            const wife = fam.wife;
+            const children = fam.children || [];
+
+            const parents = [husb, wife].filter(p => p && rawIndis[p]);
+
+            if (husb && wife && rawIndis[husb] && rawIndis[wife]) {
+                if (!rawIndis[husb].spouses.includes(wife)) rawIndis[husb].spouses.push(wife);
+                if (!rawIndis[wife].spouses.includes(husb)) rawIndis[wife].spouses.push(husb);
+            }
+
+            children.forEach(childId => {
+                if (rawIndis[childId]) {
+                    parents.forEach(pId => {
+                        if (!rawIndis[childId].parents.includes(pId)) rawIndis[childId].parents.push(pId);
+                        if (rawIndis[pId] && !rawIndis[pId].children.includes(childId)) rawIndis[pId].children.push(childId);
+                    });
+                }
+            });
+        });
+
+        return rawIndis;
+    }
+
+    function initApp(sourceName) {
+        const keys = Object.keys(peopleData);
+        if (keys.length === 0) {
+            alert("Geen personen gevonden in de data!");
+            return;
+        }
+
+        if (!peopleData[targetMeId]) {
+            targetMeId = keys[0];
+        }
+        currentCenterId = targetMeId;
+
+        document.getElementById('status').innerHTML = `✅ Data geladen uit <strong>${sourceName}</strong> (<strong>${keys.length} personen</strong>).`;
+        document.getElementById('subtitleText').innerHTML = `Totaal geladen personen: <strong>${keys.length}</strong> | Tik op een VAN/NAAR badge om route-details te openen.`;
+        document.getElementById('controlPanel').style.display = 'inline-flex';
+        document.getElementById('route-status').style.display = 'inline-block';
+        document.getElementById('hourglass-container').style.display = 'flex';
+
+        updateNavButtonsState();
+        renderHourglass(currentCenterId);
+    }
+
+    // 3. UI en Navigatie Logica (Zandloper Viewer)
+    function openRouteModal(evt, title, routeText) {
+      if (evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+      }
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalBody').innerText = routeText;
+      document.getElementById('routeModal').style.display = 'flex';
+      return false;
+    }
+
+    function closeRouteModal() {
+      document.getElementById('routeModal').style.display = 'none';
+    }
+
+    function navigateToCenter(newCenterId) {
+      if (newCenterId === currentCenterId) return;
+      navigationHistory.push(currentCenterId);
+      nextHistory = [];
+      currentCenterId = newCenterId;
+      updateNavButtonsState();
+      renderHourglass(currentCenterId);
+    }
+
+    function goHomeView() {
+      if (currentCenterId === targetMeId) return;
+      navigationHistory.push(currentCenterId);
+      nextHistory = [];
+      currentCenterId = targetMeId;
+      updateNavButtonsState();
+      renderHourglass(currentCenterId);
+    }
+
+    function goBackView() {
+      if (navigationHistory.length > 0) {
+        nextHistory.push(currentCenterId);
+        currentCenterId = navigationHistory.pop();
+        updateNavButtonsState();
+        renderHourglass(currentCenterId);
+      }
+    }
+
+    function goForwardView() {
+      if (nextHistory.length > 0) {
+        navigationHistory.push(currentCenterId);
+        currentCenterId = nextHistory.pop();
+        updateNavButtonsState();
+        renderHourglass(currentCenterId);
+      }
+    }
+
+    function updateNavButtonsState() {
+      document.getElementById('btn-back').disabled = (navigationHistory.length === 0);
+      document.getElementById('btn-forward').disabled = (nextHistory.length === 0);
+    }
+
+    function getAncestors(personId, visited = new Set()) {
+      visited.add(personId);
+      const person = peopleData[personId];
+      if (!person || !person.parents) return visited;
+      person.parents.forEach(pId => {
+        if (!visited.has(pId)) getAncestors(pId, visited);
+      });
+      return visited;
+    }
+
+    function getDescendants(personId, visited = new Set()) {
+      visited.add(personId);
+      const person = peopleData[personId];
+      if (!person || !person.children) return visited;
+      person.children.forEach(cId => {
+        if (!visited.has(cId)) getDescendants(cId, visited);
+      });
+      return visited;
+    }
+
+    function calculateSosaNumbers(rootId) {
+      sosaMap = {};
+      if (!peopleData[rootId]) return;
+      sosaMap[rootId] = 1;
+      const queue = [rootId];
+
+      while (queue.length > 0) {
+        const currId = queue.shift();
+        const currSosa = sosaMap[currId];
+        const person = peopleData[currId];
+
+        if (person && person.parents) {
+          person.parents.forEach(pId => {
+            const p = peopleData[pId];
+            if (p) {
+              if (p.gender === 'M' && !sosaMap[pId]) {
+                sosaMap[pId] = currSosa * 2;
+                queue.push(pId);
+              } else if (p.gender === 'F' && !sosaMap[pId]) {
+                sosaMap[pId] = (currSosa * 2) + 1;
+                queue.push(pId);
+              } else if (!sosaMap[pId]) {
+                sosaMap[pId] = currSosa * 2;
+                queue.push(pId);
+              }
+            }
+          });
+        }
+      }
+    }
+
+    function areSpouses(personA, personB) {
+      if (!personA || !personB) return false;
+      if (personA.spouses && personA.spouses.includes(personB.id)) return true;
+      if (personB.spouses && personB.spouses.includes(personA.id)) return true;
+      if (personA.children && personB.children) {
+        return personA.children.some(childId => personB.children.includes(childId));
+      }
+      return false;
+    }
+
+    function getAllPartners(person) {
+      if (!person) return [];
+      const partners = new Set(person.spouses || []);
+      if (person.children) {
+        person.children.forEach(cId => {
+          const child = peopleData[cId];
+          if (child && child.parents) {
+            child.parents.forEach(pId => {
+              if (pId !== person.id) partners.add(pId);
+            });
+          }
+        });
+      }
+      return Array.from(partners);
+    }
+
+    function buildPathDetails(path) {
+      if (!path || path.length < 2) return { code: "", names: "" };
+      let codeStr = "";
+      let lastDir = "";
+      let firstName = peopleData[path[0]] ? peopleData[path[0]].name : "Onbekend";
+      let formattedNames = [firstName];
+
+      for (let i = 0; i < path.length - 1; i++) {
+        const curr = peopleData[path[i]];
+        const next = peopleData[path[i+1]];
+        if (!curr || !next) continue;
+
+        let currentDir = "";
+        let charCode = "";
+
+        if (areSpouses(curr, next)) {
+          currentDir = "PARTNER";
+          charCode = 'P';
+        } else if (curr.parents && curr.parents.includes(next.id)) {
+          currentDir = "UP";
+          charCode = (next.gender === 'F') ? 'M' : 'V';
+        } else if (curr.children && curr.children.includes(next.id)) {
+          currentDir = "DOWN";
+          charCode = 'K';
+        } else {
+          charCode = '?';
+        }
+
+        if (lastDir !== "" && currentDir !== "" && lastDir !== currentDir) codeStr += "-";
+        codeStr += charCode;
+        if (currentDir !== "") lastDir = currentDir;
+
+        formattedNames.push(`[${charCode}] ${next.name}`);
+      }
+
+      return { code: codeStr, names: formattedNames.join(" ➔ ") };
+    }
+
+    function getRelationshipPathFromMe(startId, targetId) {
+      if (startId === targetId) return null;
+      const mode = document.getElementById('route-mode').value;
+      const path = findPathToMe(startId, targetId, mode);
+      return path ? buildPathDetails(path) : null;
+    }
+
+    function getRelationshipPathToMe(startId, targetId) {
+      if (startId === targetId) return null;
+      const mode = document.getElementById('route-mode').value;
+      const path = findPathToMe(startId, targetId, mode);
+      return path ? buildPathDetails(path) : null;
+    }
+
+    function calculateDNA(personId, targetId) {
+      if (personId === targetId) return "100%";
+      const path = findPathToMe(personId, targetId, 'ancestor') || findPathToMe(personId, targetId, 'shortest');
+      if (!path) return "0%";
+      const steps = path.length - 1;
+      const percentage = 100 / Math.pow(2, steps);
+      return percentage < 0.1 ? "<0.1%" : percentage.toFixed(1) + "%";
+    }
+
+    function findPathToMe(startId, targetId, mode) {
+      if (startId === targetId) return [startId];
+      if (mode === 'strict') {
+        const ancestors = getAncestors(startId);
+        const descendants = getDescendants(startId);
+        if (!ancestors.has(targetId) && !descendants.has(targetId)) return null;
+      }
+
+      let allowedNodes = null;
+      if (mode === 'ancestor') {
+        const startAncestors = getAncestors(startId);
+        const targetAncestors = getAncestors(targetId);
+        const commonAncestors = new Set([...startAncestors].filter(x => targetAncestors.has(x)));
+        if (commonAncestors.size === 0) return null;
+
+        allowedNodes = new Set();
+        commonAncestors.forEach(ancId => {
+          getDescendants(ancId).forEach(dId => allowedNodes.add(dId));
+        });
+      }
+
+      const queue = [[startId]];
+      const visited = new Set([startId]);
+
+      while (queue.length > 0) {
+        const path = queue.shift();
+        const node = path[path.length - 1];
+        const person = peopleData[node];
+        if (!person) continue;
+
+        const neighbors = [...(person.parents || []), ...(person.children || []), ...getAllPartners(person)];
+        for (const neighbor of neighbors) {
+          if (neighbor === targetId) return [...path, neighbor];
+          if (!visited.has(neighbor) && peopleData[neighbor]) {
+            if (allowedNodes && !allowedNodes.has(neighbor)) continue;
+            visited.add(neighbor);
+            queue.push([...path, neighbor]);
+          }
+        }
+      }
+      return null;
+    }
+
+    function getExactGeneration(startIds, key, steps) {
+      let currentSet = new Set(startIds);
+      for (let i = 0; i < steps; i++) {
+        let nextSet = new Set();
+        currentSet.forEach(id => {
+          if (peopleData[id] && peopleData[id][key]) {
+            peopleData[id][key].forEach(nextId => nextSet.add(nextId));
+          }
+        });
+        currentSet = nextSet;
+      }
+      return Array.from(currentSet).map(id => peopleData[id]).filter(Boolean);
+    }
+
+    function renderHourglass(centerId) {
+      const centerPerson = peopleData[centerId];
+      if (!centerPerson) return;
+
+      calculateSosaNumbers(targetMeId);
+
+      if (document.activeElement !== document.getElementById('target-search')) {
+        document.getElementById('target-search').value = peopleData[targetMeId] ? peopleData[targetMeId].name : '';
+      }
+      if (document.activeElement !== document.getElementById('center-search')) {
+        document.getElementById('center-search').value = centerPerson.name;
+      }
+
+      const mode = document.getElementById('route-mode').value;
+      const mainPathToMe = findPathToMe(centerId, targetMeId, mode);
+      currentActiveRouteNodes = new Set(mainPathToMe || []);
+
+      const statusDiv = document.getElementById('route-status');
+      const targetName = peopleData[targetMeId] ? peopleData[targetMeId].name : targetMeId;
+
+      let modeText = "Kortste Weg";
+      if (mode === 'ancestor') modeText = "Gemeenschappelijke Voorouder";
+      if (mode === 'strict') modeText = "Strikte Directe Lijn";
+
+      if (centerId === targetMeId) {
+        statusDiv.innerHTML = `★ <strong>Je bevindt je op het profiel van de Hoofdpersoon (${targetName})!</strong>`;
+        statusDiv.style.borderColor = "#1e522d";
+      } else if (mainPathToMe) {
+        statusDiv.innerHTML = `📍 Afstand van het centrum tot <strong>${targetName}</strong>: <strong>${mainPathToMe.length - 1} stap(pen)</strong> [Modus: ${modeText}].`;
+        statusDiv.style.borderColor = "#2d7d46";
+      } else {
+        statusDiv.innerHTML = `⚠️ Geen geldige route gevonden vanaf het centrum naar <strong>${targetName}</strong> via '${modeText}'.`;
+        statusDiv.style.borderColor = "#b33939";
+      }
+
+      let centerRowPersons = [centerPerson];
+      const centerPartners = getAllPartners(centerPerson);
+      centerPartners.forEach(pId => {
+        if (currentActiveRouteNodes.has(pId)) centerRowPersons.push(peopleData[pId]);
+      });
+
+      renderRow('row-p3', getExactGeneration([centerId], 'parents', 3), 'gen-p3', 'Overgrootouder', currentActiveRouteNodes);
+      renderRow('row-p2', getExactGeneration([centerId], 'parents', 2), 'gen-p2', 'Grootouder', currentActiveRouteNodes);
+      renderRow('row-p1', getExactGeneration([centerId], 'parents', 1), 'gen-p1', 'Ouder', currentActiveRouteNodes);
+      renderRow('row-0', centerRowPersons, 'gen-0', 'Middelpunt', currentActiveRouteNodes);
+      renderRow('row-c1', getExactGeneration([centerId], 'children', 1), 'gen-c1', 'Kind', currentActiveRouteNodes);
+      renderRow('row-c2', getExactGeneration([centerId], 'children', 2), 'gen-c2', 'Kleinkind', currentActiveRouteNodes);
+      renderRow('row-c3', getExactGeneration([centerId], 'children', 3), 'gen-c3', 'Achterkleinkind', currentActiveRouteNodes);
+
+      setTimeout(() => drawConnectionLines(currentActiveRouteNodes), 30);
+    }
+
+    function renderRow(rowId, persons, cssClass, label, activeRouteNodes) {
+      const rowContainer = document.getElementById(rowId);
+      rowContainer.innerHTML = '';
+
+      if (persons.length === 0) {
+        rowContainer.innerHTML = '<span class="empty-msg">-</span>';
+        return;
+      }
+
+      const uniquePersons = Array.from(new Set(persons.map(p => p.id))).map(id => peopleData[id]);
+
+      uniquePersons.forEach(p => {
+        const card = document.createElement('div');
+        card.setAttribute('data-person-id', p.id);
+
+        let extraClasses = cssClass;
+        let routeBadgeHtml = '';
+
+        if (p.id === targetMeId) {
+          extraClasses += ' is-me';
+          routeBadgeHtml = `<span class="next-step-badge" style="background:#1e522d;">HOOFDPERSOON</span>`;
+        } else if (activeRouteNodes.has(p.id) && p.id !== currentCenterId) {
+          extraClasses += ' on-route';
+          routeBadgeHtml = `<span class="next-step-badge">▶ ROUTE</span>`;
+        }
+
+        const genderClass = p.gender === 'F' ? 'gender-F' : (p.gender === 'M' ? 'gender-M' : '');
+        const genderSymbol = p.gender === 'F' ? '♀' : (p.gender === 'M' ? '♂' : '');
+
+        let datesText = '';
+        if (p.birt || p.deat) {
+          const birtStr = p.birt ? `°${p.birt}` : '';
+          const deatStr = p.deat ? `†${p.deat}` : '';
+          datesText = `<div class="dates">${birtStr} ${deatStr}</div>`;
+        }
+
+        const sosaText = sosaMap[p.id] ? `SOSA ${sosaMap[p.id]}` : 'SOSA -';
+        const pathFromMe = getRelationshipPathFromMe(targetMeId, p.id);
+        const pathToMe = getRelationshipPathToMe(p.id, targetMeId);
+
+        let codeBadgesHtml = '';
+        if (p.id !== targetMeId) {
+          if (pathFromMe) {
+            const safeTextFrom = pathFromMe.names.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            codeBadgesHtml += `
+              <div class="path-row">
+                <span class="path-lbl">VAN:</span>
+                <span class="path-string-badge" onclick="openRouteModal(event, 'Route VAN Hoofdpersoon naar ${p.name}', '${safeTextFrom}')">${pathFromMe.code}</span>
+              </div>`;
+          }
+          if (pathToMe) {
+            const safeTextTo = pathToMe.names.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            codeBadgesHtml += `
+              <div class="path-row">
+                <span class="path-lbl">NAAR:</span>
+                <span class="path-string-badge to-me" onclick="openRouteModal(event, 'Route VAN ${p.name} NAAR Hoofdpersoon', '${safeTextTo}')">${pathToMe.code}</span>
+              </div>`;
+          }
+        }
+
+        const dnaPct = calculateDNA(p.id, targetMeId);
+        const dnaBadgeClass = dnaPct === "0%" ? "dna-badge zero" : "dna-badge";
+        const dnaBadgeHtml = `<span class="${dnaBadgeClass}">🧬 ${dnaPct}</span>`;
+
+        card.className = `person-card ${extraClasses} ${genderClass}`;
+        card.innerHTML = `
+          <div class="card-header">
+            <span class="sosa-tag">${sosaText}</span>
+            <span class="role-badge">${label} <span class="gender-icon">${genderSymbol}</span></span>
+          </div>
+          ${routeBadgeHtml}
+          <div style="margin-top:2px;"><strong>${p.name}</strong></div>
+          ${datesText}
+          <div class="meta-badges">
+            ${codeBadgesHtml}
+            ${dnaBadgeHtml}
+          </div>
+        `;
+        
+        card.onclick = () => navigateToCenter(p.id);
+        card.onmouseenter = () => highlightLinesForPerson(p.id);
+        card.onmouseleave = () => resetLineHighlights();
+
+        rowContainer.appendChild(card);
+      });
+    }
+
+    function drawConnectionLines(activeRouteNodes) {
+      const svg = document.getElementById('svg-canvas');
+      svg.innerHTML = '';
+      const allCards = document.querySelectorAll('.person-card');
+
+      allCards.forEach(card => {
+        const pId = card.getAttribute('data-person-id');
+        const person = peopleData[pId];
+        if (!person) return;
+
+        if (person.children) {
+          person.children.forEach(cId => {
+            drawLineBetweenCards(pId, cId, activeRouteNodes, svg, false);
+          });
+        }
+
+        const partners = getAllPartners(person);
+        partners.forEach(partnerId => {
+          if (pId < partnerId) {
+            drawLineBetweenCards(pId, partnerId, activeRouteNodes, svg, true);
+          }
+        });
+      });
+    }
+
+    function drawLineBetweenCards(fromId, toId, activeRouteNodes, svg, isPartner = false) {
+      const card1 = document.querySelector(`.person-card[data-person-id="${fromId}"]`);
+      const card2 = document.querySelector(`.person-card[data-person-id="${toId}"]`);
+
+      if (card1 && card2) {
+        const rect1 = card1.getBoundingClientRect();
+        const rect2 = card2.getBoundingClientRect();
+        let x1, y1, x2, y2;
+
+        if (isPartner) {
+          x1 = rect1.left + rect1.width / 2 + window.scrollX;
+          y1 = rect1.top + rect1.height / 2 + window.scrollY;
+          x2 = rect2.left + rect2.width / 2 + window.scrollX;
+          y2 = rect2.top + rect2.height / 2 + window.scrollY;
+        } else {
+          x1 = rect1.left + rect1.width / 2 + window.scrollX;
+          y1 = rect1.bottom + window.scrollY;
+          x2 = rect2.left + rect2.width / 2 + window.scrollX;
+          y2 = rect2.top + window.scrollY;
+        }
+
+        const isOnRoute = activeRouteNodes.has(fromId) && activeRouteNodes.has(toId);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x1);
+        line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2);
+        line.setAttribute('y2', y2);
+        line.setAttribute('stroke', isOnRoute ? '#2d7d46' : '#b5a490');
+        line.setAttribute('stroke-width', isOnRoute ? '3' : '1.2');
+        line.setAttribute('opacity', isOnRoute ? '0.95' : '0.3');
+        if (isPartner && !isOnRoute) line.setAttribute('stroke-dasharray', '4');
+
+        line.setAttribute('data-from', fromId);
+        line.setAttribute('data-to', toId);
+        line.classList.add('tree-line');
+        svg.appendChild(line);
+      }
+    }
+
+    function highlightLinesForPerson(personId) {
+      document.querySelectorAll('line.tree-line').forEach(line => {
+        const fromId = line.getAttribute('data-from');
+        const toId = line.getAttribute('data-to');
+        if (fromId === personId || toId === personId) {
+          line.classList.add('hovered-line');
+          line.classList.remove('dimmed-line');
+        } else {
+          line.classList.add('dimmed-line');
+          line.classList.remove('hovered-line');
+        }
+      });
+    }
+
+    function resetLineHighlights() {
+      document.querySelectorAll('line.tree-line').forEach(line => {
+        line.classList.remove('hovered-line');
+        line.classList.remove('dimmed-line');
+      });
+    }
+
+    window.onresize = () => drawConnectionLines(currentActiveRouteNodes);
+
+    function onRouteModeChange() {
+      renderHourglass(currentCenterId);
+    }
+
+    function handleSearch(type) {
+      const inputId = type === 'target' ? 'target-search' : 'center-search';
+      const resultsId = type === 'target' ? 'target-results' : 'center-results';
+      const query = document.getElementById(inputId).value.toLowerCase().trim();
+      const resultsDiv = document.getElementById(resultsId);
+      resultsDiv.innerHTML = '';
+
+      if (query.length < 2) {
+        resultsDiv.style.display = 'none';
+        return;
+      }
+
+      const searchTerms = query.split(/\s+/);
+      const matches = Object.values(peopleData).filter(p => {
+        const fullName = p.name.toLowerCase();
+        return searchTerms.every(term => fullName.includes(term));
+      }).slice(0, 50);
+
+      if (matches.length > 0) {
+        resultsDiv.style.display = 'block';
+        matches.forEach(p => {
+          const item = document.createElement('div');
+          item.className = 'search-item';
+          let datesStr = (p.birt || p.deat) ? ` (${p.birt || '?'} - ${p.deat || '?'})` : '';
+          item.innerHTML = `<strong>${p.name}</strong><span style="color:#7a6855;">${datesStr}</span>`;
+          item.onclick = () => {
+            if (type === 'target') {
+              targetMeId = p.id;
+              renderHourglass(currentCenterId);
+            } else {
+              navigateToCenter(p.id);
+            }
+            resultsDiv.style.display = 'none';
+          };
+          resultsDiv.appendChild(item);
+        });
+      } else {
+        resultsDiv.style.display = 'none';
+      }
+    }
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.search-container')) {
+        document.getElementById('target-results').style.display = 'none';
+        document.getElementById('center-results').style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
