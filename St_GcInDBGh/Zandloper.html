@@ -440,11 +440,10 @@
   </div>
 
   <h1>Zandloper Stamboom Viewer</h1>
-  <p class="subtitle" id="subtitleText">Gegevens ophalen uit lokaal geheugen...</p>
+  <p class="subtitle" id="subtitleText">Gegevens ophalen uit IndexedDB...</p>
 
-  <!-- Status balk & Handmatige bestandsselectie -->
   <div class="status-bar">
-    <span id="status">⏳ Gegevens ophalen uit lokaal geheugen...</span>
+    <span id="status">⏳ Gegevens ophalen uit IndexedDB...</span>
     <div id="fileFallback" style="display: none;">
       <input type="file" id="gedcomFileInput" accept=".ged,.GED,.txt" style="display: none;">
       <button class="btn-nav" onclick="document.getElementById('gedcomFileInput').click();">
@@ -504,27 +503,71 @@
   </div>
 
   <script>
+    const DB_NAME = 'GedcomDatabase';
+    const STORE_NAME = 'gedcomStore';
+    const DB_VERSION = 1;
+
+    function openGedcomDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+        });
+    }
+
+    async function saveGedcomToIDB(textData) {
+        const db = await openGedcomDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put(textData, 'gedcomData');
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function getGedcomFromIDB() {
+        const db = await openGedcomDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get('gedcomData');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
     let peopleData = {};
-    let targetMeId = "I5147";       // Standaard Hoofdpersoon (Grauwels Valere)
-    let currentCenterId = "I5147";  // Standaard Centrale Persoon
+    let targetMeId = "I5147";       
+    let currentCenterId = "I5147";  
     let currentActiveRouteNodes = new Set();
     let sosaMap = {};
     let navigationHistory = [];
     let nextHistory = [];
 
-    // 1. Inlezen bij opstarten via localStorage, met fallback naar bestandskiezer
-    window.addEventListener('DOMContentLoaded', () => {
-        const savedData = localStorage.getItem('gedcomData');
-        if (savedData) {
-            try {
-                peopleData = parseGedcomToPeopleData(savedData);
-                initApp("lokaal geheugen");
-            } catch (err) {
-                console.error(err);
-                showFileFallback("Fout bij het verwerken van de opgeslagen data.");
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const savedData = await getGedcomFromIDB();
+            if (savedData) {
+                try {
+                    peopleData = parseGedcomToPeopleData(savedData);
+                    initApp("IndexedDB");
+                } catch (err) {
+                    console.error(err);
+                    showFileFallback("Fout bij het verwerken van de opgeslagen data uit IndexedDB.");
+                }
+            } else {
+                showFileFallback("Geen stamboom gevonden in IndexedDB. Ga eerst naar de <a href='index.html'>Startpagina</a> of selecteer een bestand:");
             }
-        } else {
-            showFileFallback("Geen stamboom gevonden in het geheugen. Ga eerst naar de <a href='index.html'>Startpagina</a> of selecteer een bestand:");
+        } catch (err) {
+            console.error(err);
+            showFileFallback("Fout bij openen van IndexedDB.");
         }
     });
 
@@ -532,15 +575,15 @@
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(evt) {
+        reader.onload = async function(evt) {
             try {
                 const gedcomText = evt.target.result;
-                localStorage.setItem('gedcomData', gedcomText);
+                await saveGedcomToIDB(gedcomText);
                 peopleData = parseGedcomToPeopleData(gedcomText);
                 initApp(file.name);
             } catch (err) {
                 console.error(err);
-                alert('Fout bij het verwerken van het GEDCOM bestand!');
+                alert('Fout bij het verwerken of opslaan van het GEDCOM bestand!');
             }
         };
         reader.readAsText(file);
@@ -551,13 +594,12 @@
         document.getElementById('fileFallback').style.display = 'block';
     }
 
-    // 2. Parser voor het GEDCOM bestandsformaat (.ged)
     function parseGedcomToPeopleData(gedcomText) {
         const lines = gedcomText.split(/\r?\n/);
         let rawIndis = {};
         let rawFams = {};
         
-        let currentRecordType = null; // 'INDI' of 'FAM'
+        let currentRecordType = null; 
         let currentId = null;
         let currentSubTag = null;
         let currentIndi = null;
@@ -655,7 +697,6 @@
             }
         });
 
-        // Koppel relaties vanuit families naar personen
         Object.values(rawFams).forEach(fam => {
             const husb = fam.husb;
             const wife = fam.wife;
@@ -703,7 +744,6 @@
         renderHourglass(currentCenterId);
     }
 
-    // 3. UI en Navigatie Logica (Zandloper Viewer)
     function openRouteModal(evt, title, routeText) {
       if (evt) {
         evt.stopPropagation();
