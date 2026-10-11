@@ -557,7 +557,7 @@
             if (savedData) {
                 try {
                     peopleData = parseGedcomToPeopleData(savedData);
-                    initApp("IndexedDB");
+                    initApp("IndexedDB"); // Aangepast van "lokaal geheugen" naar "IndexedDB"
                 } catch (err) {
                     console.error(err);
                     showFileFallback("Fout bij het verwerken van de opgeslagen data uit IndexedDB.");
