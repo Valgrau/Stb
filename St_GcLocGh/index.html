@@ -45,6 +45,18 @@
             font-weight: bold;
         }
         .status-box button:hover { background-color: #2980b9; }
+        .radio-group {
+            margin-bottom: 12px;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+        }
+        .radio-group label {
+            cursor: pointer;
+            font-weight: 500;
+        }
         .section-title {
             font-size: 18px;
             color: #2c3e50;
@@ -82,14 +94,24 @@
     <h1>Stamboom & Relaties Overzicht</h1>
     <p class="subtitle">Centraal dashboard voor al je stamboomvisualisaties:</p>
 
-    <!-- Status & Inleesgedeelte -->
+    <!-- Status & Inleesgedeelte met Radio-buttons -->
     <div class="status-box" id="statusBox">
+        <div class="radio-group">
+            <label>
+                <input type="radio" name="loadMode" value="auto" checked onclick="handleModeChange()"> Automatisch laden (GitHub)
+            </label>
+            <label>
+                <input type="radio" name="loadMode" value="local" onclick="handleModeChange()"> Forceer lokaal GEDCOM-bestand
+            </label>
+        </div>
+
         <span id="statusText">⏳ Bezig met inladen van <strong>Gedcom.ged</strong> vanaf GitHub...</span>
+        
         <div id="fileFallback" style="display: none;">
-            <p style="margin: 8px 0; font-size: 0.9rem; color: #555;">
-                Kan <strong>Gedcom.ged</strong> niet automatisch inlezen. Selecteer handmatig je GEDCOM-bestand:
+            <p style="margin: 8px 0; font-size: 0.9rem; color: #555;" id="fallbackText">
+                Selecteer handmatig je GEDCOM-bestand:
             </p>
-            <input type="file" id="gedcomFileInput" style="display: none;">
+            <input type="file" id="gedcomFileInput" accept=".ged" style="display: none;">
             <button onclick="document.getElementById('gedcomFileInput').click();">📁 Selecteer GEDCOM-bestand</button>
         </div>
     </div>
@@ -100,7 +122,6 @@
             <h2>JS Stamboom Uitklap</h2>
             <p>Uitklap weergave</p>
         </a>
-       
         <a href="RelatiesRand.html" class="card" target="_blank">
             <h2>JS Oplichten pad met rand</h2>
             <p>Geavanceerd netwerk</p>
@@ -125,6 +146,10 @@
             <h2>JS Statistiek</h2>
             <p>Volledige statistieken</p>
         </a>
+		 <a href="LandkaartHistoriek.html" class="card" target="_blank">
+            <h2>Landkaart Historiek</h2>
+            <p>Landkaart Historiek</p>
+        </a>
     </div>
 </div>
 
@@ -132,7 +157,31 @@
     const DEFAULT_FILE = 'Gedcom.ged';
 
     window.addEventListener('DOMContentLoaded', () => {
-        // Probeer het bestand automatisch uit dezelfde map in te lezen
+        checkAndLoad();
+    });
+
+    function handleModeChange() {
+        const mode = document.querySelector('input[name="loadMode"]:checked').value;
+        if (mode === 'local') {
+            // Geforceerd lokaal kiezen
+            const box = document.getElementById('statusBox');
+            box.style.backgroundColor = '#fffaf0';
+            box.style.borderColor = '#dd6b20';
+            box.style.color = '#7b341e';
+            document.getElementById('statusText').innerHTML = '⚠️ Modus geforceerd op lokaal bestand.';
+            document.getElementById('fileFallback').style.display = 'block';
+        } else {
+            // Terug naar automatisch laden
+            checkAndLoad();
+        }
+    }
+
+    function checkAndLoad() {
+        const mode = document.querySelector('input[name="loadMode"]:checked').value;
+        if (mode === 'local') return;
+
+        document.getElementById('statusText').innerHTML = '⏳ Bezig met inladen van <strong>Gedcom.ged</strong> vanaf GitHub...';
+        
         fetch(DEFAULT_FILE)
             .then(res => {
                 if (res.ok) return res.text();
@@ -143,14 +192,13 @@
                 showSuccess('✅ GEDCOM automatisch geladen vanaf <strong>' + DEFAULT_FILE + '</strong> en opgeslagen in de browser.');
             })
             .catch(() => {
-                // Als fetch faalt, check of er al iets in localStorage staat
                 if (localStorage.getItem('gedcomData')) {
                     showSuccess('✅ GEDCOM geladen uit het lokaal geheugen van de browser.');
                 } else {
                     showFilePickerFallback();
                 }
             });
-    });
+    }
 
     document.getElementById('gedcomFileInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -190,3 +238,7 @@
 
 </body>
 </html>
+
+
+
+LandkaartHistoriek.html
