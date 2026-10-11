@@ -271,18 +271,25 @@
 
         let sourceProgram = 'Onbekend';
         let creationDate = 'Onbekend';
+        let personCount = 0;
 
         const lines = text.split(/\r?\n/);
         let inHeader = false;
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
+
+            // Tel personen op basis van INDI records
+            if (line.startsWith('0 ') && line.toUpperCase().includes(' INDI')) {
+                personCount++;
+            }
+
             if (line.startsWith('0 HEAD')) {
                 inHeader = true;
                 continue;
             }
             if (inHeader && line.startsWith('0 ')) {
-                break;
+                inHeader = false;
             }
             if (inHeader) {
                 if (line.startsWith('1 SOUR ')) {
@@ -304,7 +311,8 @@
         metaDiv.innerHTML = `
             <div class="gedcom-info">
                 📅 <strong>Creatiedatum:</strong> ${creationDate}<br>
-                💻 <strong>Oorsprong (Programma):</strong> ${sourceProgram}
+                💻 <strong>Oorsprong (Programma):</strong> ${sourceProgram}<br>
+                👥 <strong>Aantal personen:</strong> ${personCount}
             </div>
         `;
     }
