@@ -228,37 +228,42 @@
         reader.readAsText(file);
     });
 
-    // Functie om GEDCOM headers (bronprogramma en datum) te extraheren
+    // Functie om GEDCOM headers (bronprogramma, datum) en het aantal personen te extraheren
     function processGedcomContent(text, successMsg) {
         showSuccess(successMsg);
 
         let sourceProgram = 'Onbekend';
         let creationDate = 'Onbekend';
+        let personCount = 0;
 
         const lines = text.split(/\r?\n/);
         let inHeader = false;
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
+            
+            // Tel individuen (regels die beginnen met een ID gevolgd door INDI, bijv. "0 @I1@ INDI")
+            if (/^0\s+@.*@\s+INDI$/i.test(line)) {
+                personCount++;
+            }
+
             if (line.startsWith('0 HEAD')) {
                 inHeader = true;
                 continue;
             }
             if (inHeader && line.startsWith('0 ')) {
                 // Einde header bereikt
-                break;
+                inHeader = false;
             }
             if (inHeader) {
-                // Zoek naar bronprogramma (bijv. 1 SOUR Aldfaer, 1 SOUR MyHeritage, etc.)
+                // Zoek naar bronprogramma
                 if (line.startsWith('1 SOUR ')) {
                     sourceProgram = line.substring(7).trim();
-                } else if (line.startsWith('1 DEST ')) {
-                    // Soms staat het programma ook onder SOUR -> NAME of direct
                 } else if (line.startsWith('2 NAME ') && lines[i-1] && lines[i-1].startsWith('1 SOUR')) {
                     sourceProgram = line.substring(7).trim();
                 }
 
-                // Zoek naar creatiedatum (bijv. 1 DATE 12 OCT 2023 of onder SOUR)
+                // Zoek naar creatiedatum
                 if (line.startsWith('1 DATE ')) {
                     creationDate = line.substring(7).trim();
                 } else if (line.startsWith('2 DATE ') && lines[i-1] && (lines[i-1].startsWith('1 SOUR') || lines[i-1].startsWith('1 FILE'))) {
@@ -272,7 +277,8 @@
         metaDiv.innerHTML = `
             <div class="gedcom-info">
                 📅 <strong>Creatiedatum:</strong> ${creationDate}<br>
-                💻 <strong>Oorsprong (Programma):</strong> ${sourceProgram}
+                💻 <strong>Oorsprong (Programma):</strong> ${sourceProgram}<br>
+                👥 <strong>Aantal personen:</strong> ${personCount.toLocaleString('nl-NL')}
             </div>
         `;
     }
