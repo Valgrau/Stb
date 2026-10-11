@@ -86,6 +86,16 @@
         }
         .card h2 { font-size: 15px; color: #0366d6; margin-bottom: 4px; word-break: break-word; }
         .card p { font-size: 12px; color: #586069; line-height: 1.4; }
+        .gedcom-info {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #333;
+            text-align: left;
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
     </style>
 </head>
 <body>
@@ -106,6 +116,7 @@
         </div>
 
         <span id="statusText">⏳ Bezig met inladen van <strong>Gedcom.ged</strong> vanaf GitHub...</span>
+        <div id="gedcomMeta" style="display: none;"></div>
         
         <div id="fileFallback" style="display: none;">
             <p style="margin: 8px 0; font-size: 0.9rem; color: #555;" id="fallbackText">
@@ -163,15 +174,14 @@
     function handleModeChange() {
         const mode = document.querySelector('input[name="loadMode"]:checked').value;
         if (mode === 'local') {
-            // Geforceerd lokaal kiezen
             const box = document.getElementById('statusBox');
             box.style.backgroundColor = '#fffaf0';
             box.style.borderColor = '#dd6b20';
             box.style.color = '#7b341e';
             document.getElementById('statusText').innerHTML = '⚠️ Modus geforceerd op lokaal bestand.';
+            document.getElementById('gedcomMeta').style.display = 'none';
             document.getElementById('fileFallback').style.display = 'block';
         } else {
-            // Terug naar automatisch laden
             checkAndLoad();
         }
     }
@@ -189,11 +199,12 @@
             })
             .then(text => {
                 localStorage.setItem('gedcomData', text);
-                showSuccess('✅ GEDCOM automatisch geladen vanaf <strong>' + DEFAULT_FILE + '</strong> en opgeslagen in de browser.');
+                processGedcomContent(text, '✅ GEDCOM automatisch geladen vanaf <strong>' + DEFAULT_FILE + '</strong> en opgeslagen in de browser.');
             })
             .catch(() => {
-                if (localStorage.getItem('gedcomData')) {
-                    showSuccess('✅ GEDCOM geladen uit het lokaal geheugen van de browser.');
+                const saved = localStorage.getItem('gedcomData');
+                if (saved) {
+                    processGedcomContent(saved, '✅ GEDCOM geladen uit het lokaal geheugen van de browser.');
                 } else {
                     showFilePickerFallback();
                 }
@@ -209,13 +220,62 @@
             try {
                 const text = evt.target.result;
                 localStorage.setItem('gedcomData', text);
-                showSuccess('✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen!');
+                processGedcomContent(text, '✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen!');
             } catch (err) {
                 alert('Fout bij het inlezen van het bestand!');
             }
         };
         reader.readAsText(file);
     });
+
+    // Functie om GEDCOM headers (bronprogramma en datum) te extraheren
+    function processGedcomContent(text, successMsg) {
+        showSuccess(successMsg);
+
+        let sourceProgram = 'Onbekend';
+        let creationDate = 'Onbekend';
+
+        const lines = text.split(/\r?\n/);
+        let inHeader = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('0 HEAD')) {
+                inHeader = true;
+                continue;
+            }
+            if (inHeader && line.startsWith('0 ')) {
+                // Einde header bereikt
+                break;
+            }
+            if (inHeader) {
+                // Zoek naar bronprogramma (bijv. 1 SOUR Aldfaer, 1 SOUR MyHeritage, etc.)
+                if (line.startsWith('1 SOUR ')) {
+                    sourceProgram = line.substring(7).trim();
+                } else if (line.startsWith('1 DEST ')) {
+                    // Soms staat het programma ook onder SOUR -> NAME of direct
+                } else if (line.startsWith('2 NAME ') && lines[i-1] && lines[i-1].startsWith('1 SOUR')) {
+                    sourceProgram = line.substring(7).trim();
+                }
+
+                // Zoek naar creatiedatum (bijv. 1 DATE 12 OCT 2023 of onder SOUR)
+                if (line.startsWith('1 DATE ')) {
+                    creationDate = line.substring(7).trim();
+                } else if (line.startsWith('2 DATE ') && lines[i-1] && (lines[i-1].startsWith('1 SOUR') || lines[i-1].startsWith('1 FILE'))) {
+                    creationDate = line.substring(7).trim();
+                }
+            }
+        }
+
+        const metaDiv = document.getElementById('gedcomMeta');
+        metaDiv.style.display = 'block';
+        metaDiv.innerHTML = `
+            <div class="gedcom-info">
+                📅 <strong>Creatiedatum:</strong> ${creationDate}<br>
+                💻 <strong>Oorsprong (Programma):</strong> ${sourceProgram}
+            </div>
+        `;
+    }
 
     function showSuccess(msg) {
         const box = document.getElementById('statusBox');
@@ -232,13 +292,10 @@
         box.style.borderColor = '#dd6b20';
         box.style.color = '#7b341e';
         document.getElementById('statusText').innerHTML = '⚠️ Kan <strong>Gedcom.ged</strong> niet automatisch inlezen.';
+        document.getElementById('gedcomMeta').style.display = 'none';
         document.getElementById('fileFallback').style.display = 'block';
     }
 </script>
 
 </body>
 </html>
-
-
-
-LandkaartHistoriek.html
