@@ -262,6 +262,7 @@
     var lastPathEndName = "";
     var lastPathCode = "";
     var changeIndices = [];
+    var currentTargetSet = new Set();
 
     var nodesDataSet = new vis.DataSet();
     var edgesDataSet = new vis.DataSet();
@@ -282,6 +283,82 @@
     };
 
     var network = new vis.Network(container, data, options);
+
+    // Verschillende kleuren per pad toewijzen bij hover
+    const pathColors = ["#9C27B0", "#E91E63", "#00BCD4", "#FF9800", "#3F51B5", "#8BC34A"];
+
+    network.on("hoverNode", function (params) {
+        var nodeId = params.node;
+        if (currentTargetSet.has(nodeId)) {
+            highlightAllPathsBetweenTargetsWithUniqueColors(nodeId);
+        }
+    });
+
+    network.on("blurNode", function (params) {
+        var nodeId = params.node;
+        if (currentTargetSet.has(nodeId)) {
+            var selected = network.getSelectedNodes();
+            if (selected.length === 2) {
+                highlightPathBetween(selected[0], selected[1]);
+            } else {
+                resetHighlighting();
+            }
+        }
+    });
+
+    function highlightAllPathsBetweenTargetsWithUniqueColors(hoveredId) {
+        var targets = Array.from(currentTargetSet);
+        var edgeColorMap = {}; // edgeId -> unieke kleur
+        var activePathNodes = new Set([hoveredId]);
+        let colorIdx = 0;
+
+        targets.forEach(function(targetId) {
+            if (targetId === hoveredId) return;
+
+            var queue = [[hoveredId]];
+            var visited = new Set([hoveredId]);
+            var foundPath = null;
+
+            while (queue.length > 0) {
+                var path = queue.shift();
+                var current = path[path.length - 1];
+                if (current === targetId) { foundPath = path; break; }
+                (currentAdjMap[current] || []).forEach(function(item) {
+                    if (!visited.has(item.neighbor)) {
+                        visited.add(item.neighbor);
+                        queue.push(path.concat([item.neighbor]));
+                    }
+                });
+            }
+
+            if (foundPath) {
+                foundPath.forEach(n => activePathNodes.add(n));
+                var assignedColor = pathColors[colorIdx % pathColors.length];
+                colorIdx++;
+
+                for (var i = 0; i < foundPath.length - 1; i++) {
+                    var u = foundPath[i], v = foundPath[i + 1];
+                    (currentAdjMap[u] || []).forEach(function(item) {
+                        if (item.neighbor === v) {
+                            edgeColorMap[item.edgeId] = assignedColor;
+                        }
+                    });
+                }
+            }
+        });
+
+        nodesDataSet.forEach(function(n) {
+            nodesDataSet.update({ id: n.id, opacity: activePathNodes.has(n.id) ? 1 : 0.25 });
+        });
+        edgesDataSet.forEach(function(e) {
+            var isHighlight = edgeColorMap[e.id] !== undefined;
+            edgesDataSet.update({ 
+                id: e.id, 
+                color: { color: isHighlight ? edgeColorMap[e.id] : "#E0E0E0" }, 
+                width: isHighlight ? 4 : 1 
+            });
+        });
+    }
 
     network.on("dragEnd", function (params) {
         if (params.nodes.length > 0) {
@@ -659,7 +736,7 @@
 
     function calculateAndRender() {
         var targetList = [];
-        var targetSet = new Set();
+        currentTargetSet.clear();
 
         for (let i = 1; i <= 5; i++) {
             let hiddenId = document.getElementById("targetId" + i).value;
@@ -667,12 +744,12 @@
 
             if (hiddenId && personsDB[hiddenId]) {
                 targetList.push(hiddenId);
-                targetSet.add(hiddenId);
+                currentTargetSet.add(hiddenId);
             } else if (textVal) {
                 let found = Object.values(personsDB).find(p => p.name.toLowerCase() === textVal.toLowerCase());
                 if (found) {
                     targetList.push(found.id);
-                    targetSet.add(found.id);
+                    currentTargetSet.add(found.id);
                 }
             }
         }
@@ -694,7 +771,7 @@
             return;
         }
 
-        renderNetworkGraph(nodesToInclude, targetSet, targetList);
+        renderNetworkGraph(nodesToInclude, currentTargetSet, targetList);
         setStatus("✅ Weergave van " + nodesToInclude.size + " personen.", false);
     }
 
