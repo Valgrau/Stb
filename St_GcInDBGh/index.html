@@ -101,8 +101,8 @@
 <body>
 
 <div class="container">
-    <h1>Stamboom & Relaties Overzicht</h1>
-    <p class="subtitle">Centraal dashboard voor al je stamboomvisualisaties:</p>
+    <h1>Stamboom & Relaties Overzicht - Indexed DB</h1>
+    <p class="subtitle">Centraal dashboard voor al je stamboomvisualisaties (<span id="url-filename"></span>):</p>
 
     <div class="status-box" id="statusBox">
         <div class="radio-group">
@@ -164,6 +164,15 @@
 </div>
 
 <script>
+    // Toon het laatste deel van de URL (bijv. index.html) in de subtitel
+    window.addEventListener('DOMContentLoaded', () => {
+        const pathSegments = window.location.pathname.split('/');
+        const filename = pathSegments.pop() || pathSegments.pop() || 'index.html';
+        document.getElementById('url-filename').innerText = filename;
+
+        checkAndLoad();
+    });
+
     const DEFAULT_FILE = 'Gedcom.ged';
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
@@ -204,10 +213,6 @@
             request.onerror = () => reject(request.error);
         });
     }
-
-    window.addEventListener('DOMContentLoaded', () => {
-        checkAndLoad();
-    });
 
     async function handleModeChange() {
         const mode = document.querySelector('input[name="loadMode"]:checked').value;
@@ -279,7 +284,6 @@
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
 
-            // Tel personen op basis van INDI records
             if (line.startsWith('0 ') && line.toUpperCase().includes(' INDI')) {
                 personCount++;
             }
