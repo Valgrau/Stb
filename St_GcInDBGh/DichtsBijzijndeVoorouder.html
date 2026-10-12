@@ -561,6 +561,20 @@
         if (network) network.destroy();
         network = new vis.Network(container, data, options);
 
+        // Hover functionaliteit toegevoegd
+        network.on("hoverNode", function (params) {
+            highlightConnectedPathsFromNode(params.node);
+        });
+
+        network.on("blurNode", function () {
+            var selected = network.getSelectedNodes();
+            if (selected.length === 2) {
+                highlightPathBetween(selected[0], selected[1]);
+            } else {
+                resetHighlighting();
+            }
+        });
+
         network.on("select", function (params) {
             if (params.nodes.length === 2) {
                 highlightPathBetween(params.nodes[0], params.nodes[1]);
@@ -599,6 +613,61 @@
                     fixed: { x: false, y: false }
                 });
             }
+        });
+    }
+
+    // Functie om alle verbonden paden vanaf een gehooverde node op te lichten (zowel omhoog als omlaag)
+    function highlightConnectedPathsFromNode(startId) {
+        var activeNodes = new Set([startId]);
+        var activeEdges = new Set();
+
+        // 1. Zoek paden naar boven (richting voorouders)
+        var queueUp = [[startId]];
+        var visitedUp = new Set([startId]);
+        while (queueUp.length > 0) {
+            var path = queueUp.shift();
+            var current = path[path.length - 1];
+            (currentAdjMap[current] || []).forEach(function(item) {
+                // Als de pijl van 'current' naar 'item.neighbor' loopt en 'item.neighbor' is een ouder (hoger in hiërarchie)
+                // We kunnen alle gerichte verbindingen in de adjacency map controleren of via edgesDataSet:
+                var edge = edgesDataSet.get(item.edgeId);
+                if (edge && edge.from === current && !visitedUp.has(item.neighbor)) {
+                    visitedUp.add(item.neighbor);
+                    activeNodes.add(item.neighbor);
+                    activeEdges.add(item.edgeId);
+                    queueUp.push(path.concat([item.neighbor]));
+                }
+            });
+        }
+
+        // 2. Zoek paden naar beneden (richting kinderen/afstammelingen)
+        var queueDown = [[startId]];
+        var visitedDown = new Set([startId]);
+        while (queueDown.length > 0) {
+            var path = queueDown.shift();
+            var current = path[path.length - 1];
+            (currentAdjMap[current] || []).forEach(function(item) {
+                var edge = edgesDataSet.get(item.edgeId);
+                if (edge && edge.to === current && !visitedDown.has(item.neighbor)) {
+                    visitedDown.add(item.neighbor);
+                    activeNodes.add(item.neighbor);
+                    activeEdges.add(item.edgeId);
+                    queueDown.push(path.concat([item.neighbor]));
+                }
+            });
+        }
+
+        // Update de visuele weergave
+        nodesDataSet.forEach(function(n) {
+            nodesDataSet.update({ id: n.id, opacity: activeNodes.has(n.id) ? 1 : 0.25 });
+        });
+        edgesDataSet.forEach(function(e) {
+            var isHighlight = activeEdges.has(e.id);
+            edgesDataSet.update({ 
+                id: e.id, 
+                color: { color: isHighlight ? "#FF6F00" : "#E0E0E0" }, 
+                width: isHighlight ? 4 : 1 
+            });
         });
     }
 
