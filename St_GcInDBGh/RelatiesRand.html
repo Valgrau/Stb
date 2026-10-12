@@ -279,12 +279,11 @@
             maxVelocity: 30,
             stabilization: { iterations: 150 }
         },
-        interaction: { hover: true, tooltipDelay: 150, multiselect: true }
+        interaction: { hover: true, tooltipDelay: 300, multiselect: true }
     };
 
     var network = new vis.Network(container, data, options);
 
-    // Verschillende kleuren per pad toewijzen bij hover
     const pathColors = ["#9C27B0", "#E91E63", "#00BCD4", "#FF9800", "#3F51B5", "#8BC34A"];
 
     network.on("hoverNode", function (params) {
@@ -308,7 +307,7 @@
 
     function highlightAllPathsBetweenTargetsWithUniqueColors(hoveredId) {
         var targets = Array.from(currentTargetSet);
-        var edgeColorMap = {}; // edgeId -> unieke kleur
+        var edgeColorMap = {};
         var activePathNodes = new Set([hoveredId]);
         let colorIdx = 0;
 
@@ -816,8 +815,8 @@
                 label: p.name + (p.years ? "\n" + p.years : ""),
                 shape: shape,
                 color: { background: colorFill, border: borderColor, highlight: { background: "#FFE082", border: "#FF6F00" } },
-                borderWidth: borderWidth,
-                title: "<b>" + p.name + "</b><br>ID: " + id + "<br>Jaren: " + p.years
+                borderWidth: borderWidth
+                // Geen title eigenschap toegevoegd, dus de pop-up blijft nu definitief weg!
             };
 
             var targetIdx = targetList.indexOf(id);
