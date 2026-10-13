@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stamboom & Relaties Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            max-width: 900px;
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        h1 { color: #1a252f; margin-bottom: 8px; font-size: 26px; }
+        p.subtitle { color: #6c757d; margin-bottom: 20px; font-size: 15px; }
+        .status-box {
+            background: #e8f4fd;
+            border: 1px dashed #3498db;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .status-box button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .status-box button:hover { background-color: #2980b9; }
+        .radio-group {
+            margin-bottom: 12px;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+        }
+        .radio-group label {
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .section-title {
+            font-size: 18px;
+            color: #2c3e50;
+            margin: 20px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #e1e4e8;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .card {
+            display: block;
+            text-decoration: none;
+            background: #ffffff;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 14px;
+            transition: all 0.2s ease-in-out;
+        }
+        .card:hover {
+            border-color: #0366d6;
+            box-shadow: 0 4px 12px rgba(3, 102, 214, 0.15);
+            transform: translateY(-2px);
+        }
+        .card h2 { font-size: 15px; color: #0366d6; margin-bottom: 4px; word-break: break-word; }
+        .card p { font-size: 12px; color: #586069; line-height: 1.4; }
+        .gedcom-info {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #333;
+            text-align: left;
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 8px 12px;
+            border-radius: 6px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Stamboom & Relaties Overzicht - Indexed DB</h1>
+    <p class="subtitle">Centraal dashboard voor al je stamboomvisualisaties (<span id="url-filename"></span>):</p>
+
+    <div class="status-box" id="statusBox">
+        <div class="radio-group">
+            <label>
+                <input type="radio" name="loadMode" value="auto" checked onclick="handleModeChange()"> Automatisch laden (Cache)
+            </label>
+            <label>
+                <input type="radio" name="loadMode" value="local" onclick="handleModeChange()"> Laad vanaf D-schijf (D:\Gedcom.ged)
+            </label>
+        </div>
+
+        <span id="statusText">⏳ Initialiseren...</span>
+        <div id="gedcomMeta" style="display: none;"></div>
+        
+        <div id="fileFallback" style="display: none;">
+            <p style="margin: 8px 0; font-size: 0.9rem; color: #555;" id="fallbackText">
+                Selecteer je <strong>Gedcom.ged</strong> vanaf de D-schijf:
+            </p>
+            <input type="file" id="gedcomFileInput" accept=".ged" style="display: none;">
+            <button onclick="document.getElementById('gedcomFileInput').click();">📁 Kies Gedcom.ged op D:\ schijf</button>
+        </div>
+    </div>
+
+    <div class="section-title">Stambomen & Dashboards</div>
+    <div class="grid">
+        <a href="UitklapStamboom.html" class="card" target="_blank">
+            <h2>JS Stamboom Uitklap</h2>
+            <p>Uitklap weergave</p>
+        </a>
+        <a href="RelatiesRand.html" class="card" target="_blank">
+            <h2>JS Oplichten pad met rand</h2>
+            <p>Geavanceerd netwerk</p>
+        </a>
+        <a href="GedcomJsonTotalen.html" class="card" target="_blank">
+            <h2>JS Totalen</h2>
+            <p>Overzicht totalen</p>
+        </a>
+        <a href="DichtsBijzijndeVoorouder.html" class="card" target="_blank">
+            <h2>JS Dichtst bijzijnde voorouder</h2>
+            <p>Voorouder berekening</p>
+        </a>
+        <a href="Zandloper.html" class="card" target="_blank">
+            <h2>JS Zandloper</h2>
+            <p>Zandloper weergave</p>
+        </a>
+        <a href="RelatieZoeker.html" class="card" target="_blank">
+            <h2>JS Relatiezoeker</h2>
+            <p>Relaties zoeken</p>
+        </a>
+        <a href="Statistiek.html" class="card" target="_blank">
+            <h2>JS Statistiek</h2>
+            <p>Volledige statistieken</p>
+        </a>
+        <a href="LandkaartHistoriek.html" class="card" target="_blank">
+            <h2>Landkaart Historiek</h2>
+            <p>Landkaart Historiek</p>
+        </a>
+        <a href="Eilanden.html" class="card" target="_blank">
+            <h2>Eilanden</h2>
+            <p>Eilanden</p>
+        </a>
+        <a href="FavorietenLijst.html" class="card" target="_blank">
+            <h2>Favorietenlijst</h2>
+            <p>Favorietenlijst</p>
+        </a>
+        <a href="RelatiesFavorieten.html" class="card" target="_blank">
+            <h2>RelatiesFavorieten</h2>
+            <p>RelatiesFavorieten</p>
+        </a>
+        <a href="RelatiesFavorietenHierarch.html" class="card" target="_blank">
+            <h2>RelatiesFavorietenHierarch</h2>
+            <p>RelatiesFavorietenHierarch</p>
+        </a>
+    </div>
+</div>
+
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        const pathSegments = window.location.pathname.split('/');
+        const filename = pathSegments.pop() || pathSegments.pop() || 'index.html';
+        document.getElementById('url-filename').innerText = filename;
+
+        checkAndLoad();
+    });
+
+    const DEFAULT_FILE = 'Gedcom.ged';
+    const DB_NAME = 'GedcomDatabase';
+    const STORE_NAME = 'gedcomStore';
+    const DB_VERSION = 2;
+
+    function updateStatus(text) {
+        console.log("STATUS:", text);
+        document.getElementById('statusText').innerHTML = text;
+    }
+
+    function openGedcomDB() {
+        return new Promise((resolve, reject) => {
+            updateStatus('⏳ IndexedDB openen...');
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => {
+                console.error("IndexedDB error:", request.error);
+                reject(request.error);
+            };
+            request.onsuccess = () => resolve(request.result);
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                console.log("IndexedDB upgrade nodig, oude stores opschonen...");
+                for (const storeName of db.objectStoreNames) {
+                    if (storeName !== STORE_NAME) {
+                        db.deleteObjectStore(storeName);
+                    }
+                }
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+        });
+    }
+
+    async function saveGedcomToIDB(textData) {
+        updateStatus('⏳ Gegevens opslaan in IndexedDB...');
+        const db = await openGedcomDB();
+        const now = new Date();
+        const timestampStr = now.toLocaleDateString('nl-BE', { 
+            year: 'numeric', month: '2-digit', day: '2-digit' 
+        }) + ' om ' + now.toLocaleTimeString('nl-BE', { 
+            hour: '2-digit', minute: '2-digit', second: '2-digit' 
+        });
+
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            
+            store.put(textData, 'gedcomData');
+            const reqTime = store.put(timestampStr, 'gedcomTimestamp');
+
+            reqTime.onsuccess = () => resolve(timestampStr);
+            reqTime.onerror = () => reject(reqTime.error);
+        });
+    }
+
+    async function getGedcomFromIDB() {
+        updateStatus('⏳ Controleren of GEDCOM in IndexedDB staat...');
+        const db = await openGedcomDB();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            
+            const reqData = store.get('gedcomData');
+            const reqTime = store.get('gedcomTimestamp');
+
+            let result = {};
+            let resolved = false;
+
+            reqData.onsuccess = () => {
+                result.data = reqData.result;
+                checkDone();
+            };
+            reqTime.onsuccess = () => {
+                result.timestamp = reqTime.result || 'Onbekend';
+                checkDone();
+            };
+
+            function checkDone() {
+                if (!resolved && result.data !== undefined && result.timestamp !== undefined) {
+                    resolved = true;
+                    resolve(result.data ? result : null);
+                }
+            }
+
+            transaction.oncomplete = () => {
+                if (!resolved) {
+                    resolved = true;
+                    resolve(result.data ? result : null);
+                }
+            };
+            
+            transaction.onerror = (err) => {
+                if (!resolved) {
+                    resolved = true;
+                    reject(transaction.error);
+                }
+            };
+        });
+    }
+
+    async function handleModeChange() {
+        const mode = document.querySelector('input[name="loadMode"]:checked').value;
+        if (mode === 'local') {
+            const box = document.getElementById('statusBox');
+            box.style.backgroundColor = '#fffaf0';
+            box.style.borderColor = '#dd6b20';
+            box.style.color = '#7b341e';
+            updateStatus('⚠️ Handmatige modus gekozen.');
+            document.getElementById('gedcomMeta').style.display = 'none';
+            document.getElementById('fileFallback').style.display = 'block';
+        } else {
+            checkAndLoad();
+        }
+    }
+
+    async function checkAndLoad() {
+        const mode = document.querySelector('input[name="loadMode"]:checked').value;
+        if (mode === 'local') return;
+
+        try {
+            // Timeout beveiliging van 3 seconden op IndexedDB ophalen
+            const dbPromise = getGedcomFromIDB();
+            const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new RegExp('Timeout')), 3000));
+
+            const saved = await Promise.race([dbPromise, timeoutPromise]);
+            
+            if (saved && saved.data) {
+                processGedcomContent(saved.data, saved.timestamp, '✅ GEDCOM succesvol geladen uit de browser <strong>IndexedDB</strong>.');
+                return;
+            }
+            throw new Error('Geen data in IndexedDB');
+        } catch (e) {
+            console.warn("Kon niet automatisch uit IndexedDB laden, proberen via fetch of fallback...", e);
+            try {
+                updateStatus('⏳ Bezig met ophalen van standaard GEDCOM-bestand...');
+                const res = await fetch(DEFAULT_FILE);
+                if (res.ok) {
+                    const text = await res.text();
+                    const timestampStr = await saveGedcomToIDB(text);
+                    processGedcomContent(text, timestampStr, '✅ GEDCOM ingeladen en opgeslagen in IndexedDB.');
+                    return;
+                }
+                throw new Error('Fetch mislukt');
+            } catch (err) {
+                showFilePickerFallback();
+            }
+        }
+    }
+
+    document.getElementById('gedcomFileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        updateStatus('⏳ Bezig met inlezen van gekozen bestand...');
+        const reader = new FileReader();
+        reader.onload = async function(evt) {
+            try {
+                const text = evt.target.result;
+                const timestampStr = await saveGedcomToIDB(text);
+                processGedcomContent(text, timestampStr, '✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!');
+            } catch (err) {
+                console.error("Fout bij opslaan bestand:", err);
+                alert('Fout bij het opslaan in IndexedDB!');
+                showFilePickerFallback();
+            }
+        };
+        reader.onerror = () => {
+            alert('Fout bij het lezen van het bestand.');
+            showFilePickerFallback();
+        };
+        reader.readAsText(file);
+    });
+
+    function processGedcomContent(text, timestamp, successMsg) {
+        showSuccess(successMsg);
+
+        let sourceProgram = 'Onbekend';
+        let creationDate = 'Onbekend';
+        let personCount = 0;
+
+        const lines = text.split(/\r?\n/);
+        let inHeader = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            if (line.startsWith('0 ') && line.toUpperCase().includes(' INDI')) {
+                personCount++;
+            }
+
+            if (line.startsWith('0 HEAD')) {
+                inHeader = true;
+                continue;
+            }
+            if (inHeader && line.startsWith('0 ')) {
+                inHeader = false;
+            }
+            if (inHeader) {
+                if (line.startsWith('1 SOUR ')) {
+                    sourceProgram = line.substring(7).trim();
+                } else if (line.startsWith('2 NAME ') && lines[i-1] && lines[i-1].startsWith('1 SOUR')) {
+                    sourceProgram = line.substring(7).trim();
+                }
+
+                if (line.startsWith('1 DATE ')) {
+                    creationDate = line.substring(7).trim();
+                } else if (line.startsWith('2 DATE ') && lines[i-1] && (lines[i-1].startsWith('1 SOUR') || lines[i-1].startsWith('1 FILE'))) {
+                    creationDate = line.substring(7).trim();
+                }
+            }
+        }
+
+        const metaDiv = document.getElementById('gedcomMeta');
+        metaDiv.style.display = 'block';
+        metaDiv.innerHTML = `
+            <div class="gedcom-info">
+                💾 <strong>Laatste update in IndexedDB:</strong> ${timestamp || 'Onbekend'}<br>
+                📅 <strong>Creatiedatum (GEDCOM):</strong> ${creationDate}<br>
+                💻 <strong>Oorsprong (Programma):</strong> ${sourceProgram}<br>
+                👥 <strong>Aantal personen:</strong> ${personCount}
+            </div>
+        `;
+    }
+
+    function showSuccess(msg) {
+        const box = document.getElementById('statusBox');
+        box.style.backgroundColor = '#e6fffa';
+        box.style.borderColor = '#38b2ac';
+        box.style.color = '#234e52';
+        document.getElementById('statusText').innerHTML = msg;
+        document.getElementById('fileFallback').style.display = 'none';
+    }
+
+    function showFilePickerFallback() {
+        const box = document.getElementById('statusBox');
+        box.style.backgroundColor = '#fffaf0';
+        box.style.borderColor = '#dd6b20';
+        box.style.color = '#7b341e';
+        document.getElementById('statusText').innerHTML = '⚠️ Geen gegevens gevonden of laden mislukt.';
+        document.getElementById('gedcomMeta').style.display = 'none';
+        document.getElementById('fileFallback').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
