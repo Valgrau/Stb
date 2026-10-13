@@ -205,8 +205,8 @@
       padding: 8px 10px;
       cursor: pointer;
       transition: all 0.2s ease-in-out;
-      min-width: 145px;
-      max-width: 190px;
+      min-width: 155px;
+      max-width: 200px;
       font-size: 0.8em;
       box-shadow: 0 2px 6px rgba(74, 59, 50, 0.12);
       position: relative;
@@ -239,6 +239,12 @@
       padding-bottom: 3px;
     }
 
+    .header-tags {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
     .sosa-tag {
       font-size: 0.7em;
       font-weight: bold;
@@ -247,6 +253,15 @@
       padding: 1px 5px;
       border-radius: 3px;
       letter-spacing: 0.5px;
+    }
+
+    .indi-tag {
+      font-size: 0.68em;
+      font-weight: bold;
+      background: #5c4033;
+      color: #ffeb3b;
+      padding: 1px 4px;
+      border-radius: 3px;
     }
 
     .role-badge {
@@ -557,17 +572,17 @@
             if (savedData) {
                 try {
                     peopleData = parseGedcomToPeopleData(savedData);
-                    initApp("IndexedDB"); // Aangepast van "lokaal geheugen" naar "IndexedDB"
+                    initApp("IndexedDB");
                 } catch (err) {
-                    console.error(err);
+                    console.error("Fout bij parsen GEDCOM:", err);
                     showFileFallback("Fout bij het verwerken van de opgeslagen data uit IndexedDB.");
                 }
             } else {
-                showFileFallback("Geen stamboom gevonden in IndexedDB. Ga eerst naar de <a href='index.html'>Startpagina</a> of selecteer een bestand:");
+                showFileFallback("Geen stamboom gevonden in IndexedDB. Selecteer handmatig een GEDCOM-bestand:");
             }
         } catch (err) {
-            console.error(err);
-            showFileFallback("Fout bij openen van IndexedDB.");
+            console.error("Fout bij openen IndexedDB:", err);
+            showFileFallback("Kan geen verbinding maken met IndexedDB. Selecteer handmatig een GEDCOM-bestand:");
         }
     });
 
@@ -580,6 +595,7 @@
                 const gedcomText = evt.target.result;
                 await saveGedcomToIDB(gedcomText);
                 peopleData = parseGedcomToPeopleData(gedcomText);
+                document.getElementById('fileFallback').style.display = 'none';
                 initApp(file.name);
             } catch (err) {
                 console.error(err);
@@ -1084,6 +1100,7 @@
         }
 
         const sosaText = sosaMap[p.id] ? `SOSA ${sosaMap[p.id]}` : 'SOSA -';
+        const indiText = `[${p.id}]`;
         const pathFromMe = getRelationshipPathFromMe(targetMeId, p.id);
         const pathToMe = getRelationshipPathToMe(p.id, targetMeId);
 
@@ -1114,7 +1131,10 @@
         card.className = `person-card ${extraClasses} ${genderClass}`;
         card.innerHTML = `
           <div class="card-header">
-            <span class="sosa-tag">${sosaText}</span>
+            <div class="header-tags">
+              <span class="sosa-tag">${sosaText}</span>
+              <span class="indi-tag">${indiText}</span>
+            </div>
             <span class="role-badge">${label} <span class="gender-icon">${genderSymbol}</span></span>
           </div>
           ${routeBadgeHtml}

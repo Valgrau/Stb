@@ -273,6 +273,10 @@
             }
         } catch (err) {
             console.error(err);
+            document.getElementById('fallback-box').style.display = 'block';
+            document.getElementById('path-status').style.borderLeftColor = "#f44336";
+            document.getElementById('path-status').style.color = "#ff8a80";
+            document.getElementById('path-status').innerText = "Fout bij ophalen uit IndexedDB.";
         }
     });
 
