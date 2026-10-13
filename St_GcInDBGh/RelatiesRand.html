@@ -644,12 +644,18 @@
         try {
             var savedData = await getGedcomFromIDB();
             if (savedData) {
-                initTree(savedData);
+                try {
+                    initTree(savedData);
+                } catch (err) {
+                    console.error("Fout bij verwerken opgeslagen GEDCOM:", err);
+                    setStatus("⚠️ Fout bij het verwerken van de opgeslagen data uit IndexedDB.", true);
+                }
             } else {
-                setStatus("⚠️ Geen stamboom gevonden in IndexedDB. Ga naar de <a href='index.html'>Startpagina</a> of klik op 'Open GEDCOM'.", true);
+                setStatus("⚠️ Geen stamboom gevonden in IndexedDB. Selecteer handmatig een GEDCOM-bestand:", true);
             }
         } catch (err) {
-            console.error(err);
+            console.error("Fout bij openen IndexedDB:", err);
+            setStatus("⚠️ Kan geen verbinding maken met IndexedDB. Selecteer handmatig een GEDCOM-bestand:", true);
         }
     });
 
@@ -816,7 +822,6 @@
                 shape: shape,
                 color: { background: colorFill, border: borderColor, highlight: { background: "#FFE082", border: "#FF6F00" } },
                 borderWidth: borderWidth
-                // Geen title eigenschap toegevoegd, dus de pop-up blijft nu definitief weg!
             };
 
             var targetIdx = targetList.indexOf(id);
