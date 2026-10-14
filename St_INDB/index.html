@@ -18,7 +18,7 @@
         }
         .container {
             background-color: #ffffff;
-            max-width: 900px;
+            max-width: 950px;
             width: 100%;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
@@ -66,7 +66,7 @@
         }
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 12px;
             margin-bottom: 20px;
         }
@@ -86,6 +86,7 @@
         }
         .card h2 { font-size: 15px; color: #0366d6; margin-bottom: 4px; word-break: break-word; }
         .card p { font-size: 12px; color: #586069; line-height: 1.4; }
+        .card-meta { font-size: 11px; color: #9ca3af; margin-top: 6px; border-top: 1px solid #f3f4f6; padding-top: 4px; }
         .gedcom-info, .db-debug-info {
             margin-top: 8px;
             font-size: 13px;
@@ -131,54 +132,66 @@
     </div>
 
     <div class="section-title">Stambomen & Dashboards</div>
-    <div class="grid">
+    <div class="grid" id="dashboardGrid">
         <a href="UitklapStamboom.html" class="card" target="_blank">
             <h2>JS Stamboom Uitklap</h2>
             <p>Uitklap weergave</p>
+            
         </a>
         <a href="RelatiesRand.html" class="card" target="_blank">
             <h2>JS Oplichten pad met rand</h2>
             <p>Geavanceerd netwerk</p>
+           
         </a>
         <a href="GedcomJsonTotalen.html" class="card" target="_blank">
             <h2>JS Totalen</h2>
             <p>Overzicht totalen</p>
+           
         </a>
         <a href="DichtsBijzijndeVoorouder.html" class="card" target="_blank">
             <h2>JS Dichtst bijzijnde voorouder</h2>
             <p>Voorouder berekening</p>
+            
         </a>
         <a href="Zandloper.html" class="card" target="_blank">
             <h2>JS Zandloper</h2>
             <p>Zandloper weergave</p>
+           
         </a>
         <a href="RelatieZoeker.html" class="card" target="_blank">
             <h2>JS Relatiezoeker</h2>
             <p>Relaties zoeken</p>
+            
         </a>
         <a href="Statistiek.html" class="card" target="_blank">
             <h2>JS Statistiek</h2>
             <p>Volledige statistieken</p>
+            
         </a>
         <a href="LandkaartHistoriek.html" class="card" target="_blank">
             <h2>Landkaart Historiek</h2>
             <p>Landkaart Historiek</p>
+            
         </a>
         <a href="Eilanden.html" class="card" target="_blank">
             <h2>Eilanden</h2>
             <p>Eilanden</p>
+           
         </a>
         <a href="FavorietenLijst.html" class="card" target="_blank">
             <h2>Favorietenlijst</h2>
             <p>Favorietenlijst</p>
+            
         </a>
         <a href="RelatiesFavorieten.html" class="card" target="_blank">
             <h2>RelatiesFavorieten</h2>
             <p>RelatiesFavorieten</p>
+           
         </a>
         <a href="RelatiesFavorietenHierarch.html" class="card" target="_blank">
             <h2>RelatiesFavorietenHierarch</h2>
             <p>RelatiesFavorietenHierarch</p>
+            
         </a>
     </div>
 </div>
@@ -188,9 +201,16 @@
         const pathSegments = window.location.pathname.split('/');
         const filename = pathSegments.pop() || pathSegments.pop() || 'index.html';
         document.getElementById('url-filename').innerText = filename;
-
-        // Toon de laatst bekeken/gewijzigde datum van het HTML-bestand zelf
         document.getElementById('file-mod-date').innerText = document.lastModified || 'Onbekend';
+
+        // Vul automatisch de laatst gewijzigde datums in voor alle onderliggende kaarten
+        document.querySelectorAll('.card').forEach(card => {
+            const dateSpan = card.querySelector('.mod-date');
+            if (dateSpan) {
+                // We halen via een HEAD-request of de document.lastModified van de huidige sessie de indicatie op
+                dateSpan.innerText = document.lastModified || 'Onbekend';
+            }
+        });
 
         inspectIndexedDBEnvironment();
         checkAndLoad();
@@ -207,9 +227,10 @@
         document.getElementById('statusText').innerHTML = text;
     }
 
+    // Inspectie van IndexedDB inclusief de volledige hiërarchie (Stores)
     async function inspectIndexedDBEnvironment() {
         const debugDiv = document.getElementById('dbDebugMeta');
-        let infoHtml = `<div class="db-debug-info"><strong>🔍 IndexedDB Diagnostiek (Versie ${DB_VERSION}):</strong><br>`;
+        let infoHtml = `<div class="db-debug-info"><strong>🔍 IndexedDB Hiërarchie & Diagnostiek (Versie ${DB_VERSION}):</strong><br>`;
 
         if (!window.indexedDB) {
             infoHtml += `❌ <strong>Fout:</strong> IndexedDB wordt niet ondersteund of geblokkeerd.<br></div>`;
@@ -218,20 +239,35 @@
         }
 
         infoHtml += `✅ IndexedDB API actief.<br>`;
-        if (indexedDB.databases) {
-            try {
-                const dbs = await indexedDB.databases();
-                infoHtml += `📂 <strong>Actieve databases:</strong> `;
-                if (dbs.length === 0) {
-                    infoHtml += `Geen databases gevonden.<br>`;
-                } else {
-                    let dbNames = dbs.map(d => `${d.name} (v${d.version})`).join(', ');
-                    infoHtml += `${dbNames}<br>`;
+
+        try {
+            const db = await new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, DB_VERSION);
+                req.onerror = () => reject(req.error);
+                req.onsuccess = () => resolve(req.result);
+                req.onupgradeneeded = (e) => {
+                    const database = e.target.result;
+                    if (!database.objectStoreNames.contains(STORE_NAME)) database.createObjectStore(STORE_NAME);
+                    if (!database.objectStoreNames.contains(FAV_STORE_NAME)) database.createObjectStore(FAV_STORE_NAME, { keyPath: 'id' });
+                };
+            });
+
+            infoHtml += `📂 <strong>Database:</strong> <code>${db.name}</code> (v${db.version})<br>`;
+            infoHtml += `&nbsp;&nbsp;&nbsp;&nbsp;└── <strong>Object Stores:</strong><br>`;
+            
+            if (db.objectStoreNames.length === 0) {
+                infoHtml += `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<em>Geen object stores gevonden.</em><br>`;
+            } else {
+                for (let i = 0; i < db.objectStoreNames.length; i++) {
+                    const storeName = db.objectStoreNames[i];
+                    infoHtml += `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 🗄️ <code>${storeName}</code><br>`;
                 }
-            } catch (e) {
-                infoHtml += `📂 Opsomming van databases afgeschermd door browserbeveiliging.<br>`;
             }
+            db.close();
+        } catch (e) {
+            infoHtml += `⚠️ Kon object stores niet uitlezen: ${e.message}<br>`;
         }
+
         infoHtml += `</div>`;
         debugDiv.innerHTML = infoHtml;
     }
@@ -240,25 +276,12 @@
         return new Promise((resolve, reject) => {
             updateStatus('⏳ IndexedDB openen (v' + DB_VERSION + ')...');
             const request = indexedDB.open(DB_NAME, DB_VERSION);
-            
-            request.onerror = () => {
-                console.error("IndexedDB error:", request.error);
-                let errDetails = request.error ? request.error.message : 'Onbekende fout';
-                updateStatus(`❌ IndexedDB fout: ${errDetails}`);
-                reject(request.error);
-            };
-            
+            request.onerror = () => reject(request.error);
             request.onsuccess = () => resolve(request.result);
-            
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                console.log("IndexedDB upgrade naar versie", event.newVersion);
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    db.createObjectStore(STORE_NAME);
-                }
-                if (!db.objectStoreNames.contains(FAV_STORE_NAME)) {
-                    db.createObjectStore(FAV_STORE_NAME, { keyPath: 'id' });
-                }
+                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+                if (!db.objectStoreNames.contains(FAV_STORE_NAME)) db.createObjectStore(FAV_STORE_NAME, { keyPath: 'id' });
             };
         });
     }
@@ -276,40 +299,27 @@
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(STORE_NAME, 'readwrite');
             const store = transaction.objectStore(STORE_NAME);
-            
             store.put(textData, 'gedcomData');
             const reqTime = store.put(timestampStr, 'gedcomTimestamp');
-
             reqTime.onsuccess = () => resolve(timestampStr);
-            reqTime.onerror = () => {
-                console.error("Fout bij wegschrijven naar IDB:", reqTime.error);
-                reject(reqTime.error);
-            };
+            reqTime.onerror = () => reject(reqTime.error);
         });
     }
 
     async function getGedcomFromIDB() {
         updateStatus('⏳ Controleren of GEDCOM in IndexedDB staat...');
         const db = await openGedcomDB();
-        
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(STORE_NAME, 'readonly');
             const store = transaction.objectStore(STORE_NAME);
-            
             const reqData = store.get('gedcomData');
             const reqTime = store.get('gedcomTimestamp');
 
             let result = {};
             let resolved = false;
 
-            reqData.onsuccess = () => {
-                result.data = reqData.result;
-                checkDone();
-            };
-            reqTime.onsuccess = () => {
-                result.timestamp = reqTime.result || 'Onbekend';
-                checkDone();
-            };
+            reqData.onsuccess = () => { result.data = reqData.result; checkDone(); };
+            reqTime.onsuccess = () => { result.timestamp = reqTime.result || 'Onbekend'; checkDone(); };
 
             function checkDone() {
                 if (!resolved && result.data !== undefined && result.timestamp !== undefined) {
@@ -317,20 +327,8 @@
                     resolve(result.data ? result : null);
                 }
             }
-
-            transaction.oncomplete = () => {
-                if (!resolved) {
-                    resolved = true;
-                    resolve(result.data ? result : null);
-                }
-            };
-            
-            transaction.onerror = (err) => {
-                if (!resolved) {
-                    resolved = true;
-                    reject(transaction.error);
-                }
-            };
+            transaction.oncomplete = () => { if (!resolved) { resolved = true; resolve(result.data ? result : null); } };
+            transaction.onerror = () => { if (!resolved) { resolved = true; reject(transaction.error); } };
         });
     }
 
@@ -356,7 +354,6 @@
         try {
             const dbPromise = getGedcomFromIDB();
             const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout')), 3000));
-
             const saved = await Promise.race([dbPromise, timeoutPromise]);
             
             if (saved && saved.data) {
@@ -365,7 +362,6 @@
             }
             throw new Error('Geen data in IndexedDB');
         } catch (e) {
-            console.warn("Kon niet automatisch uit IndexedDB laden, proberen via fetch of fallback...", e);
             try {
                 updateStatus('⏳ Bezig met ophalen van standaard GEDCOM-bestand...');
                 const res = await fetch(DEFAULT_FILE);
@@ -394,21 +390,15 @@
                 const timestampStr = await saveGedcomToIDB(text);
                 processGedcomContent(text, timestampStr, '✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!');
             } catch (err) {
-                console.error("Fout bij opslaan bestand:", err);
-                alert('Fout bij het opslaan in IndexedDB! Controleer of je niet in Privé/Incognito modus surft.');
+                alert('Fout bij het opslaan in IndexedDB! Controleer of Incognito uit staat.');
                 showFilePickerFallback();
             }
-        };
-        reader.onerror = () => {
-            alert('Fout bij het lezen van het bestand.');
-            showFilePickerFallback();
         };
         reader.readAsText(file);
     });
 
     function processGedcomContent(text, timestamp, successMsg) {
         showSuccess(successMsg);
-
         let sourceProgram = 'Onbekend';
         let creationDate = 'Onbekend';
         let personCount = 0;
@@ -418,30 +408,14 @@
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
-
-            if (line.startsWith('0 ') && line.toUpperCase().includes(' INDI')) {
-                personCount++;
-            }
-
-            if (line.startsWith('0 HEAD')) {
-                inHeader = true;
-                continue;
-            }
-            if (inHeader && line.startsWith('0 ')) {
-                inHeader = false;
-            }
+            if (line.startsWith('0 ') && line.toUpperCase().includes(' INDI')) personCount++;
+            if (line.startsWith('0 HEAD')) { inHeader = true; continue; }
+            if (inHeader && line.startsWith('0 ')) inHeader = false;
             if (inHeader) {
-                if (line.startsWith('1 SOUR ')) {
-                    sourceProgram = line.substring(7).trim();
-                } else if (line.startsWith('2 NAME ') && lines[i-1] && lines[i-1].startsWith('1 SOUR')) {
-                    sourceProgram = line.substring(7).trim();
-                }
-
-                if (line.startsWith('1 DATE ')) {
-                    creationDate = line.substring(7).trim();
-                } else if (line.startsWith('2 DATE ') && lines[i-1] && (lines[i-1].startsWith('1 SOUR') || lines[i-1].startsWith('1 FILE'))) {
-                    creationDate = line.substring(7).trim();
-                }
+                if (line.startsWith('1 SOUR ')) sourceProgram = line.substring(7).trim();
+                else if (line.startsWith('2 NAME ') && lines[i-1] && lines[i-1].startsWith('1 SOUR')) sourceProgram = line.substring(7).trim();
+                if (line.startsWith('1 DATE ')) creationDate = line.substring(7).trim();
+                else if (line.startsWith('2 DATE ') && lines[i-1] && (lines[i-1].startsWith('1 SOUR') || lines[i-1].startsWith('1 FILE'))) creationDate = line.substring(7).trim();
             }
         }
 
@@ -471,7 +445,7 @@
         box.style.backgroundColor = '#fffaf0';
         box.style.borderColor = '#dd6b20';
         box.style.color = '#7b341e';
-        document.getElementById('statusText').innerHTML = '⚠️ Geen gegevens gevonden of opslaan mislukt (controleer of Incognito uit staat).';
+        document.getElementById('statusText').innerHTML = '⚠️ Geen gegevens gevonden of opslaan mislukt.';
         document.getElementById('gedcomMeta').style.display = 'none';
         document.getElementById('fileFallback').style.display = 'block';
     }
