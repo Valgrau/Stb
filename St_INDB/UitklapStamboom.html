@@ -32,6 +32,8 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
         }
         .btn-reset { background-color: #f44336; color: white; }
         .btn-nav { background-color: #2196F3; color: white; }
@@ -66,14 +68,6 @@
         }
     </style>
 </head>
-<footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
-    Laatste update van deze pagina: <span id="lastMod"></span>
-</footer>
-
-<script>
-    // Toont automatisch de bewerkingsdatum van dit specifieke HTML-bestand
-    document.getElementById('lastMod').innerText = document.lastModified;
-</script>
 <body>
 
 <h2>🌳 Stamboom Visualisatie</h2>
@@ -93,7 +87,7 @@
     <button id="btnUndo" class="btn btn-nav" onclick="undo()" disabled>◄ Terug</button>
     <button id="btnRedo" class="btn btn-nav" onclick="redo()" disabled>Voorwaarts ►</button>
     
-    <button class="btn btn-file" onclick="window.location.href='index.html'">🏠 Naar Startpagina</button>
+    <a href="GenealogieFilterScherm.html" class="btn btn-file">🔍 Naar Filterscherm</a>
 </div>
 
 <div class="info-panel" id="infoPanel">
@@ -102,7 +96,13 @@
 
 <div id="mynetwork"></div>
 
-<script type="text/javascript">
+<footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
+    Laatste update van deze pagina: <span id="lastMod"></span>
+</footer>
+
+<script>
+    document.getElementById('lastMod').innerText = document.lastModified;
+
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
     const DB_VERSION = 4;
@@ -335,7 +335,7 @@
     async function initTreeFromIndexedDB() {
         var savedData = await getGedcomFromIDB();
         if (!savedData) {
-            setStatus("⚠️ Geen stamboom gevonden in IndexedDB. Ga eerst terug naar de startpagina.", true);
+            setStatus("⚠️ Geen stamboom gevonden in IndexedDB.", true);
             return;
         }
 
@@ -357,7 +357,15 @@
                 datalist.appendChild(option);
             });
 
-            mainPersonId = personsDB["I5147"] ? "I5147" : pIds[0];
+            // Gekozen persoon ophalen uit sessionStorage (meegegeven vanuit het filterscherm)
+            var requestedId = sessionStorage.getItem('selectedPersonId');
+            if (requestedId && personsDB[requestedId]) {
+                mainPersonId = requestedId;
+                sessionStorage.removeItem('selectedPersonId'); // Direct wissen zodat het niet blijft hangen
+            } else {
+                mainPersonId = personsDB["I5147"] ? "I5147" : pIds[0];
+            }
+
             historyStack = [];
             redoStack = [];
             
