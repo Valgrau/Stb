@@ -13,7 +13,7 @@
             color: #333;
         }
         .container {
-            max-width: 1300px;
+            max-width: 1350px;
             margin: 0 auto;
             background: #ffffff;
             padding: 25px;
@@ -45,7 +45,7 @@
         }
         .filter-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
             gap: 12px;
             margin-bottom: 15px;
         }
@@ -60,11 +60,12 @@
             color: #4a5568;
             margin-bottom: 5px;
         }
-        .filter-group input {
+        .filter-group input, .filter-group select {
             padding: 8px 10px;
             border: 1px solid #cbd5e0;
             border-radius: 6px;
             font-size: 0.85rem;
+            background-color: #fff;
         }
         .action-bar {
             display: flex;
@@ -135,7 +136,7 @@
 
     <!-- Live Zoekfilters -->
     <div class="search-box">
-        <h3 style="margin-top: 0; color: #2c3e50; font-size: 1rem; margin-bottom: 15px;">🎛️ Live Filters (Dubbelklik op een ID om direct naar de stamboom te gaan)</h3>
+        <h3 style="margin-top: 0; color: #2c3e50; font-size: 1rem; margin-bottom: 15px;">🎛️ Live Filters (Dubbelklik op een ID om naar de stamboom te gaan)</h3>
         <div class="filter-grid">
             <div class="filter-group">
                 <label>Voornaam</label>
@@ -146,11 +147,19 @@
                 <input type="text" id="filterNaam" placeholder="Bevat...">
             </div>
             <div class="filter-group">
-                <label>Voornaam Echtg.</label>
+                <label>Geslacht</label>
+                <select id="filterGeslacht">
+                    <option value="">Alle</option>
+                    <option value="M">Man (M)</option>
+                    <option value="F">Vrouw (F)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Vrn. Echtg.</label>
                 <input type="text" id="filterEchtgenoteVoornaam" placeholder="Bevat...">
             </div>
             <div class="filter-group">
-                <label>Naam Echtg.</label>
+                <label>Nm. Echtg.</label>
                 <input type="text" id="filterEchtgenoteNaam" placeholder="Bevat...">
             </div>
             <div class="filter-group">
@@ -170,7 +179,7 @@
                 <input type="number" id="filterOverlijdensjaar" placeholder="Bijv. 1920">
             </div>
             <div class="filter-group">
-                <label>Aantal kinderen</label>
+                <label>Kinderen</label>
                 <input type="number" id="filterKinderen" placeholder="Bijv. 3">
             </div>
         </div>
@@ -188,6 +197,7 @@
                     <th>ID (Dubbelklik)</th>
                     <th>Voornaam</th>
                     <th>Naam</th>
+                    <th>Geslacht</th>
                     <th>Vrn. Echtgenote</th>
                     <th>Nm. Echtgenote</th>
                     <th>Geb.pl.</th>
@@ -198,7 +208,7 @@
                 </tr>
             </thead>
             <tbody id="resultsTableBody">
-                <tr><td colspan="10" style="text-align: center; color: #a0aec0;">Gegevens laden...</td></tr>
+                <tr><td colspan="11" style="text-align: center; color: #a0aec0;">Gegevens laden...</td></tr>
             </tbody>
         </table>
     </div>
@@ -258,35 +268,41 @@
             updateStatusStep('⚠️ Fout bij het openen van IndexedDB.');
         }
 
-        const inputs = document.querySelectorAll('.search-box input');
+        // Koppel live event listeners aan alle input- en select-velden
+        const inputs = document.querySelectorAll('.search-box input, .search-box select');
         inputs.forEach(input => {
             input.addEventListener('input', executeSearch);
+            input.addEventListener('change', executeSearch);
         });
     });
 
-    function extractNameParts(rec) {
+    function extractPersonDetails(rec) {
         let voornaam = '';
         let achternaam = '';
+        let geslacht = '-';
 
-        let nameNode = (rec.children || []).find(c => c.tag === 'NAME');
-        if (nameNode) {
-            let rawName = nameNode.value || '';
-            if (rawName.includes('/')) {
-                let parts = rawName.split('/');
-                voornaam = parts[0].trim();
-                achternaam = parts[1] ? parts[1].trim() : '';
-            } else {
-                voornaam = rawName;
+        (rec.children || []).forEach(c => {
+            if (c.tag === 'SEX') {
+                geslacht = c.value ? c.value.trim().toUpperCase() : '-';
             }
-        }
-
-        if (nameNode && nameNode.children) {
-            nameNode.children.forEach(sub => {
-                if (sub.tag === 'GIVN') voornaam = sub.value.trim();
-                if (sub.tag === 'SURN') achternaam = sub.value.trim();
-            });
-        }
-        return { voornaam, achternaam };
+            if (c.tag === 'NAME') {
+                let rawName = c.value || '';
+                if (rawName.includes('/')) {
+                    let parts = rawName.split('/');
+                    voornaam = parts[0].trim();
+                    achternaam = parts[1] ? parts[1].trim() : '';
+                } else {
+                    voornaam = rawName;
+                }
+                if (c.children) {
+                    c.children.forEach(sub => {
+                        if (sub.tag === 'GIVN') voornaam = sub.value.trim();
+                        if (sub.tag === 'SURN') achternaam = sub.value.trim();
+                    });
+                }
+            }
+        });
+        return { voornaam, achternaam, geslacht };
     }
 
     function parseGedcomToPersons(gedcomText) {
@@ -336,7 +352,7 @@
         let indiMap = {};
         records.forEach(rec => {
             if ((rec.TAG || '').toUpperCase() === 'INDI') {
-                indiMap[rec.id] = extractNameParts(rec);
+                indiMap[rec.id] = extractPersonDetails(rec);
             }
         });
 
@@ -372,7 +388,7 @@
         records.forEach(rec => {
             if ((rec.TAG || '').toUpperCase() === 'INDI') {
                 let id = rec.id || '';
-                let nameInfo = extractNameParts(rec);
+                let details = extractPersonDetails(rec);
                 const birth = extractEventYearAndPlace(rec, 'BIRT');
                 const death = extractEventYearAndPlace(rec, 'DEAT');
                 const famInfo = families[id] || { marrYear: null, childrenCount: 0, partnerId: '' };
@@ -386,8 +402,9 @@
 
                 persons.push({
                     id: id,
-                    voornaam: nameInfo.voornaam,
-                    achternaam: nameInfo.achternaam,
+                    voornaam: details.voornaam,
+                    achternaam: details.achternaam,
+                    geslacht: details.geslacht,
                     echtgenoteVoornaam: partnerVoornaam,
                     echtgenoteAchternaam: partnerAchternaam,
                     geboorteplaats: birth.place,
@@ -429,6 +446,7 @@
     function executeSearch() {
         const fVoornaam = document.getElementById('filterVoornaam').value.toLowerCase().trim();
         const fNaam = document.getElementById('filterNaam').value.toLowerCase().trim();
+        const fGeslacht = document.getElementById('filterGeslacht').value;
         const fEchtVrn = document.getElementById('filterEchtgenoteVoornaam').value.toLowerCase().trim();
         const fEchtNm = document.getElementById('filterEchtgenoteNaam').value.toLowerCase().trim();
         const fPlaats = document.getElementById('filterGeboorteplaats').value.toLowerCase().trim();
@@ -440,6 +458,7 @@
         const filtered = allPersonsData.filter(p => {
             if (fVoornaam && !p.voornaam.toLowerCase().includes(fVoornaam)) return false;
             if (fNaam && !p.achternaam.toLowerCase().includes(fNaam)) return false;
+            if (fGeslacht && p.geslacht !== fGeslacht) return false;
             if (fEchtVrn && !p.echtgenoteVoornaam.toLowerCase().includes(fEchtVrn)) return false;
             if (fEchtNm && !p.echtgenoteAchternaam.toLowerCase().includes(fEchtNm)) return false;
             if (fPlaats && !p.geboorteplaats.toLowerCase().includes(fPlaats)) return false;
@@ -456,6 +475,7 @@
     function resetFilters() {
         document.getElementById('filterVoornaam').value = '';
         document.getElementById('filterNaam').value = '';
+        document.getElementById('filterGeslacht').value = '';
         document.getElementById('filterEchtgenoteVoornaam').value = '';
         document.getElementById('filterEchtgenoteNaam').value = '';
         document.getElementById('filterGeboorteplaats').value = '';
@@ -474,7 +494,7 @@
         document.getElementById('searchStats').innerText = `${persons.length} personen gevonden (Toont max. eerste ${limitedPersons.length})`;
 
         if (limitedPersons.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #a0aec0;">Geen personen gevonden met deze filters.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: #a0aec0;">Geen personen gevonden met deze filters.</td></tr>';
             return;
         }
 
@@ -484,6 +504,7 @@
                 <td><strong class="indi-link" title="Dubbelklik om in stamboom te openen" ondblclick="openStamboom('${p.id}')">${p.id}</strong></td>
                 <td>${p.voornaam || '-'}</td>
                 <td>${p.achternaam || '-'}</td>
+                <td><strong>${p.geslacht}</strong></td>
                 <td>${p.echtgenoteVoornaam || '-'}</td>
                 <td>${p.echtgenoteAchternaam || '-'}</td>
                 <td>${p.geboorteplaats || '-'}</td>
