@@ -86,16 +86,18 @@
         }
         .card h2 { font-size: 15px; color: #0366d6; margin-bottom: 4px; word-break: break-word; }
         .card p { font-size: 12px; color: #586069; line-height: 1.4; }
-        .gedcom-info {
+        .gedcom-info, .db-debug-info {
             margin-top: 8px;
             font-size: 13px;
             color: #333;
             text-align: left;
             display: inline-block;
-            background: rgba(255, 255, 255, 0.7);
-            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 14px;
             border-radius: 6px;
             line-height: 1.5;
+            width: 100%;
+            border: 1px solid #d1d5db;
         }
     </style>
 </head>
@@ -111,19 +113,20 @@
                 <input type="radio" name="loadMode" value="auto" checked onclick="handleModeChange()"> Automatisch laden (Cache)
             </label>
             <label>
-                <input type="radio" name="loadMode" value="local" onclick="handleModeChange()"> Laad vanaf D-schijf (D:\Gedcom.ged)
+                <input type="radio" name="loadMode" value="local" onclick="handleModeChange()"> Handmatig kiezen
             </label>
         </div>
 
         <span id="statusText">⏳ Initialiseren...</span>
-        <div id="gedcomMeta" style="display: none;"></div>
+        <div id="gedcomMeta" style="display: none; margin-top: 10px;"></div>
+        <div id="dbDebugMeta" style="display: block; margin-top: 10px;"></div>
         
-        <div id="fileFallback" style="display: none;">
+        <div id="fileFallback" style="display: none; margin-top: 10px;">
             <p style="margin: 8px 0; font-size: 0.9rem; color: #555;" id="fallbackText">
-                Selecteer je <strong>Gedcom.ged</strong> vanaf de D-schijf:
+                Selecteer je <strong>Gedcom</strong> bestand:
             </p>
-            <input type="file" id="gedcomFileInput" accept=".ged" style="display: none;">
-            <button onclick="document.getElementById('gedcomFileInput').click();">📁 Kies Gedcom.ged op D:\ schijf</button>
+            <input type="file" id="gedcomFileInput" accept=".ged,.GED,.txt" style="display: none;">
+            <button onclick="document.getElementById('gedcomFileInput').click();">📁 Kies GEDCOM-bestand</button>
         </div>
     </div>
 
@@ -186,39 +189,77 @@
         const filename = pathSegments.pop() || pathSegments.pop() || 'index.html';
         document.getElementById('url-filename').innerText = filename;
 
+        inspectIndexedDBEnvironment();
         checkAndLoad();
     });
 
     const DEFAULT_FILE = 'Gedcom.ged';
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
-    const DB_VERSION = 2;
+    const FAV_STORE_NAME = 'favoritesStore';
+    const DB_VERSION = 4; // Bijgewerkt naar versie 4
 
     function updateStatus(text) {
         console.log("STATUS:", text);
         document.getElementById('statusText').innerHTML = text;
     }
 
+    // Uitgebreide inspectie van IndexedDB om visibiliteit bij problemen te verhogen
+    async function inspectIndexedDBEnvironment() {
+        const debugDiv = document.getElementById('dbDebugMeta');
+        let infoHtml = `<div class="db-debug-info"><strong>🔍 IndexedDB Diagnostiek:</strong><br>`;
+
+        if (!window.indexedDB) {
+            infoHtml += `❌ <strong>Fout:</strong> IndexedDB wordt niet ondersteund door deze browser (of Incognito blokkeert het).<br>`;
+            infoHtml += `</div>`;
+            debugDiv.innerHTML = infoHtml;
+            return;
+        }
+
+        infoHtml += `✅ IndexedDB API is beschikbaar.<br>`;
+        infoHtml += `📌 Doel Database: <code>${DB_NAME}</code> (Versie: ${DB_VERSION})<br>`;
+
+        // Probeer alle beschikbare databases op te sommen indien de browser dit ondersteunt (Chromium/Firefox)
+        if (indexedDB.databases) {
+            try {
+                const dbs = await indexedDB.databases();
+                infoHtml += `📂 <strong>Beschikbare databases in browser:</strong> `;
+                if (dbs.length === 0) {
+                    infoHtml += `Geen databases gevonden.<br>`;
+                } else {
+                    let dbNames = dbs.map(d => `${d.name} (v${d.version})`).join(', ');
+                    infoHtml += `${dbNames}<br>`;
+                }
+            } catch (e) {
+                infoHtml += `📂 Beschikbare databases opsommen niet toegestaan door browserbeveiliging.<br>`;
+            }
+        }
+        infoHtml += `</div>`;
+        debugDiv.innerHTML = infoHtml;
+    }
+
     function openGedcomDB() {
         return new Promise((resolve, reject) => {
-            updateStatus('⏳ IndexedDB openen...');
+            updateStatus('⏳ IndexedDB openen (v' + DB_VERSION + ')...');
             const request = indexedDB.open(DB_NAME, DB_VERSION);
+            
             request.onerror = () => {
                 console.error("IndexedDB error:", request.error);
+                let errDetails = request.error ? request.error.message : 'Onbekende fout';
+                updateStatus(`❌ IndexedDB fout: ${errDetails}`);
                 reject(request.error);
             };
+            
             request.onsuccess = () => resolve(request.result);
             
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                console.log("IndexedDB upgrade nodig, oude stores opschonen...");
-                for (const storeName of db.objectStoreNames) {
-                    if (storeName !== STORE_NAME) {
-                        db.deleteObjectStore(storeName);
-                    }
-                }
+                console.log("IndexedDB upgrade naar versie", event.newVersion);
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
                     db.createObjectStore(STORE_NAME);
+                }
+                if (!db.objectStoreNames.contains(FAV_STORE_NAME)) {
+                    db.createObjectStore(FAV_STORE_NAME, { keyPath: 'id' });
                 }
             };
         });
@@ -242,7 +283,10 @@
             const reqTime = store.put(timestampStr, 'gedcomTimestamp');
 
             reqTime.onsuccess = () => resolve(timestampStr);
-            reqTime.onerror = () => reject(reqTime.error);
+            reqTime.onerror = () => {
+                console.error("Fout bij wegschrijven naar IDB:", reqTime.error);
+                reject(reqTime.error);
+            };
         });
     }
 
@@ -299,7 +343,7 @@
             box.style.backgroundColor = '#fffaf0';
             box.style.borderColor = '#dd6b20';
             box.style.color = '#7b341e';
-            updateStatus('⚠️ Handmatige modus gekozen.');
+            updateStatus('⚠️ Handmatige selectie gekozen.');
             document.getElementById('gedcomMeta').style.display = 'none';
             document.getElementById('fileFallback').style.display = 'block';
         } else {
@@ -312,9 +356,8 @@
         if (mode === 'local') return;
 
         try {
-            // Timeout beveiliging van 3 seconden op IndexedDB ophalen
             const dbPromise = getGedcomFromIDB();
-            const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new RegExp('Timeout')), 3000));
+            const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout')), 3000));
 
             const saved = await Promise.race([dbPromise, timeoutPromise]);
             
@@ -354,7 +397,7 @@
                 processGedcomContent(text, timestampStr, '✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!');
             } catch (err) {
                 console.error("Fout bij opslaan bestand:", err);
-                alert('Fout bij het opslaan in IndexedDB!');
+                alert('Fout bij het opslaan in IndexedDB! Controleer of je niet in Privé/Incognito modus surft.');
                 showFilePickerFallback();
             }
         };
@@ -430,7 +473,7 @@
         box.style.backgroundColor = '#fffaf0';
         box.style.borderColor = '#dd6b20';
         box.style.color = '#7b341e';
-        document.getElementById('statusText').innerHTML = '⚠️ Geen gegevens gevonden of laden mislukt.';
+        document.getElementById('statusText').innerHTML = '⚠️ Geen gegevens gevonden of opslaan mislukt (controleer of Incognito uit staat).';
         document.getElementById('gedcomMeta').style.display = 'none';
         document.getElementById('fileFallback').style.display = 'block';
     }
