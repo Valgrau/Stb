@@ -136,79 +136,96 @@
         <a href="UitklapStamboom.html" class="card" target="_blank">
             <h2>JS Stamboom Uitklap</h2>
             <p>Uitklap weergave</p>
-            
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="UitklapStamboom.html">Laden...</span></div>
         </a>
         <a href="RelatiesRand.html" class="card" target="_blank">
             <h2>JS Oplichten pad met rand</h2>
             <p>Geavanceerd netwerk</p>
-           
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="RelatiesRand.html">Laden...</span></div>
         </a>
         <a href="GedcomJsonTotalen.html" class="card" target="_blank">
             <h2>JS Totalen</h2>
             <p>Overzicht totalen</p>
-           
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="GedcomJsonTotalen.html">Laden...</span></div>
         </a>
         <a href="DichtsBijzijndeVoorouder.html" class="card" target="_blank">
             <h2>JS Dichtst bijzijnde voorouder</h2>
             <p>Voorouder berekening</p>
-            
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="DichtsBijzijndeVoorouder.html">Laden...</span></div>
         </a>
         <a href="Zandloper.html" class="card" target="_blank">
             <h2>JS Zandloper</h2>
             <p>Zandloper weergave</p>
-           
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="Zandloper.html">Laden...</span></div>
         </a>
         <a href="RelatieZoeker.html" class="card" target="_blank">
             <h2>JS Relatiezoeker</h2>
             <p>Relaties zoeken</p>
-            
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="RelatieZoeker.html">Laden...</span></div>
         </a>
         <a href="Statistiek.html" class="card" target="_blank">
             <h2>JS Statistiek</h2>
             <p>Volledige statistieken</p>
-            
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="Statistiek.html">Laden...</span></div>
         </a>
         <a href="LandkaartHistoriek.html" class="card" target="_blank">
             <h2>Landkaart Historiek</h2>
             <p>Landkaart Historiek</p>
-            
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="LandkaartHistoriek.html">Laden...</span></div>
         </a>
         <a href="Eilanden.html" class="card" target="_blank">
             <h2>Eilanden</h2>
             <p>Eilanden</p>
-           
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="Eilanden.html">Laden...</span></div>
         </a>
         <a href="FavorietenLijst.html" class="card" target="_blank">
             <h2>Favorietenlijst</h2>
             <p>Favorietenlijst</p>
-            
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="FavorietenLijst.html">Laden...</span></div>
         </a>
         <a href="RelatiesFavorieten.html" class="card" target="_blank">
             <h2>RelatiesFavorieten</h2>
             <p>RelatiesFavorieten</p>
-           
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="RelatiesFavorieten.html">Laden...</span></div>
         </a>
         <a href="RelatiesFavorietenHierarch.html" class="card" target="_blank">
             <h2>RelatiesFavorietenHierarch</h2>
             <p>RelatiesFavorietenHierarch</p>
-            
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="RelatiesFavorietenHierarch.html">Laden...</span></div>
         </a>
     </div>
 </div>
 
 <script>
+    const fileDates = {
+        "DichtsBijzijndeVoorouder.html": "13/10/2026 22:59",
+        "Eilanden.html": "13/10/2026 01:02",
+        "FavorietenLijst.html": "13/10/2026 22:33",
+        "GedcomJsonTotalen.html": "13/10/2026 22:30",
+        "LandkaartHistoriek.html": "11/10/2026 11:01",
+        "Relaties.html": "13/10/2026 22:34",
+        "RelatiesFavorieten.html": "13/10/2026 22:36",
+        "RelatiesFavorietenHierarch.html": "13/10/2026 22:55",
+        "RelatiesRand.html": "13/10/2026 22:49",
+        "RelatieZoeker.html": "13/10/2026 23:00",
+        "Statistiek.html": "13/10/2026 23:03",
+        "UitklapStamboom.html": "13/10/2026 23:18",
+        "Zandloper.html": "13/10/2026 22:45",
+        "index.html": "14/10/2026 17:22"
+    };
+
     window.addEventListener('DOMContentLoaded', () => {
         const pathSegments = window.location.pathname.split('/');
         const filename = pathSegments.pop() || pathSegments.pop() || 'index.html';
         document.getElementById('url-filename').innerText = filename;
-        document.getElementById('file-mod-date').innerText = document.lastModified || 'Onbekend';
+        document.getElementById('file-mod-date').innerText = fileDates[filename] || document.lastModified || 'Onbekend';
 
-        // Vul automatisch de laatst gewijzigde datums in voor alle onderliggende kaarten
-        document.querySelectorAll('.card').forEach(card => {
-            const dateSpan = card.querySelector('.mod-date');
-            if (dateSpan) {
-                // We halen via een HEAD-request of de document.lastModified van de huidige sessie de indicatie op
-                dateSpan.innerText = document.lastModified || 'Onbekend';
+        document.querySelectorAll('.mod-date').forEach(span => {
+            const fileName = span.getAttribute('data-file');
+            if (fileName && fileDates[fileName]) {
+                span.innerText = fileDates[fileName];
+            } else {
+                span.innerText = "Onbekend";
             }
         });
 
@@ -227,15 +244,27 @@
         document.getElementById('statusText').innerHTML = text;
     }
 
-    // Inspectie van IndexedDB inclusief de volledige hiërarchie (Stores)
+    // Gedetailleerde inspectie per Object Store (aantal items & ruwe grootte-indicatie)
     async function inspectIndexedDBEnvironment() {
         const debugDiv = document.getElementById('dbDebugMeta');
-        let infoHtml = `<div class="db-debug-info"><strong>🔍 IndexedDB Hiërarchie & Diagnostiek (Versie ${DB_VERSION}):</strong><br>`;
+        let infoHtml = `<div class="db-debug-info"><strong>🔍 IndexedDB Hiërarchie, Opslag & Diagnostiek (Versie ${DB_VERSION}):</strong><br>`;
 
         if (!window.indexedDB) {
             infoHtml += `❌ <strong>Fout:</strong> IndexedDB wordt niet ondersteund of geblokkeerd.<br></div>`;
             debugDiv.innerHTML = infoHtml;
             return;
+        }
+
+        if (navigator.storage && navigator.storage.estimate) {
+            try {
+                const estimate = await navigator.storage.estimate();
+                const usedMB = (estimate.usage / (1024 * 1024)).toFixed(2);
+                const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(0);
+                const percentage = estimate.quota && estimate.quota > 0 ? ((estimate.usage / estimate.quota) * 100).toFixed(1) : 0;
+                infoHtml += `📊 <strong>Browser Opslag:</strong> Gebruikt: <strong>${usedMB} MB</strong> van ca. ${quotaMB} MB (${percentage}%)<br>`;
+            } catch (e) {
+                infoHtml += `📊 <em>Browser opslagruimte ophalen niet toegestaan</em><br>`;
+            }
         }
 
         infoHtml += `✅ IndexedDB API actief.<br>`;
@@ -260,7 +289,10 @@
             } else {
                 for (let i = 0; i < db.objectStoreNames.length; i++) {
                     const storeName = db.objectStoreNames[i];
-                    infoHtml += `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 🗄️ <code>${storeName}</code><br>`;
+                    
+                    // Vraag detailgegevens op per store (aantal items en benaderde grootte)
+                    const storeDetails = await getStoreDetails(db, storeName);
+                    infoHtml += `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 🗄️ <code>${storeName}</code> — <em>(${storeDetails.count} items, ${storeDetails.sizeFormatted})</em><br>`;
                 }
             }
             db.close();
@@ -270,6 +302,56 @@
 
         infoHtml += `</div>`;
         debugDiv.innerHTML = infoHtml;
+    }
+
+    // Helper functie om per store het aantal records en de grootte te berekenen
+    function getStoreDetails(db, storeName) {
+        return new Promise((resolve) => {
+            try {
+                const transaction = db.transaction(storeName, 'readonly');
+                const store = transaction.objectStore(storeName);
+                const countReq = store.count();
+                const getAllReq = store.getAll();
+
+                let count = 0;
+                let totalBytes = 0;
+
+                countReq.onsuccess = () => { count = countReq.result; };
+                
+                getAllReq.onsuccess = () => {
+                    const data = getAllReq.result;
+                    if (data) {
+                        // Schat de grootte in bytes door de data naar JSON om te zetten
+                        try {
+                            totalBytes = new Blob([JSON.stringify(data)]).size;
+                        } catch (err) {
+                            totalBytes = 0;
+                        }
+                    }
+                };
+
+                transaction.oncomplete = () => {
+                    resolve({
+                        count: count,
+                        sizeFormatted: formatBytes(totalBytes)
+                    });
+                };
+
+                transaction.onerror = () => {
+                    resolve({ count: '?', sizeFormatted: '0 KB' });
+                };
+            } catch (err) {
+                resolve({ count: '?', sizeFormatted: '0 KB' });
+            }
+        });
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 KB';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     function openGedcomDB() {
@@ -301,7 +383,10 @@
             const store = transaction.objectStore(STORE_NAME);
             store.put(textData, 'gedcomData');
             const reqTime = store.put(timestampStr, 'gedcomTimestamp');
-            reqTime.onsuccess = () => resolve(timestampStr);
+            reqTime.onsuccess = () => {
+                inspectIndexedDBEnvironment();
+                resolve(timestampStr);
+            };
             reqTime.onerror = () => reject(reqTime.error);
         });
     }
@@ -389,6 +474,7 @@
                 const text = evt.target.result;
                 const timestampStr = await saveGedcomToIDB(text);
                 processGedcomContent(text, timestampStr, '✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!');
+                inspectIndexedDBEnvironment();
             } catch (err) {
                 alert('Fout bij het opslaan in IndexedDB! Controleer of Incognito uit staat.');
                 showFilePickerFallback();
