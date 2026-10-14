@@ -105,7 +105,7 @@
 
 <div class="container">
     <h1>Stamboom & Relaties Overzicht - Indexed DB</h1>
-    <p class="subtitle">Centraal dashboard voor al je stamboomvisualisaties (<span id="url-filename"></span>):</p>
+    <p class="subtitle">Centraal dashboard voor al je stamboomvisualisaties (<span id="url-filename"></span> - gewijzigd op: <span id="file-mod-date"></span>):</p>
 
     <div class="status-box" id="statusBox">
         <div class="radio-group">
@@ -189,6 +189,9 @@
         const filename = pathSegments.pop() || pathSegments.pop() || 'index.html';
         document.getElementById('url-filename').innerText = filename;
 
+        // Toon de laatst bekeken/gewijzigde datum van het HTML-bestand zelf
+        document.getElementById('file-mod-date').innerText = document.lastModified || 'Onbekend';
+
         inspectIndexedDBEnvironment();
         checkAndLoad();
     });
@@ -197,33 +200,28 @@
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
     const FAV_STORE_NAME = 'favoritesStore';
-    const DB_VERSION = 4; // Bijgewerkt naar versie 4
+    const DB_VERSION = 4;
 
     function updateStatus(text) {
         console.log("STATUS:", text);
         document.getElementById('statusText').innerHTML = text;
     }
 
-    // Uitgebreide inspectie van IndexedDB om visibiliteit bij problemen te verhogen
     async function inspectIndexedDBEnvironment() {
         const debugDiv = document.getElementById('dbDebugMeta');
-        let infoHtml = `<div class="db-debug-info"><strong>🔍 IndexedDB Diagnostiek:</strong><br>`;
+        let infoHtml = `<div class="db-debug-info"><strong>🔍 IndexedDB Diagnostiek (Versie ${DB_VERSION}):</strong><br>`;
 
         if (!window.indexedDB) {
-            infoHtml += `❌ <strong>Fout:</strong> IndexedDB wordt niet ondersteund door deze browser (of Incognito blokkeert het).<br>`;
-            infoHtml += `</div>`;
+            infoHtml += `❌ <strong>Fout:</strong> IndexedDB wordt niet ondersteund of geblokkeerd.<br></div>`;
             debugDiv.innerHTML = infoHtml;
             return;
         }
 
-        infoHtml += `✅ IndexedDB API is beschikbaar.<br>`;
-        infoHtml += `📌 Doel Database: <code>${DB_NAME}</code> (Versie: ${DB_VERSION})<br>`;
-
-        // Probeer alle beschikbare databases op te sommen indien de browser dit ondersteunt (Chromium/Firefox)
+        infoHtml += `✅ IndexedDB API actief.<br>`;
         if (indexedDB.databases) {
             try {
                 const dbs = await indexedDB.databases();
-                infoHtml += `📂 <strong>Beschikbare databases in browser:</strong> `;
+                infoHtml += `📂 <strong>Actieve databases:</strong> `;
                 if (dbs.length === 0) {
                     infoHtml += `Geen databases gevonden.<br>`;
                 } else {
@@ -231,7 +229,7 @@
                     infoHtml += `${dbNames}<br>`;
                 }
             } catch (e) {
-                infoHtml += `📂 Beschikbare databases opsommen niet toegestaan door browserbeveiliging.<br>`;
+                infoHtml += `📂 Opsomming van databases afgeschermd door browserbeveiliging.<br>`;
             }
         }
         infoHtml += `</div>`;
@@ -452,7 +450,7 @@
         metaDiv.innerHTML = `
             <div class="gedcom-info">
                 💾 <strong>Laatste update in IndexedDB:</strong> ${timestamp || 'Onbekend'}<br>
-                📅 <strong>Creatiedatum (GEDCOM):</strong> ${creationDate}<br>
+                📅 <strong>Creatiedatum (GEDCOM-bestand):</strong> ${creationDate}<br>
                 💻 <strong>Oorsprong (Programma):</strong> ${sourceProgram}<br>
                 👥 <strong>Aantal personen:</strong> ${personCount}
             </div>
