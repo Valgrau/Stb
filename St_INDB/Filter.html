@@ -691,7 +691,7 @@
         const tbody = document.getElementById('resultsTableBody');
         tbody.innerHTML = '';
         
-        const limitedPersons = persons.slice(0, 20);
+        const limitedPersons = persons.slice(0, 200);
         document.getElementById('searchStats').innerText = `${persons.length} personen gevonden (Toont max. eerste ${limitedPersons.length})`;
 
         if (limitedPersons.length === 0) {
