@@ -217,7 +217,8 @@
         "Statistiek.html": "13/10/2026 23:03",
         "UitklapStamboom.html": "13/10/2026 23:18",
         "Zandloper.html": "13/10/2026 22:45",
-        "index.html": "14/10/2026 17:22"
+        "index.html": "15/10/2026 10:10",
+        "Filter.html": "14/10/2026 18:00"
     };
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -250,7 +251,6 @@
         document.getElementById('statusText').innerHTML = text;
     }
 
-    // Gedetailleerde inspectie per Object Store (aantal items & ruwe grootte-indicatie)
     async function inspectIndexedDBEnvironment() {
         const debugDiv = document.getElementById('dbDebugMeta');
         let infoHtml = `<div class="db-debug-info"><strong>🔍 IndexedDB Hiërarchie, Opslag & Diagnostiek (Versie ${DB_VERSION}):</strong><br>`;
@@ -295,8 +295,6 @@
             } else {
                 for (let i = 0; i < db.objectStoreNames.length; i++) {
                     const storeName = db.objectStoreNames[i];
-                    
-                    // Vraag detailgegevens op per store (aantal items en benaderde grootte)
                     const storeDetails = await getStoreDetails(db, storeName);
                     infoHtml += `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 🗄️ <code>${storeName}</code> — <em>(${storeDetails.count} items, ${storeDetails.sizeFormatted})</em><br>`;
                 }
@@ -310,7 +308,6 @@
         debugDiv.innerHTML = infoHtml;
     }
 
-    // Helper functie om per store het aantal records en de grootte te berekenen
     function getStoreDetails(db, storeName) {
         return new Promise((resolve) => {
             try {
@@ -327,7 +324,6 @@
                 getAllReq.onsuccess = () => {
                     const data = getAllReq.result;
                     if (data) {
-                        // Schat de grootte in bytes door de data naar JSON om te zetten
                         try {
                             totalBytes = new Blob([JSON.stringify(data)]).size;
                         } catch (err) {
@@ -374,9 +370,161 @@
         });
     }
 
+    function extractPersonName(rec) {
+        let voornaam = '';
+        let achternaam = '';
+        (rec.children || []).forEach(c => {
+            if (c.tag === 'NAME') {
+                let rawName = c.value || '';
+                if (rawName.includes('/')) {
+                    let parts = rawName.split('/');
+                    voornaam = parts[0].trim();
+                    achternaam = parts[1] ? parts[1].trim() : '';
+                } else {
+                    voornaam = rawName;
+                }
+                if (c.children) {
+                    c.children.forEach(sub => {
+                        if (sub.tag === 'GIVN') voornaam = sub.value.trim();
+                        if (sub.tag === 'SURN') achternaam = sub.value.trim();
+                    });
+                }
+            }
+        });
+        return { voornaam, achternaam };
+    }
+
+    async function precalculateAndStoreRelations(textData) {
+        try {
+            const lines = textData.split(/\r?\n/);
+            let records = [];
+            let currentRecord = null;
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                const parts = trimmed.split(' ');
+                const level = parseInt(parts[0], 10);
+                if (isNaN(level)) return;
+
+                if (level === 0) {
+                    if (currentRecord) records.push(currentRecord);
+                    let id = '';
+                    let tag = '';
+                    if (parts[1].startsWith('@')) {
+                        id = parts[1].replace(/@/g, '');
+                        tag = parts[2] ? parts[2].toUpperCase() : '';
+                    } else {
+                        tag = parts[1].toUpperCase();
+                    }
+                    currentRecord = { TAG: tag, id: id, children: [] };
+                } else if (currentRecord) {
+                    let tag = parts[1] ? parts[1].toUpperCase() : '';
+                    let value = parts.slice(2).join(' ').replace(/@/g, '');
+                    const node = { tag: tag, value: value, children: [] };
+                    if (level === 1) {
+                        currentRecord[tag] = value;
+                        currentRecord.children.push(node);
+                    }
+                }
+            });
+            if (currentRecord) records.push(currentRecord);
+
+            let globalGraph = {};
+            let indiMap = {};
+            records.forEach(rec => {
+                if ((rec.TAG || '').toUpperCase() === 'INDI') {
+                    if (!globalGraph[rec.id]) globalGraph[rec.id] = [];
+                    indiMap[rec.id] = extractPersonName(rec);
+                }
+            });
+
+            records.forEach(rec => {
+                if ((rec.TAG || '').toUpperCase() === 'FAM') {
+                    let husbId = '';
+                    let wifeId = '';
+                    let childrenIds = [];
+
+                    (rec.children || []).forEach(c => {
+                        if (c.tag === 'CHIL') childrenIds.push(c.value);
+                        if (c.tag === 'HUSB') husbId = c.value;
+                        if (c.tag === 'WIFE') wifeId = c.value;
+                    });
+
+                    if (husbId && wifeId && globalGraph[husbId] && globalGraph[wifeId]) {
+                        globalGraph[husbId].push({ target: wifeId, type: 'P' });
+                        globalGraph[wifeId].push({ target: husbId, type: 'P' });
+                    }
+
+                    childrenIds.forEach(childId => {
+                        if (globalGraph[childId]) {
+                            if (husbId && globalGraph[husbId]) {
+                                globalGraph[husbId].push({ target: childId, type: 'K' });
+                                globalGraph[childId].push({ target: husbId, type: 'V' });
+                            }
+                            if (wifeId && globalGraph[wifeId]) {
+                                globalGraph[wifeId].push({ target: childId, type: 'K' });
+                                globalGraph[childId].push({ target: wifeId, type: 'M' });
+                            }
+                        }
+                    });
+                }
+            });
+
+            let rootId = globalGraph["I5147"] ? "I5147" : Object.keys(globalGraph)[0];
+            let precalculatedPaths = {};
+            let precalculatedSteps = {};
+
+            if (rootId && globalGraph[rootId]) {
+                let queue = [[rootId, []]];
+                let visited = new Set([rootId]);
+
+                while (queue.length > 0) {
+                    let [currId, path] = queue.shift();
+                    precalculatedPaths[currId] = formatPathNotation(path);
+                    precalculatedSteps[currId] = path.length;
+
+                    for (let edge of (globalGraph[currId] || [])) {
+                        if (!visited.has(edge.target)) {
+                            visited.add(edge.target);
+                            queue.push([edge.target, [...path, edge.type]]);
+                        }
+                    }
+                }
+            }
+
+            let rootNameObj = indiMap[rootId] || { voornaam: '', achternaam: '' };
+            let rootNameInfo = `${rootId} (${rootNameObj.voornaam} ${rootNameObj.achternaam})`.trim();
+
+            return {
+                precalculatedPaths,
+                precalculatedSteps,
+                rootId: rootNameInfo
+            };
+        } catch (e) {
+            console.error("Fout bij vooraf berekenen relaties:", e);
+            return { precalculatedPaths: {}, precalculatedSteps: {}, rootId: "I5147" };
+        }
+    }
+
+    function formatPathNotation(steps) {
+        if (steps.length === 0) return "Hoofdpersoon";
+        let normalized = steps.map(s => (s === 'M' || s === 'V') ? 'MV' : s);
+        let formatted = [steps[0]];
+        for (let i = 1; i < steps.length; i++) {
+            if (normalized[i] !== normalized[i - 1]) {
+                formatted.push('-');
+            }
+            formatted.push(steps[i]);
+        }
+        return formatted.join('');
+    }
+
     async function saveGedcomToIDB(textData) {
-        updateStatus('⏳ Gegevens opslaan in IndexedDB...');
+        updateStatus('⏳ Gegevens, relatiepaden en stappen opslaan in IndexedDB...');
         const db = await openGedcomDB();
+        const resultData = await precalculateAndStoreRelations(textData);
+
         const now = new Date();
         const timestampStr = now.toLocaleDateString('nl-BE', { 
             year: 'numeric', month: '2-digit', day: '2-digit' 
@@ -388,7 +536,11 @@
             const transaction = db.transaction(STORE_NAME, 'readwrite');
             const store = transaction.objectStore(STORE_NAME);
             store.put(textData, 'gedcomData');
+            store.put(resultData.precalculatedPaths, 'precalculatedPaths');
+            store.put(resultData.precalculatedSteps, 'precalculatedSteps');
+            store.put(resultData.rootId, 'rootPersonInfo');
             const reqTime = store.put(timestampStr, 'gedcomTimestamp');
+            
             reqTime.onsuccess = () => {
                 inspectIndexedDBEnvironment();
                 resolve(timestampStr);
@@ -448,7 +600,14 @@
             const saved = await Promise.race([dbPromise, timeoutPromise]);
             
             if (saved && saved.data) {
-                processGedcomContent(saved.data, saved.timestamp, '✅ GEDCOM succesvol geladen uit de browser <strong>IndexedDB</strong>.');
+                const db = await openGedcomDB();
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const st = tx.objectStore(STORE_NAME);
+                
+                st.get('rootPersonInfo').onsuccess = (e) => {
+                    const rootInfo = e.target.result || 'I5147';
+                    processGedcomContent(saved.data, saved.timestamp, '✅ GEDCOM succesvol geladen uit de browser <strong>IndexedDB</strong>.', rootInfo);
+                };
                 return;
             }
             throw new Error('Geen data in IndexedDB');
@@ -459,7 +618,13 @@
                 if (res.ok) {
                     const text = await res.text();
                     const timestampStr = await saveGedcomToIDB(text);
-                    processGedcomContent(text, timestampStr, '✅ GEDCOM ingeladen en opgeslagen in IndexedDB.');
+                    const db = await openGedcomDB();
+                    const tx = db.transaction(STORE_NAME, 'readonly');
+                    const st = tx.objectStore(STORE_NAME);
+                    st.get('rootPersonInfo').onsuccess = (e) => {
+                        const rootInfo = e.target.result || 'I5147';
+                        processGedcomContent(text, timestampStr, '✅ GEDCOM ingeladen en opgeslagen in IndexedDB.', rootInfo);
+                    };
                     return;
                 }
                 throw new Error('Fetch mislukt');
@@ -479,7 +644,14 @@
             try {
                 const text = evt.target.result;
                 const timestampStr = await saveGedcomToIDB(text);
-                processGedcomContent(text, timestampStr, '✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!');
+                
+                const db = await openGedcomDB();
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const st = tx.objectStore(STORE_NAME);
+                st.get('rootPersonInfo').onsuccess = (e) => {
+                    const rootInfo = e.target.result || 'I5147';
+                    processGedcomContent(text, timestampStr, '✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!', rootInfo);
+                };
                 inspectIndexedDBEnvironment();
             } catch (err) {
                 alert('Fout bij het opslaan in IndexedDB! Controleer of Incognito uit staat.');
@@ -489,7 +661,7 @@
         reader.readAsText(file);
     });
 
-    function processGedcomContent(text, timestamp, successMsg) {
+    function processGedcomContent(text, timestamp, successMsg, rootPersonInfo = 'I5147') {
         showSuccess(successMsg);
         let sourceProgram = 'Onbekend';
         let creationDate = 'Onbekend';
@@ -515,6 +687,7 @@
         metaDiv.style.display = 'block';
         metaDiv.innerHTML = `
             <div class="gedcom-info">
+                ⭐ <strong>Hoofdpersoon:</strong> ${rootPersonInfo}<br>
                 💾 <strong>Laatste update in IndexedDB:</strong> ${timestamp || 'Onbekend'}<br>
                 📅 <strong>Creatiedatum (GEDCOM-bestand):</strong> ${creationDate}<br>
                 💻 <strong>Oorsprong (Programma):</strong> ${sourceProgram}<br>

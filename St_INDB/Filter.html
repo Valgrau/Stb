@@ -13,7 +13,7 @@
             color: #333;
         }
         .container {
-            max-width: 1350px;
+            max-width: 1500px;
             margin: 0 auto;
             background: #ffffff;
             padding: 25px;
@@ -110,6 +110,12 @@
             font-weight: 700;
             text-transform: uppercase;
             font-size: 0.68rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .data-table th:hover {
+            background-color: #edf2f7;
+            color: #2b6cb0;
         }
         .indi-link {
             cursor: pointer;
@@ -119,12 +125,34 @@
         .indi-link:hover {
             color: #2b6cb0;
         }
+        #contextMenu {
+            display: none;
+            position: absolute;
+            z-index: 1000;
+            background: #ffffff;
+            border: 1px solid #cbd5e0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 6px;
+            padding: 5px 0;
+            min-width: 160px;
+        }
+        .context-menu-item {
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            color: #2d3748;
+            cursor: pointer;
+        }
+        .context-menu-item:hover {
+            background-color: #edf2f7;
+            color: #3182ce;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span id="currentRootInfo" style="font-size: 0.9rem; font-weight: 600; color: #2c3e50;">📍 Huidige hoofdpersoon: <strong>I5147</strong></span>
         <a href="UitklapStamboom.html" class="file-select-btn" style="background-color: #38a169;">🌳 Naar Stamboom</a>
     </div>
 
@@ -136,15 +164,15 @@
 
     <!-- Live Zoekfilters -->
     <div class="search-box">
-        <h3 style="margin-top: 0; color: #2c3e50; font-size: 1rem; margin-bottom: 15px;">🎛️ Live Filters (Dubbelklik op een ID om naar de stamboom te gaan)</h3>
+        <h3 style="margin-top: 0; color: #2c3e50; font-size: 1rem; margin-bottom: 15px;">🎛️ Live Filters (Inclusief Stappen)</h3>
         <div class="filter-grid">
             <div class="filter-group">
                 <label>Voornaam</label>
-                <input type="text" id="filterVoornaam" placeholder="Bevat...">
+                <input type="text" id="filterVoornaam" placeholder="Begint met...">
             </div>
             <div class="filter-group">
                 <label>Naam</label>
-                <input type="text" id="filterNaam" placeholder="Bevat...">
+                <input type="text" id="filterNaam" placeholder="Begint met...">
             </div>
             <div class="filter-group">
                 <label>Geslacht</label>
@@ -156,15 +184,23 @@
             </div>
             <div class="filter-group">
                 <label>Vrn. Echtg.</label>
-                <input type="text" id="filterEchtgenoteVoornaam" placeholder="Bevat...">
+                <input type="text" id="filterEchtgenoteVoornaam" placeholder="Begint met...">
             </div>
             <div class="filter-group">
                 <label>Nm. Echtg.</label>
-                <input type="text" id="filterEchtgenoteNaam" placeholder="Bevat...">
+                <input type="text" id="filterEchtgenoteNaam" placeholder="Begint met...">
+            </div>
+            <div class="filter-group">
+                <label>Relatiepad</label>
+                <input type="text" id="filterRelatiepad" placeholder="Bijv. V-K...">
+            </div>
+            <div class="filter-group">
+                <label>Stappen</label>
+                <input type="number" id="filterStappen" placeholder="Bijv. 3">
             </div>
             <div class="filter-group">
                 <label>Geboorteplaats</label>
-                <input type="text" id="filterGeboorteplaats" placeholder="Bevat...">
+                <input type="text" id="filterGeboorteplaats" placeholder="Begint met...">
             </div>
             <div class="filter-group">
                 <label>Geboortejaar</label>
@@ -194,24 +230,30 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>ID (Dubbelklik)</th>
-                    <th>Voornaam</th>
-                    <th>Naam</th>
-                    <th>Geslacht</th>
-                    <th>Vrn. Echtgenote</th>
-                    <th>Nm. Echtgenote</th>
-                    <th>Geb.pl.</th>
-                    <th>Geb.jr</th>
-                    <th>Huw.jr</th>
-                    <th>Overl.jr</th>
-                    <th>Kind.</th>
+                    <th onclick="sortTable('id')">ID ↕</th>
+                    <th onclick="sortTable('voornaam')">Voornaam ↕</th>
+                    <th onclick="sortTable('achternaam')">Naam ↕</th>
+                    <th onclick="sortTable('geslacht')">Geslacht ↕</th>
+                    <th onclick="sortTable('echtgenoteVoornaam')">Vrn. Echtg. ↕</th>
+                    <th onclick="sortTable('echtgenoteAchternaam')">Nm. Echtg. ↕</th>
+                    <th onclick="sortTable('relatiepad')">Relatiepad ↕</th>
+                    <th onclick="sortTable('stappen')">Stappen ↕</th>
+                    <th onclick="sortTable('geboorteplaats')">Geb.pl. ↕</th>
+                    <th onclick="sortTable('geboortejaar')">Geb.jr ↕</th>
+                    <th onclick="sortTable('huwelijksjaar')">Huw.jr ↕</th>
+                    <th onclick="sortTable('overlijdensjaar')">Overl.jr ↕</th>
+                    <th onclick="sortTable('aantalKinderen')">Kind. ↕</th>
                 </tr>
             </thead>
             <tbody id="resultsTableBody">
-                <tr><td colspan="11" style="text-align: center; color: #a0aec0;">Gegevens laden...</td></tr>
+                <tr><td colspan="13" style="text-align: center; color: #a0aec0;">Gegevens laden...</td></tr>
             </tbody>
         </table>
     </div>
+</div>
+
+<div id="contextMenu">
+    <div class="context-menu-item" onclick="setAsMainPerson()">⭐ Maak hoofdpersoon</div>
 </div>
 
 <script>
@@ -220,6 +262,15 @@
     const DB_VERSION = 4;
 
     let allPersonsData = [];
+    let currentFilteredPersons = [];
+    let globalGraph = {};
+    let precalculatedPaths = {};
+    let precalculatedSteps = {};
+    let currentMainPersonId = "I5147";
+    let contextMenuTargetId = null;
+
+    let currentSortColumn = null;
+    let sortDirection = 1;
 
     function updateStatusStep(msg) {
         document.getElementById('statusText').innerHTML = msg;
@@ -239,40 +290,72 @@
         });
     }
 
-    async function getGedcomFromIDB() {
+    async function getStoredDataFromIDB() {
         const db = await openGedcomDB();
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(STORE_NAME, 'readonly');
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.get('gedcomData');
-            request.onsuccess = () => resolve(request.result || null);
-            request.onerror = () => reject(request.error);
+            
+            let result = {};
+            let resolvedCount = 0;
+
+            const reqData = store.get('gedcomData');
+            reqData.onsuccess = () => { result.gedcomData = reqData.result; checkDone(); };
+            reqData.onerror = () => { result.gedcomData = null; checkDone(); };
+
+            const reqPaths = store.get('precalculatedPaths');
+            reqPaths.onsuccess = () => { result.precalculatedPaths = reqPaths.result; checkDone(); };
+            reqPaths.onerror = () => { result.precalculatedPaths = null; checkDone(); };
+
+            const reqSteps = store.get('precalculatedSteps');
+            reqSteps.onsuccess = () => { result.precalculatedSteps = reqSteps.result; checkDone(); };
+            reqSteps.onerror = () => { result.precalculatedSteps = null; checkDone(); };
+
+            function checkDone() {
+                resolvedCount++;
+                if (resolvedCount === 3) resolve(result);
+            }
         });
     }
 
     window.addEventListener('DOMContentLoaded', async () => {
         try {
-            const savedData = await getGedcomFromIDB();
-            if (savedData) {
-                allPersonsData = parseGedcomToPersons(savedData);
-                document.getElementById('statusBanner').style.backgroundColor = '#e6fffa';
-                document.getElementById('statusBanner').style.borderColor = '#38b2ac';
-                document.getElementById('statusBanner').style.color = '#234e52';
-                updateStatusStep('✅ GEDCOM data succesvol geladen (' + allPersonsData.length + ' personen in database).');
-                executeSearch();
+            updateStatusStep('⏳ Bezig met inlezen van IndexedDB...');
+            const stored = await getStoredDataFromIDB();
+            if (stored.gedcomData) {
+                updateStatusStep('⏳ Bezig met parsen van stamboomdata...');
+                setTimeout(() => {
+                    parseGedcomData(stored.gedcomData);
+                    
+                    if (stored.precalculatedPaths && currentMainPersonId === "I5147") {
+                        precalculatedPaths = stored.precalculatedPaths;
+                        precalculatedSteps = stored.precalculatedSteps || {};
+                    } else {
+                        recalculateAllPaths();
+                    }
+
+                    document.getElementById('statusBanner').style.backgroundColor = '#e6fffa';
+                    document.getElementById('statusBanner').style.borderColor = '#38b2ac';
+                    document.getElementById('statusBanner').style.color = '#234e52';
+                    updateStatusStep('✅ GEDCOM data & relatiepaden succesvol geladen (' + allPersonsData.length + ' personen).');
+                    executeSearch();
+                }, 50);
             } else {
-                updateStatusStep('⚠️ Geen stamboom gevonden in IndexedDB.');
+                updateStatusStep('⚠️ Geen stamboom gevonden in IndexedDB. Ga eerst terug naar index.html.');
             }
         } catch (err) {
             console.error("Fout:", err);
             updateStatusStep('⚠️ Fout bij het openen van IndexedDB.');
         }
 
-        // Koppel live event listeners aan alle input- en select-velden
         const inputs = document.querySelectorAll('.search-box input, .search-box select');
         inputs.forEach(input => {
             input.addEventListener('input', executeSearch);
             input.addEventListener('change', executeSearch);
+        });
+
+        document.addEventListener('click', () => {
+            document.getElementById('contextMenu').style.display = 'none';
         });
     });
 
@@ -305,7 +388,7 @@
         return { voornaam, achternaam, geslacht };
     }
 
-    function parseGedcomToPersons(gedcomText) {
+    function parseGedcomData(gedcomText) {
         const lines = gedcomText.split(/\r?\n/);
         let records = [];
         let currentRecord = null;
@@ -356,6 +439,13 @@
             }
         });
 
+        globalGraph = {};
+        records.forEach(rec => {
+            if ((rec.TAG || '').toUpperCase() === 'INDI') {
+                if (!globalGraph[rec.id]) globalGraph[rec.id] = [];
+            }
+        });
+
         let families = {};
         records.forEach(rec => {
             if ((rec.TAG || '').toUpperCase() === 'FAM') {
@@ -363,6 +453,7 @@
                 let childrenCount = 0;
                 let husbId = '';
                 let wifeId = '';
+                let childrenIds = [];
 
                 (rec.children || []).forEach(c => {
                     if (c.tag === 'MARR') {
@@ -374,17 +465,38 @@
                         const match = String(dateStr).match(/\b(\d{3,4})\b/);
                         if (match) marrYear = parseInt(match[1], 10);
                     }
-                    if (c.tag === 'CHIL') childrenCount++;
+                    if (c.tag === 'CHIL') {
+                        childrenCount++;
+                        childrenIds.push(c.value);
+                    }
                     if (c.tag === 'HUSB') husbId = c.value;
                     if (c.tag === 'WIFE') wifeId = c.value;
                 });
 
                 if (husbId) families[husbId] = { marrYear, childrenCount, partnerId: wifeId };
                 if (wifeId) families[wifeId] = { marrYear, childrenCount, partnerId: husbId };
+
+                if (husbId && wifeId && globalGraph[husbId] && globalGraph[wifeId]) {
+                    globalGraph[husbId].push({ target: wifeId, type: 'P' });
+                    globalGraph[wifeId].push({ target: husbId, type: 'P' });
+                }
+
+                childrenIds.forEach(childId => {
+                    if (globalGraph[childId]) {
+                        if (husbId && globalGraph[husbId]) {
+                            globalGraph[husbId].push({ target: childId, type: 'K' });
+                            globalGraph[childId].push({ target: husbId, type: 'V' });
+                        }
+                        if (wifeId && globalGraph[wifeId]) {
+                            globalGraph[wifeId].push({ target: childId, type: 'K' });
+                            globalGraph[childId].push({ target: wifeId, type: 'M' });
+                        }
+                    }
+                });
             }
         });
 
-        let persons = [];
+        allPersonsData = [];
         records.forEach(rec => {
             if ((rec.TAG || '').toUpperCase() === 'INDI') {
                 let id = rec.id || '';
@@ -400,7 +512,7 @@
                     partnerAchternaam = indiMap[famInfo.partnerId].achternaam;
                 }
 
-                persons.push({
+                allPersonsData.push({
                     id: id,
                     voornaam: details.voornaam,
                     achternaam: details.achternaam,
@@ -415,7 +527,46 @@
                 });
             }
         });
-        return persons;
+
+        if (!allPersonsData.some(p => p.id === currentMainPersonId) && allPersonsData.length > 0) {
+            currentMainPersonId = allPersonsData[0].id;
+        }
+        document.getElementById('currentRootInfo').innerHTML = `📍 Huidige hoofdpersoon: <strong>${currentMainPersonId}</strong>`;
+    }
+
+    function recalculateAllPaths() {
+        precalculatedPaths = {};
+        precalculatedSteps = {};
+        if (!globalGraph[currentMainPersonId]) return;
+
+        let queue = [[currentMainPersonId, []]];
+        let visited = new Set([currentMainPersonId]);
+
+        while (queue.length > 0) {
+            let [currId, path] = queue.shift();
+            precalculatedPaths[currId] = formatPathNotation(path);
+            precalculatedSteps[currId] = path.length;
+
+            for (let edge of (globalGraph[currId] || [])) {
+                if (!visited.has(edge.target)) {
+                    visited.add(edge.target);
+                    queue.push([edge.target, [...path, edge.type]]);
+                }
+            }
+        }
+    }
+
+    function formatPathNotation(steps) {
+        if (steps.length === 0) return "Hoofdpersoon";
+        let normalized = steps.map(s => (s === 'M' || s === 'V') ? 'MV' : s);
+        let formatted = [steps[0]];
+        for (let i = 1; i < steps.length; i++) {
+            if (normalized[i] !== normalized[i - 1]) {
+                formatted.push('-');
+            }
+            formatted.push(steps[i]);
+        }
+        return formatted.join('');
     }
 
     function extractEventYearAndPlace(item, eventTag) {
@@ -449,19 +600,27 @@
         const fGeslacht = document.getElementById('filterGeslacht').value;
         const fEchtVrn = document.getElementById('filterEchtgenoteVoornaam').value.toLowerCase().trim();
         const fEchtNm = document.getElementById('filterEchtgenoteNaam').value.toLowerCase().trim();
+        const fRelatiepad = document.getElementById('filterRelatiepad').value.toLowerCase().trim();
+        const fStappen = document.getElementById('filterStappen').value.trim();
         const fPlaats = document.getElementById('filterGeboorteplaats').value.toLowerCase().trim();
         const fGebJaar = document.getElementById('filterGeboortejaar').value.trim();
         const fHuwJaar = document.getElementById('filterHuwelijksjaar').value.trim();
         const fOverlJaar = document.getElementById('filterOverlijdensjaar').value.trim();
         const fKind = document.getElementById('filterKinderen').value.trim();
 
-        const filtered = allPersonsData.filter(p => {
-            if (fVoornaam && !p.voornaam.toLowerCase().includes(fVoornaam)) return false;
-            if (fNaam && !p.achternaam.toLowerCase().includes(fNaam)) return false;
+        currentFilteredPersons = allPersonsData.filter(p => {
+            const relPath = (precalculatedPaths[p.id] || "-").toLowerCase();
+            const stappenVal = precalculatedSteps[p.id] !== undefined ? String(precalculatedSteps[p.id]) : "";
+
+            if (fVoornaam && !p.voornaam.toLowerCase().startsWith(fVoornaam)) return false;
+            if (fNaam && !p.achternaam.toLowerCase().startsWith(fNaam)) return false;
             if (fGeslacht && p.geslacht !== fGeslacht) return false;
-            if (fEchtVrn && !p.echtgenoteVoornaam.toLowerCase().includes(fEchtVrn)) return false;
-            if (fEchtNm && !p.echtgenoteAchternaam.toLowerCase().includes(fEchtNm)) return false;
-            if (fPlaats && !p.geboorteplaats.toLowerCase().includes(fPlaats)) return false;
+            if (fEchtVrn && !p.echtgenoteVoornaam.toLowerCase().startsWith(fEchtVrn)) return false;
+            if (fEchtNm && !p.echtgenoteAchternaam.toLowerCase().startsWith(fEchtNm)) return false;
+            if (fRelatiepad && !relPath.startsWith(fRelatiepad)) return false;
+            if (fStappen && stappenVal !== fStappen) return false;
+            if (fPlaats && !p.geboorteplaats.toLowerCase().startsWith(fPlaats)) return false;
+
             if (fGebJaar && String(p.geboortejaar || '') !== fGebJaar) return false;
             if (fHuwJaar && String(p.huwelijksjaar || '') !== fHuwJaar) return false;
             if (fOverlJaar && String(p.overlijdensjaar || '') !== fOverlJaar) return false;
@@ -469,7 +628,45 @@
             return true;
         });
 
-        renderResults(filtered);
+        if (currentSortColumn) {
+            applySortingToFiltered();
+        }
+
+        renderResults(currentFilteredPersons);
+    }
+
+    function sortTable(column) {
+        if (currentSortColumn === column) {
+            sortDirection *= -1;
+        } else {
+            currentSortColumn = column;
+            sortDirection = 1;
+        }
+        applySortingToFiltered();
+        renderResults(currentFilteredPersons);
+    }
+
+    function applySortingToFiltered() {
+        currentFilteredPersons.sort((a, b) => {
+            let valA, valB;
+
+            if (currentSortColumn === 'relatiepad') {
+                valA = precalculatedPaths[a.id] || "-";
+                valB = precalculatedPaths[b.id] || "-";
+            } else if (currentSortColumn === 'stappen') {
+                valA = precalculatedSteps[a.id] !== undefined ? precalculatedSteps[a.id] : 9999;
+                valB = precalculatedSteps[b.id] !== undefined ? precalculatedSteps[b.id] : 9999;
+            } else {
+                valA = a[currentSortColumn] !== null && a[currentSortColumn] !== undefined ? a[currentSortColumn] : '';
+                valB = b[currentSortColumn] !== null && b[currentSortColumn] !== undefined ? b[currentSortColumn] : '';
+            }
+
+            if (typeof valA === 'number' && typeof valB === 'number') {
+                return (valA - valB) * sortDirection;
+            }
+
+            return String(valA).localeCompare(String(valB), 'nl', { numeric: true }) * sortDirection;
+        });
     }
 
     function resetFilters() {
@@ -478,11 +675,15 @@
         document.getElementById('filterGeslacht').value = '';
         document.getElementById('filterEchtgenoteVoornaam').value = '';
         document.getElementById('filterEchtgenoteNaam').value = '';
+        document.getElementById('filterRelatiepad').value = '';
+        document.getElementById('filterStappen').value = '';
         document.getElementById('filterGeboorteplaats').value = '';
         document.getElementById('filterGeboortejaar').value = '';
         document.getElementById('filterHuwelijksjaar').value = '';
         document.getElementById('filterOverlijdensjaar').value = '';
         document.getElementById('filterKinderen').value = '';
+        currentSortColumn = null;
+        sortDirection = 1;
         executeSearch();
     }
 
@@ -494,19 +695,23 @@
         document.getElementById('searchStats').innerText = `${persons.length} personen gevonden (Toont max. eerste ${limitedPersons.length})`;
 
         if (limitedPersons.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: #a0aec0;">Geen personen gevonden met deze filters.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; color: #a0aec0;">Geen personen gevonden met deze filters.</td></tr>';
             return;
         }
 
         limitedPersons.forEach(p => {
+            const relPath = precalculatedPaths[p.id] || "-";
+            const stappenCount = precalculatedSteps[p.id] !== undefined ? precalculatedSteps[p.id] : '-';
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong class="indi-link" title="Dubbelklik om in stamboom te openen" ondblclick="openStamboom('${p.id}')">${p.id}</strong></td>
+                <td><strong class="indi-link" title="Dubbelklik = Stamboom | Rechterklik = Opties" ondblclick="openStamboom('${p.id}')" oncontextmenu="handleContextMenu(event, '${p.id}')">${p.id}</strong></td>
                 <td>${p.voornaam || '-'}</td>
                 <td>${p.achternaam || '-'}</td>
                 <td><strong>${p.geslacht}</strong></td>
                 <td>${p.echtgenoteVoornaam || '-'}</td>
                 <td>${p.echtgenoteAchternaam || '-'}</td>
+                <td><code>${relPath}</code></td>
+                <td><span style="font-weight: bold; color: #2b6cb0;">${stappenCount}</span></td>
                 <td>${p.geboorteplaats || '-'}</td>
                 <td>${p.geboortejaar || '-'}</td>
                 <td>${p.huwelijksjaar || '-'}</td>
@@ -515,6 +720,26 @@
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    function handleContextMenu(event, personId) {
+        event.preventDefault();
+        contextMenuTargetId = personId;
+
+        const menu = document.getElementById('contextMenu');
+        menu.style.display = 'block';
+        menu.style.left = event.pageX + 'px';
+        menu.style.top = event.pageY + 'px';
+    }
+
+    function setAsMainPerson() {
+        if (contextMenuTargetId) {
+            currentMainPersonId = contextMenuTargetId;
+            document.getElementById('currentRootInfo').innerHTML = `📍 Huidige hoofdpersoon: <strong>${currentMainPersonId}</strong>`;
+            recalculateAllPaths();
+            executeSearch();
+        }
+        document.getElementById('contextMenu').style.display = 'none';
     }
 
     function openStamboom(personId) {
