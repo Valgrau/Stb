@@ -167,6 +167,10 @@
         <h3 style="margin-top: 0; color: #2c3e50; font-size: 1rem; margin-bottom: 15px;">🎛️ Live Filters (Inclusief Stappen)</h3>
         <div class="filter-grid">
             <div class="filter-group">
+                <label>Sosa Nr.</label>
+                <input type="number" id="filterSosa" placeholder="Bijv. 14">
+            </div>
+            <div class="filter-group">
                 <label>Voornaam</label>
                 <input type="text" id="filterVoornaam" placeholder="Begint met...">
             </div>
@@ -230,6 +234,7 @@
         <table class="data-table">
             <thead>
                 <tr>
+                    <th onclick="sortTable('sosa')">Sosa ↕</th>
                     <th onclick="sortTable('id')">ID ↕</th>
                     <th onclick="sortTable('voornaam')">Voornaam ↕</th>
                     <th onclick="sortTable('achternaam')">Naam ↕</th>
@@ -246,7 +251,7 @@
                 </tr>
             </thead>
             <tbody id="resultsTableBody">
-                <tr><td colspan="13" style="text-align: center; color: #a0aec0;">Gegevens laden...</td></tr>
+                <tr><td colspan="14" style="text-align: center; color: #a0aec0;">Gegevens laden...</td></tr>
             </tbody>
         </table>
     </div>
@@ -266,6 +271,7 @@
     let globalGraph = {};
     let precalculatedPaths = {};
     let precalculatedSteps = {};
+    let precalculatedSosa = {};
     let currentMainPersonId = "I5147";
     let contextMenuTargetId = null;
 
@@ -333,6 +339,7 @@
                     } else {
                         recalculateAllPaths();
                     }
+                    recalculateSosaNumbers();
 
                     document.getElementById('statusBanner').style.backgroundColor = '#e6fffa';
                     document.getElementById('statusBanner').style.borderColor = '#38b2ac';
@@ -473,8 +480,8 @@
                     if (c.tag === 'WIFE') wifeId = c.value;
                 });
 
-                if (husbId) families[husbId] = { marrYear, childrenCount, partnerId: wifeId };
-                if (wifeId) families[wifeId] = { marrYear, childrenCount, partnerId: husbId };
+                if (husbId) families[husbId] = { marrYear, childrenCount, partnerId: wifeId, familyId: rec.id };
+                if (wifeId) families[wifeId] = { marrYear, childrenCount, partnerId: husbId, familyId: rec.id };
 
                 if (husbId && wifeId && globalGraph[husbId] && globalGraph[wifeId]) {
                     globalGraph[husbId].push({ target: wifeId, type: 'P' });
@@ -484,17 +491,20 @@
                 childrenIds.forEach(childId => {
                     if (globalGraph[childId]) {
                         if (husbId && globalGraph[husbId]) {
-                            globalGraph[husbId].push({ target: childId, type: 'K' });
-                            globalGraph[childId].push({ target: husbId, type: 'V' });
+                            globalGraph[husbId].push({ target: childId, type: 'K', fam: rec.id, parent: husbId });
+                            globalGraph[childId].push({ target: husbId, type: 'V', fam: rec.id });
                         }
                         if (wifeId && globalGraph[wifeId]) {
-                            globalGraph[wifeId].push({ target: childId, type: 'K' });
-                            globalGraph[childId].push({ target: wifeId, type: 'M' });
+                            globalGraph[wifeId].push({ target: childId, type: 'K', fam: rec.id, parent: wifeId });
+                            globalGraph[childId].push({ target: wifeId, type: 'M', fam: rec.id });
                         }
                     }
                 });
             }
         });
+
+        // Store families lookup globally for Sosa traversal
+        window.familiesMap = families;
 
         allPersonsData = [];
         records.forEach(rec => {
@@ -556,6 +566,35 @@
         }
     }
 
+    function recalculateSosaNumbers() {
+        precalculatedSosa = {};
+        if (!currentMainPersonId) return;
+
+        // BFS queue storing [personId, sosaNumber]
+        let queue = [[currentMainPersonId, 1]];
+        precalculatedSosa[currentMainPersonId] = 1;
+        let visited = new Set([currentMainPersonId]);
+
+        while (queue.length > 0) {
+            let [currId, sosaNum] = queue.shift();
+            
+            // Look for parents via V (father) and M (mother) edges
+            for (let edge of (globalGraph[currId] || [])) {
+                if (edge.type === 'V' && !visited.has(edge.target)) {
+                    let parentSosa = sosaNum * 2;
+                    precalculatedSosa[edge.target] = parentSosa;
+                    visited.add(edge.target);
+                    queue.push([edge.target, parentSosa]);
+                } else if (edge.type === 'M' && !visited.has(edge.target)) {
+                    let parentSosa = (sosaNum * 2) + 1;
+                    precalculatedSosa[edge.target] = parentSosa;
+                    visited.add(edge.target);
+                    queue.push([edge.target, parentSosa]);
+                }
+            }
+        }
+    }
+
     function formatPathNotation(steps) {
         if (steps.length === 0) return "Hoofdpersoon";
         let normalized = steps.map(s => (s === 'M' || s === 'V') ? 'MV' : s);
@@ -595,6 +634,7 @@
     }
 
     function executeSearch() {
+        const fSosa = document.getElementById('filterSosa').value.trim();
         const fVoornaam = document.getElementById('filterVoornaam').value.toLowerCase().trim();
         const fNaam = document.getElementById('filterNaam').value.toLowerCase().trim();
         const fGeslacht = document.getElementById('filterGeslacht').value;
@@ -611,7 +651,9 @@
         currentFilteredPersons = allPersonsData.filter(p => {
             const relPath = (precalculatedPaths[p.id] || "-").toLowerCase();
             const stappenVal = precalculatedSteps[p.id] !== undefined ? String(precalculatedSteps[p.id]) : "";
+            const sosaVal = precalculatedSosa[p.id] !== undefined ? String(precalculatedSosa[p.id]) : "";
 
+            if (fSosa && sosaVal !== fSosa) return false;
             if (fVoornaam && !p.voornaam.toLowerCase().startsWith(fVoornaam)) return false;
             if (fNaam && !p.achternaam.toLowerCase().startsWith(fNaam)) return false;
             if (fGeslacht && p.geslacht !== fGeslacht) return false;
@@ -656,6 +698,9 @@
             } else if (currentSortColumn === 'stappen') {
                 valA = precalculatedSteps[a.id] !== undefined ? precalculatedSteps[a.id] : 9999;
                 valB = precalculatedSteps[b.id] !== undefined ? precalculatedSteps[b.id] : 9999;
+            } else if (currentSortColumn === 'sosa') {
+                valA = precalculatedSosa[a.id] !== undefined ? precalculatedSosa[a.id] : 999999;
+                valB = precalculatedSosa[b.id] !== undefined ? precalculatedSosa[b.id] : 999999;
             } else {
                 valA = a[currentSortColumn] !== null && a[currentSortColumn] !== undefined ? a[currentSortColumn] : '';
                 valB = b[currentSortColumn] !== null && b[currentSortColumn] !== undefined ? b[currentSortColumn] : '';
@@ -670,6 +715,7 @@
     }
 
     function resetFilters() {
+        document.getElementById('filterSosa').value = '';
         document.getElementById('filterVoornaam').value = '';
         document.getElementById('filterNaam').value = '';
         document.getElementById('filterGeslacht').value = '';
@@ -695,15 +741,17 @@
         document.getElementById('searchStats').innerText = `${persons.length} personen gevonden (Toont max. eerste ${limitedPersons.length})`;
 
         if (limitedPersons.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; color: #a0aec0;">Geen personen gevonden met deze filters.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="14" style="text-align: center; color: #a0aec0;">Geen personen gevonden met deze filters.</td></tr>';
             return;
         }
 
         limitedPersons.forEach(p => {
             const relPath = precalculatedPaths[p.id] || "-";
             const stappenCount = precalculatedSteps[p.id] !== undefined ? precalculatedSteps[p.id] : '-';
+            const sosaDisplay = precalculatedSosa[p.id] !== undefined ? precalculatedSosa[p.id] : '-';
             const tr = document.createElement('tr');
             tr.innerHTML = `
+                <td><strong style="color: #c05621;">${sosaDisplay}</strong></td>
                 <td><strong class="indi-link" title="Dubbelklik = Stamboom | Rechterklik = Opties" ondblclick="openStamboom('${p.id}')" oncontextmenu="handleContextMenu(event, '${p.id}')">${p.id}</strong></td>
                 <td>${p.voornaam || '-'}</td>
                 <td>${p.achternaam || '-'}</td>
@@ -737,6 +785,7 @@
             currentMainPersonId = contextMenuTargetId;
             document.getElementById('currentRootInfo').innerHTML = `📍 Huidige hoofdpersoon: <strong>${currentMainPersonId}</strong>`;
             recalculateAllPaths();
+            recalculateSosaNumbers();
             executeSearch();
         }
         document.getElementById('contextMenu').style.display = 'none';

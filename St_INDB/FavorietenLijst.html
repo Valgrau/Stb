@@ -680,8 +680,8 @@
 
                     let parts = line.split(';');
                     if (parts.length >= 2) {
-                        let name = parts[0].replace(/^["']|["']$/g, '').trim();
-                        let idsRaw = parts[1].replace(/^["']|["']$/g, '').trim();
+                        let name = parts[0] ? parts[0].replace(/^["']|["']$/g, '').trim() : '';
+                        let idsRaw = parts[1] ? parts[1].replace(/^["']|["']$/g, '').trim() : '';
                         let ids = idsRaw ? idsRaw.split(',').map(id => id.trim()).filter(Boolean) : [];
                         let date = parts[2] ? parts[2].replace(/^["']|["']$/g, '').trim() : new Date().toISOString();
 
@@ -704,8 +704,12 @@
                     }
                 }
 
-                alert(`✅ ${importedCount} favorietenlijst(en) succesvol geïmporteerd uit Excel!`);
-                loadAndRenderFavorites();
+                if (importedCount > 0) {
+                    alert(`✅ ${importedCount} favorietenlijst(en) succesvol geïmporteerd uit Excel!`);
+                    loadAndRenderFavorites();
+                } else {
+                    alert('⚠️ Er zijn geen geldige lijsten gevonden om te importeren in dit bestand.');
+                }
             } catch (err) {
                 console.error("Fout bij importeren:", err);
                 alert("Fout bij het inlezen van het Excel-bestand.");
