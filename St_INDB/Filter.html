@@ -261,6 +261,10 @@
     <div class="context-menu-item" onclick="setAsMainPerson()">⭐ Maak hoofdpersoon</div>
 </div>
 
+<footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
+    Laatste update van deze pagina: <span id="lastMod"></span>
+</footer>
+
 <script>
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
@@ -325,6 +329,9 @@
     }
 
     window.addEventListener('DOMContentLoaded', async () => {
+        // Automatisch de laatste wijzigingsdatum van de pagina instellen[cite: 1]
+        document.getElementById('lastMod').innerText = document.lastModified;
+
         try {
             updateStatusStep('⏳ Bezig met inlezen van IndexedDB...');
             const stored = await getStoredDataFromIDB();
@@ -503,7 +510,6 @@
             }
         });
 
-        // Store families lookup globally for Sosa traversal
         window.familiesMap = families;
 
         allPersonsData = [];
@@ -570,7 +576,6 @@
         precalculatedSosa = {};
         if (!currentMainPersonId) return;
 
-        // BFS queue storing [personId, sosaNumber]
         let queue = [[currentMainPersonId, 1]];
         precalculatedSosa[currentMainPersonId] = 1;
         let visited = new Set([currentMainPersonId]);
@@ -578,7 +583,6 @@
         while (queue.length > 0) {
             let [currId, sosaNum] = queue.shift();
             
-            // Look for parents via V (father) and M (mother) edges
             for (let edge of (globalGraph[currId] || [])) {
                 if (edge.type === 'V' && !visited.has(edge.target)) {
                     let parentSosa = sosaNum * 2;
