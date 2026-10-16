@@ -134,7 +134,7 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             border-radius: 6px;
             padding: 5px 0;
-            min-width: 160px;
+            min-width: 180px;
         }
         .context-menu-item {
             padding: 8px 15px;
@@ -243,6 +243,7 @@
                     <th onclick="sortTable('echtgenoteAchternaam')">Nm. Echtg. ↕</th>
                     <th onclick="sortTable('relatiepad')">Relatiepad ↕</th>
                     <th onclick="sortTable('stappen')">Stappen ↕</th>
+                    <th onclick="sortTable('bloedv')">Bloedv. ↕</th>
                     <th onclick="sortTable('geboorteplaats')">Geb.pl. ↕</th>
                     <th onclick="sortTable('geboortejaar')">Geb.jr ↕</th>
                     <th onclick="sortTable('huwelijksjaar')">Huw.jr ↕</th>
@@ -251,7 +252,7 @@
                 </tr>
             </thead>
             <tbody id="resultsTableBody">
-                <tr><td colspan="14" style="text-align: center; color: #a0aec0;">Gegevens laden...</td></tr>
+                <tr><td colspan="15" style="text-align: center; color: #a0aec0;">Gegevens laden...</td></tr>
             </tbody>
         </table>
     </div>
@@ -259,6 +260,7 @@
 
 <div id="contextMenu">
     <div class="context-menu-item" onclick="setAsMainPerson()">⭐ Maak hoofdpersoon</div>
+    <div class="context-menu-item" onclick="openRelatiesRand()">🔗 Naar RelatiesRand (Persoon 2)</div>
 </div>
 
 <footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
@@ -276,6 +278,7 @@
     let precalculatedPaths = {};
     let precalculatedSteps = {};
     let precalculatedSosa = {};
+    let precalculatedBloedv = {};
     let currentMainPersonId = "I5147";
     let contextMenuTargetId = null;
 
@@ -283,7 +286,8 @@
     let sortDirection = 1;
 
     function updateStatusStep(msg) {
-        document.getElementById('statusText').innerHTML = msg;
+        const el = document.getElementById('statusText');
+        if (el) el.innerHTML = msg;
     }
 
     function openGedcomDB() {
@@ -300,66 +304,56 @@
         });
     }
 
-    async function getStoredDataFromIDB() {
+    async function getStoredGedcomText() {
         const db = await openGedcomDB();
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             const transaction = db.transaction(STORE_NAME, 'readonly');
             const store = transaction.objectStore(STORE_NAME);
-            
-            let result = {};
-            let resolvedCount = 0;
-
-            const reqData = store.get('gedcomData');
-            reqData.onsuccess = () => { result.gedcomData = reqData.result; checkDone(); };
-            reqData.onerror = () => { result.gedcomData = null; checkDone(); };
-
-            const reqPaths = store.get('precalculatedPaths');
-            reqPaths.onsuccess = () => { result.precalculatedPaths = reqPaths.result; checkDone(); };
-            reqPaths.onerror = () => { result.precalculatedPaths = null; checkDone(); };
-
-            const reqSteps = store.get('precalculatedSteps');
-            reqSteps.onsuccess = () => { result.precalculatedSteps = reqSteps.result; checkDone(); };
-            reqSteps.onerror = () => { result.precalculatedSteps = null; checkDone(); };
-
-            function checkDone() {
-                resolvedCount++;
-                if (resolvedCount === 3) resolve(result);
-            }
+            const req = store.get('gedcomData');
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => resolve(null);
         });
     }
 
     window.addEventListener('DOMContentLoaded', async () => {
-        // Automatisch de laatste wijzigingsdatum van de pagina instellen[cite: 1]
-        document.getElementById('lastMod').innerText = document.lastModified;
+        const lm = document.getElementById('lastMod');
+        if (lm) lm.innerText = document.lastModified;
 
         try {
             updateStatusStep('⏳ Bezig met inlezen van IndexedDB...');
-            const stored = await getStoredDataFromIDB();
-            if (stored.gedcomData) {
-                updateStatusStep('⏳ Bezig met parsen van stamboomdata...');
-                setTimeout(() => {
-                    parseGedcomData(stored.gedcomData);
-                    
-                    if (stored.precalculatedPaths && currentMainPersonId === "I5147") {
-                        precalculatedPaths = stored.precalculatedPaths;
-                        precalculatedSteps = stored.precalculatedSteps || {};
-                    } else {
-                        recalculateAllPaths();
-                    }
-                    recalculateSosaNumbers();
+            const gedcomText = await getStoredGedcomText();
 
-                    document.getElementById('statusBanner').style.backgroundColor = '#e6fffa';
-                    document.getElementById('statusBanner').style.borderColor = '#38b2ac';
-                    document.getElementById('statusBanner').style.color = '#234e52';
-                    updateStatusStep('✅ GEDCOM data & relatiepaden succesvol geladen (' + allPersonsData.length + ' personen).');
-                    executeSearch();
+            if (gedcomText) {
+                updateStatusStep('⏳ Bezig met verwerken stamboomdata...');
+
+                setTimeout(() => {
+                    try {
+                        parseGedcomData(gedcomText);
+
+                        updateStatusStep('⏳ Bezig met berekenen relaties & paden...');
+                        recalculateAllPaths();
+                        recalculateSosaNumbers();
+                        generateBloedvInfo();
+
+                        const banner = document.getElementById('statusBanner');
+                        if (banner) {
+                            banner.style.backgroundColor = '#e6fffa';
+                            banner.style.borderColor = '#38b2ac';
+                            banner.style.color = '#234e52';
+                        }
+                        updateStatusStep('✅ Gegevens succesvol geladen (' + allPersonsData.length + ' personen).');
+                        executeSearch();
+                    } catch (innerErr) {
+                        console.error("Parse/Bereken fout:", innerErr);
+                        updateStatusStep('⚠️ Fout bij verwerken data: ' + innerErr.message);
+                    }
                 }, 50);
             } else {
                 updateStatusStep('⚠️ Geen stamboom gevonden in IndexedDB. Ga eerst terug naar index.html.');
             }
         } catch (err) {
-            console.error("Fout:", err);
-            updateStatusStep('⚠️ Fout bij het openen van IndexedDB.');
+            console.error("IDB Fout:", err);
+            updateStatusStep('⚠️ Fout bij openen IndexedDB: ' + err.message);
         }
 
         const inputs = document.querySelectorAll('.search-box input, .search-box select');
@@ -369,7 +363,8 @@
         });
 
         document.addEventListener('click', () => {
-            document.getElementById('contextMenu').style.display = 'none';
+            const menu = document.getElementById('contextMenu');
+            if (menu) menu.style.display = 'none';
         });
     });
 
@@ -572,6 +567,31 @@
         }
     }
 
+    function generateBloedvInfo() {
+        precalculatedBloedv = {};
+        Object.keys(precalculatedPaths).forEach(id => {
+            let pathStr = precalculatedPaths[id];
+            
+            if (!pathStr || pathStr === "-") {
+                precalculatedBloedv[id] = "G";
+            } else if (id === currentMainPersonId || pathStr === "Hoofdpersoon" || !pathStr.includes('P')) {
+                precalculatedBloedv[id] = "B";
+            } else {
+                let parts = pathStr.split('-');
+                let changes = 0;
+                let lastType = "";
+                parts.forEach(part => {
+                    let cleaned = part.replace(/[0-9]/g, '');
+                    if (cleaned && cleaned !== lastType) {
+                        if (lastType !== "") changes++;
+                        lastType = cleaned;
+                    }
+                });
+                precalculatedBloedv[id] = changes > 0 ? String(changes) : "B";
+            }
+        });
+    }
+
     function recalculateSosaNumbers() {
         precalculatedSosa = {};
         if (!currentMainPersonId) return;
@@ -582,7 +602,6 @@
 
         while (queue.length > 0) {
             let [currId, sosaNum] = queue.shift();
-            
             for (let edge of (globalGraph[currId] || [])) {
                 if (edge.type === 'V' && !visited.has(edge.target)) {
                     let parentSosa = sosaNum * 2;
@@ -705,6 +724,9 @@
             } else if (currentSortColumn === 'sosa') {
                 valA = precalculatedSosa[a.id] !== undefined ? precalculatedSosa[a.id] : 999999;
                 valB = precalculatedSosa[b.id] !== undefined ? precalculatedSosa[b.id] : 999999;
+            } else if (currentSortColumn === 'bloedv') {
+                valA = precalculatedBloedv[a.id] || "G";
+                valB = precalculatedBloedv[b.id] || "G";
             } else {
                 valA = a[currentSortColumn] !== null && a[currentSortColumn] !== undefined ? a[currentSortColumn] : '';
                 valB = b[currentSortColumn] !== null && b[currentSortColumn] !== undefined ? b[currentSortColumn] : '';
@@ -745,7 +767,7 @@
         document.getElementById('searchStats').innerText = `${persons.length} personen gevonden (Toont max. eerste ${limitedPersons.length})`;
 
         if (limitedPersons.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="14" style="text-align: center; color: #a0aec0;">Geen personen gevonden met deze filters.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="15" style="text-align: center; color: #a0aec0;">Geen personen gevonden met deze filters.</td></tr>';
             return;
         }
 
@@ -753,6 +775,12 @@
             const relPath = precalculatedPaths[p.id] || "-";
             const stappenCount = precalculatedSteps[p.id] !== undefined ? precalculatedSteps[p.id] : '-';
             const sosaDisplay = precalculatedSosa[p.id] !== undefined ? precalculatedSosa[p.id] : '-';
+            const bloedvVal = precalculatedBloedv[p.id] || "G";
+            const isBloed = bloedvVal === "B";
+            const isGeen = bloedvVal === "G";
+            
+            let bloedvColor = isBloed ? '#38a169' : (isGeen ? '#a0aec0' : '#d69e2e');
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong style="color: #c05621;">${sosaDisplay}</strong></td>
@@ -764,6 +792,7 @@
                 <td>${p.echtgenoteAchternaam || '-'}</td>
                 <td><code>${relPath}</code></td>
                 <td><span style="font-weight: bold; color: #2b6cb0;">${stappenCount}</span></td>
+                <td><span style="font-weight: bold; color: ${bloedvColor};">${bloedvVal}</span></td>
                 <td>${p.geboorteplaats || '-'}</td>
                 <td>${p.geboortejaar || '-'}</td>
                 <td>${p.huwelijksjaar || '-'}</td>
@@ -790,7 +819,16 @@
             document.getElementById('currentRootInfo').innerHTML = `📍 Huidige hoofdpersoon: <strong>${currentMainPersonId}</strong>`;
             recalculateAllPaths();
             recalculateSosaNumbers();
+            generateBloedvInfo();
             executeSearch();
+        }
+        document.getElementById('contextMenu').style.display = 'none';
+    }
+
+    function openRelatiesRand() {
+        if (contextMenuTargetId) {
+            sessionStorage.setItem('persoon2Id', contextMenuTargetId);
+            window.location.href = 'RelatiesRand.html';
         }
         document.getElementById('contextMenu').style.display = 'none';
     }

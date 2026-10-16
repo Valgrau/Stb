@@ -158,14 +158,6 @@
     </style>
 </head>
 
-<footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
-    Laatste update van deze pagina: <span id="lastMod"></span>
-</footer>
-
-<script>
-    // Toont automatisch de bewerkingsdatum van dit specifieke HTML-bestand
-    document.getElementById('lastMod').innerText = document.lastModified;
-</script>
 <body>
 
 <h2>🩸 Relatienetwerk & Bloedverwantschap</h2>
@@ -228,7 +220,13 @@
     </div>
 </div>
 
+<footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
+    Laatste update van deze pagina: <span id="lastMod"></span>
+</footer>
+
 <script type="text/javascript">
+    document.getElementById('lastMod').innerText = document.lastModified;
+
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
     const FAV_STORE_NAME = 'favoritesStore';
@@ -640,6 +638,14 @@
             } else if (pIds.length > 0) {
                 document.getElementById("targetId1").value = pIds[0];
                 document.getElementById("target1").value = personsDB[pIds[0]].name;
+            }
+
+            // Automatisch Persoon 2 vullen vanuit sessionStorage indien aanwezig
+            var storedP2 = sessionStorage.getItem('persoon2Id');
+            if (storedP2 && personsDB[storedP2]) {
+                document.getElementById("targetId2").value = storedP2;
+                document.getElementById("target2").value = personsDB[storedP2].name;
+                sessionStorage.removeItem('persoon2Id');
             }
 
             calculateAndRender();
