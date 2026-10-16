@@ -784,7 +784,7 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong style="color: #c05621;">${sosaDisplay}</strong></td>
-                <td><strong class="indi-link" title="Dubbelklik = Stamboom | Rechterklik = Opties" ondblclick="openStamboom('${p.id}')" oncontextmenu="handleContextMenu(event, '${p.id}')">${p.id}</strong></td>
+                <td><strong class="indi-link" title="Dubbelklik = Naar RelatiesRand | Rechterklik = Opties" ondblclick="openRelatiesRandFromId('${p.id}')" oncontextmenu="handleContextMenu(event, '${p.id}')">${p.id}</strong></td>
                 <td>${p.voornaam || '-'}</td>
                 <td>${p.achternaam || '-'}</td>
                 <td><strong>${p.geslacht}</strong></td>
@@ -833,9 +833,10 @@
         document.getElementById('contextMenu').style.display = 'none';
     }
 
-    function openStamboom(personId) {
-        sessionStorage.setItem('selectedPersonId', personId);
-        window.location.href = 'UitklapStamboom.html';
+    // Specifieke hulpfunctie voor dubbelklik om direct RelatiesRand te openen voor de geklikte persoon
+    function openRelatiesRandFromId(personId) {
+        sessionStorage.setItem('persoon2Id', personId);
+        window.location.href = 'RelatiesRand.html';
     }
 </script>
 
