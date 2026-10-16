@@ -346,7 +346,7 @@
 
     var personsDB = {};
     var currentMode = 'blood';
-    var lastSelectedPathIds = []; // Opslaan van de ID's van het geselecteerde pad
+    var lastSelectedPathIds = []; 
     var lastSelectedPathNames = []; 
     var lastPathStartName = "";
     var lastPathEndName = "";
@@ -561,7 +561,6 @@
                         currentIndi.gender = val.trim().toUpperCase();
                     } else if (tag === 'NAME') {
                         currentIndi.name = val.replace(/\//g, '').trim();
-                        // Achternaam filteren uit GEDCOM formaat (tussen schuine strepen)
                         var surnameMatch = val.match(/\/([^/]+)\/l?/);
                         if (surnameMatch && surnameMatch[1]) {
                             currentIndi.surname = surnameMatch[1].trim();
@@ -976,7 +975,7 @@
         }
         if (!targetPath) return;
 
-        lastSelectedPathIds = targetPath; // Opslaan voor de familienamen pop-up
+        lastSelectedPathIds = targetPath;
 
         var startPerson = personsDB[startId];
         var endPerson = personsDB[endId];
@@ -1049,23 +1048,35 @@
             return;
         }
 
-        // Verzamel unieke achternamen uit het actieve pad
-        var surnamesSet = new Set();
+        // Stap 1: Tel hoe vaak elke familienaam voorkomt in het pad
+        var surnameCounts = {};
         lastSelectedPathIds.forEach(id => {
             var p = personsDB[id];
             if (p && p.surname) {
-                surnamesSet.add(p.surname);
+                var s = p.surname;
+                surnameCounts[s] = (surnameCounts[s] || 0) + 1;
             }
         });
 
-        var surnamesArray = Array.from(surnamesSet).sort();
+        // Stap 2: Omzetten naar een array om te kunnen sorteren
+        var surnameArray = Object.keys(surnameCounts).map(surname => {
+            return { name: surname, count: surnameCounts[surname] };
+        });
 
-        if (surnamesArray.length === 0) {
+        // Stap 3: Sorteren van hoog naar laag op aantal (count), bij gelijke stand alfabetisch op achternaam
+        surnameArray.sort(function(a, b) {
+            if (b.count !== a.count) {
+                return b.count - a.count; // Hoogste aantal eerst
+            }
+            return a.name.localeCompare(b.name, 'nl'); // Alfabetisch bij gelijk aantal
+        });
+
+        if (surnameArray.length === 0) {
             listContainer.innerHTML = "Geen familienamen gevonden in dit pad.";
         } else {
-            var html = "<strong>Gevonden familienamen in dit pad (" + surnamesArray.length + "):</strong><br><ul style='margin: 5px 0 0 20px; padding: 0;'>";
-            surnamesArray.forEach(name => {
-                html += "<li>" + name + "</li>";
+            var html = "<strong>Familienamen in dit pad (gesorteerd op frequentie):</strong><br><ul style='margin: 5px 0 0 20px; padding: 0;'>";
+            surnameArray.forEach(item => {
+                html += `<li><strong>${item.name}</strong>: ${item.count} ${item.count === 1 ? 'keer' : 'keer'}</li>`;
             });
             html += "</ul>";
             listContainer.innerHTML = html;
