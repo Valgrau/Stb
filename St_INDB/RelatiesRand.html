@@ -110,6 +110,7 @@
         .btn-mode.active { background-color: #0D47A1; }
         .btn-file { background-color: #FF9800; color: white; }
         .btn-copy { background-color: #673AB7; color: white; }
+        .btn-names { background-color: #00897B; color: white; }
         
         .num-box {
             padding: 5px;
@@ -130,16 +131,56 @@
             font-weight: bold;
             color: #1565C0;
         }
-        .drop-zone {
-            border: 2px dashed #2196F3;
-            background-color: #E3F2FD;
-            padding: 15px;
-            text-align: center;
-            margin-bottom: 8px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
+        
+        /* Modal Popup Stijlen */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
         }
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .modal-header {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .close-btn {
+            cursor: pointer;
+            font-size: 18px;
+            color: #aaa;
+        }
+        .close-btn:hover { color: #000; }
+        .modal-body {
+            font-size: 13px;
+            line-height: 1.5;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #e1e8ed;
+        }
+
         .legend {
             position: absolute;
             bottom: 15px;
@@ -198,8 +239,9 @@
         <button class="btn btn-calc" onclick="calculateAndRender()">⚡ Berekenen</button>
         <button id="btnBlood" class="btn btn-mode active" onclick="setMode('blood')">Zuiver Bloed</button>
         <button id="btnShortest" class="btn btn-mode" onclick="setMode('shortest')">Kortste Route</button>
-        <button class="btn btn-file" onclick="window.location.href='index.html'">🏠 Startpagina</button>
+        <button class="btn btn-names" onclick="showFamilyNamesPopup()">🏷️ Familienamen</button>
         <button class="btn btn-copy" onclick="copySelectedPath()">📋 Kopieer Pad</button>
+        <button class="btn btn-file" onclick="window.location.href='index.html'">🏠 Startpagina</button>
     </div>
 </div>
 
@@ -217,6 +259,20 @@
         <hr style="margin: 4px 0;">
         <div class="legend-item"><span style="color:#4CAF50; font-weight:bold; margin-right:5px;">➔</span> Ouder-kind</div>
         <div class="legend-item"><span style="color:#E91E63; font-weight:bold; margin-right:5px;">---</span> Partner</div>
+    </div>
+</div>
+
+<!-- Pop-up Modal voor Familienamen -->
+<div id="familyNamesModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>🏷️ Familienamen in geselecteerd pad</span>
+            <span class="close-btn" onclick="closeFamilyNamesPopup()">&times;</span>
+        </div>
+        <div class="modal-body" id="modalFamilyNamesList">
+            Geen pad geselecteerd. Klik op een pad in het netwerk om de namen te tonen.
+        </div>
+        <button class="btn btn-calc" style="width: 100%;" onclick="closeFamilyNamesPopup()">Sluiten</button>
     </div>
 </div>
 
@@ -290,6 +346,7 @@
 
     var personsDB = {};
     var currentMode = 'blood';
+    var lastSelectedPathIds = []; // Opslaan van de ID's van het geselecteerde pad
     var lastSelectedPathNames = []; 
     var lastPathStartName = "";
     var lastPathEndName = "";
@@ -475,6 +532,7 @@
                     currentIndi = {
                         id: id,
                         name: 'Onbekend',
+                        surname: '',
                         gender: 'U',
                         birt: '',
                         deat: '',
@@ -503,6 +561,14 @@
                         currentIndi.gender = val.trim().toUpperCase();
                     } else if (tag === 'NAME') {
                         currentIndi.name = val.replace(/\//g, '').trim();
+                        // Achternaam filteren uit GEDCOM formaat (tussen schuine strepen)
+                        var surnameMatch = val.match(/\/([^/]+)\/l?/);
+                        if (surnameMatch && surnameMatch[1]) {
+                            currentIndi.surname = surnameMatch[1].trim();
+                        } else {
+                            var partsName = currentIndi.name.split(' ');
+                            currentIndi.surname = partsName[partsName.length - 1] || 'Onbekend';
+                        }
                     } else if (tag === 'FAMC') {
                         var fId = val.replace(/@/g, '').trim();
                         if (fId) currentIndi.famc.push(fId);
@@ -640,7 +706,6 @@
                 document.getElementById("target1").value = personsDB[pIds[0]].name;
             }
 
-            // Automatisch Persoon 2 vullen vanuit sessionStorage indien aanwezig
             var storedP2 = sessionStorage.getItem('persoon2Id');
             if (storedP2 && personsDB[storedP2]) {
                 document.getElementById("targetId2").value = storedP2;
@@ -791,6 +856,7 @@
         nodesDataSet.clear();
         edgesDataSet.clear();
         currentAdjMap = {};
+        lastSelectedPathIds = [];
         lastSelectedPathNames = [];
         lastPathStartName = "";
         lastPathEndName = "";
@@ -910,6 +976,8 @@
         }
         if (!targetPath) return;
 
+        lastSelectedPathIds = targetPath; // Opslaan voor de familienamen pop-up
+
         var startPerson = personsDB[startId];
         var endPerson = personsDB[endId];
         lastPathStartName = startPerson ? startPerson.name : startId;
@@ -957,6 +1025,7 @@
     }
 
     function resetHighlighting() {
+        lastSelectedPathIds = [];
         lastSelectedPathNames = [];
         lastPathStartName = "";
         lastPathEndName = "";
@@ -968,6 +1037,45 @@
         edgesDataSet.forEach(function(e) {
             edgesDataSet.update({ id: e.id, color: { color: e.label === "ouder van" ? "#4CAF50" : "#E91E63" }, width: 1 });
         });
+    }
+
+    function showFamilyNamesPopup() {
+        var modal = document.getElementById('familyNamesModal');
+        var listContainer = document.getElementById('modalFamilyNamesList');
+
+        if (!lastSelectedPathIds || lastSelectedPathIds.length === 0) {
+            listContainer.innerHTML = "⚠️ Selecteer eerst 2 personen in het netwerk door er op te klikken zodat het pad oplicht.";
+            modal.style.display = "flex";
+            return;
+        }
+
+        // Verzamel unieke achternamen uit het actieve pad
+        var surnamesSet = new Set();
+        lastSelectedPathIds.forEach(id => {
+            var p = personsDB[id];
+            if (p && p.surname) {
+                surnamesSet.add(p.surname);
+            }
+        });
+
+        var surnamesArray = Array.from(surnamesSet).sort();
+
+        if (surnamesArray.length === 0) {
+            listContainer.innerHTML = "Geen familienamen gevonden in dit pad.";
+        } else {
+            var html = "<strong>Gevonden familienamen in dit pad (" + surnamesArray.length + "):</strong><br><ul style='margin: 5px 0 0 20px; padding: 0;'>";
+            surnamesArray.forEach(name => {
+                html += "<li>" + name + "</li>";
+            });
+            html += "</ul>";
+            listContainer.innerHTML = html;
+        }
+
+        modal.style.display = "flex";
+    }
+
+    function closeFamilyNamesPopup() {
+        document.getElementById('familyNamesModal').style.display = "none";
     }
 
     function copySelectedPath() {
