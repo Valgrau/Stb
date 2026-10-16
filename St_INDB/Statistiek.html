@@ -4,6 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volledig GEDCOM Statistieken Dashboard</title>
+	
+	
+	 <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VVVJZ8DBR5"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-VVVJZ8DBR5');
+    </script>
+	
+	
+	
+	
+	
+	
+	
+	
+	
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -13,7 +33,7 @@
             color: #333;
         }
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
             background: #ffffff;
             padding: 25px;
@@ -233,13 +253,85 @@
             </tr>
         </tbody>
     </table>
+
+    <!-- TOP 10 SECTIE -->
+    <h2 class="section-title">🏆 Top 10 Overzichten</h2>
+    
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🏝️ Top 10 Eilanden (Familie-eilanden)</h3>
+            <table class="data-table">
+                <thead><tr><th>Eiland / Component</th><th style="text-align: right;">Aantal personen</th></tr></thead>
+                <tbody id="topIslandsBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">📜 Top 10 Familienamen</h3>
+            <table class="data-table">
+                <thead><tr><th>Familienaam</th><th style="text-align: right;">Aantal</th></tr></thead>
+                <tbody id="topSurnamesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🏷️ Top 10 Voornamen</h3>
+            <table class="data-table">
+                <thead><tr><th>Voornaam</th><th style="text-align: right;">Aantal</th></tr></thead>
+                <tbody id="topGivenNamesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">📅 Top 10 Geboortejaren</h3>
+            <table class="data-table">
+                <thead><tr><th>Geboortejaar</th><th style="text-align: right;">Aantal</th></tr></thead>
+                <tbody id="topBirthYearsBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">💍 Top 10 Huwelijksleeftijden</h3>
+            <table class="data-table">
+                <thead><tr><th>Leeftijd bij Huwelijk</th><th style="text-align: right;">Aantal personen</th></tr></thead>
+                <tbody id="topMarriageAgesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🕊️ Top 10 Ouderdom bij Overlijden</h3>
+            <table class="data-table">
+                <thead><tr><th>Leeftijd bij Overlijden</th><th style="text-align: right;">Aantal personen</th></tr></thead>
+                <tbody id="topDeathAgesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">👶 Top 10 Leeftijd ouders bij Eerste Kind</h3>
+            <table class="data-table">
+                <thead><tr><th>Leeftijd ouder</th><th style="text-align: right;">Aantal</th></tr></thead>
+                <tbody id="topFirstChildAgeBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🍼 Top 10 Leeftijd ouders bij Laatste Kind</h3>
+            <table class="data-table">
+                <thead><tr><th>Leeftijd ouder</th><th style="text-align: right;">Aantal</th></tr></thead>
+                <tbody id="topLastChildAgeBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
 <script>
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
     const FAV_STORE_NAME = 'favoritesStore';
-    const DB_VERSION = 4; // Bijgewerkt naar versie 4 om overeen te komen met de andere scripts
+    const DB_VERSION = 4;
 
     function openGedcomDB() {
         return new Promise((resolve, reject) => {
@@ -455,6 +547,41 @@
         };
     }
 
+    function parsePersonName(item) {
+        let fullName = item.NAME || '';
+        if (!fullName && item.children) {
+            const nameNode = item.children.find(c => c.tag === 'NAME');
+            if (nameNode) fullName = nameNode.value || '';
+        }
+
+        let voornaam = '';
+        let achternaam = '';
+
+        if (fullName.includes('/')) {
+            let parts = fullName.split('/');
+            voornaam = parts[0].trim();
+            achternaam = parts[1] ? parts[1].trim() : '';
+        } else {
+            voornaam = fullName.trim();
+        }
+
+        if (item.children) {
+            item.children.forEach(c => {
+                if (c.tag === 'NAME' && c.children) {
+                    c.children.forEach(sub => {
+                        if (sub.tag === 'GIVN' && sub.value) voornaam = sub.value.trim();
+                        if (sub.tag === 'SURN' && sub.value) achternaam = sub.value.trim();
+                    });
+                }
+            });
+        }
+
+        return {
+            voornaam: voornaam || 'Onbekend',
+            achternaam: achternaam || 'Onbekend'
+        };
+    }
+
     function processGedcomData(data) {
         const items = extractItems(data);
 
@@ -477,17 +604,79 @@
         let familySizes = [];
         let marriedFamiliesCount = 0;
 
+        // Top 10 datastructureren
+        let surnamesCount = {};
+        let givenNamesCount = {};
+        let birthYearsCount = {};
+        let marriageAgesCount = {};
+        let deathAgesCount = {};
+        let firstChildAgesCount = {};
+        let lastChildAgesCount = {};
+
         const personsMap = {};
         const familiesMap = {};
+        const graph = {};
 
         items.forEach(item => {
             const tag = (item.TAG || '').toUpperCase();
             const id = extractId(item);
             if (id) {
-                if (tag === 'INDI') personsMap[id] = item;
+                if (tag === 'INDI') {
+                    personsMap[id] = item;
+                    graph[id] = [];
+                }
                 if (tag === 'FAM') familiesMap[id] = item;
             }
         });
+
+        // Graaf opbouwen voor eilanden (connected components)
+        items.forEach(item => {
+            const tag = (item.TAG || '').toUpperCase();
+            if (tag === 'FAM') {
+                const members = extractFamMembers(item);
+                const parents = [members.husb, members.wife].filter(Boolean);
+
+                parents.forEach(pId => {
+                    members.children.forEach(cId => {
+                        if (graph[pId] && graph[cId]) {
+                            if (!graph[pId].includes(cId)) graph[pId].push(cId);
+                            if (!graph[cId].includes(pId)) graph[cId].push(pId);
+                        }
+                    });
+                });
+
+                parents.forEach(p1 => {
+                    parents.forEach(p2 => {
+                        if (p1 !== p2 && graph[p1] && graph[p2]) {
+                            if (!graph[p1].includes(p2)) graph[p1].push(p2);
+                        }
+                    });
+                });
+            }
+        });
+
+        // Bepaal eilanden (componenten)
+        let visited = new Set();
+        let islands = [];
+        Object.keys(graph).forEach(id => {
+            if (!visited.has(id)) {
+                let islandSize = 0;
+                let queue = [id];
+                visited.add(id);
+                while (queue.length > 0) {
+                    let curr = queue.shift();
+                    islandSize++;
+                    (graph[curr] || []).forEach(neighbor => {
+                        if (!visited.has(neighbor)) {
+                            visited.add(neighbor);
+                            queue.push(neighbor);
+                        }
+                    });
+                }
+                islands.push(islandSize);
+            }
+        });
+        islands.sort((a, b) => b - a);
 
         items.forEach(item => {
             const tag = (item.TAG || '').toUpperCase();
@@ -502,11 +691,17 @@
                 if (isMale) totalMen++;
                 else if (isFemale) totalWomen++;
 
+                const nameObj = parsePersonName(item);
+                surnamesCount[nameObj.achternaam] = (surnamesCount[nameObj.achternaam] || 0) + 1;
+                givenNamesCount[nameObj.voornaam] = (givenNamesCount[nameObj.voornaam] || 0) + 1;
+
                 const birth = extractEventYearAndPlace(item, 'BIRT');
                 const death = extractEventYearAndPlace(item, 'DEAT');
 
                 if (birth.year !== null) {
                     withBirthCount++;
+                    birthYearsCount[birth.year] = (birthYearsCount[birth.year] || 0) + 1;
+
                     const century = Math.floor(birth.year / 100) + 1;
                     const startYear = (century - 1) * 100;
                     const centuryKey = `${century}e eeuw (${startYear} - ${startYear + 99})`;
@@ -529,6 +724,7 @@
                     if (age >= 0 && age <= 120) {
                         if (isMale) agesMen.push(age);
                         else if (isFemale) agesWomen.push(age);
+                        deathAgesCount[age] = (deathAgesCount[age] || 0) + 1;
                     }
                 }
 
@@ -540,25 +736,55 @@
 
                 familySizes.push(famChildrenCount);
 
+                // Bereken leeftijd van ouders bij eerste en laatste kind
+                if (members.children.length > 0) {
+                    let childBirthYears = members.children.map(cId => {
+                        if (personsMap[cId]) {
+                            return extractEventYearAndPlace(personsMap[cId], 'BIRT').year;
+                        }
+                        return null;
+                    }).filter(y => y !== null).sort((a, b) => a - b);
+
+                    if (childBirthYears.length > 0) {
+                        let firstChildYear = childBirthYears[0];
+                        let lastChildYear = childBirthYears[childBirthYears.length - 1];
+
+                        [members.husb, members.wife].forEach(parentID => {
+                            if (parentID && personsMap[parentID]) {
+                                let pBirth = extractEventYearAndPlace(personsMap[parentID], 'BIRT').year;
+                                if (pBirth !== null) {
+                                    let ageFirst = firstChildYear - pBirth;
+                                    let ageLast = lastChildYear - pBirth;
+                                    if (ageFirst >= 12 && ageFirst <= 80) {
+                                        firstChildAgesCount[ageFirst] = (firstChildAgesCount[ageFirst] || 0) + 1;
+                                    }
+                                    if (ageLast >= 12 && ageLast <= 90) {
+                                        lastChildAgesCount[ageLast] = (lastChildAgesCount[ageLast] || 0) + 1;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+
                 if (marriage.year !== null) {
                     marriedFamiliesCount++;
                     const mYear = marriage.year;
 
-                    if (members.husb && personsMap[members.husb]) {
-                        const hBirth = extractEventYearAndPlace(personsMap[members.husb], 'BIRT');
-                        if (hBirth.year !== null) {
-                            const mAge = mYear - hBirth.year;
-                            if (mAge >= 12 && mAge <= 100) marriageAgesMen.push(mAge);
+                    [members.husb, members.wife].forEach(pId => {
+                        if (pId && personsMap[pId]) {
+                            const pBirth = extractEventYearAndPlace(personsMap[pId], 'BIRT');
+                            if (pBirth.year !== null) {
+                                const mAge = mYear - pBirth.year;
+                                if (mAge >= 12 && mAge <= 100) {
+                                    marriageAgesCount[mAge] = (marriageAgesCount[mAge] || 0) + 1;
+                                    const sexVal = extractSex(personsMap[pId]).trim().toUpperCase();
+                                    if (['M', 'MALE', 'MAN'].includes(sexVal)) marriageAgesMen.push(mAge);
+                                    else if (['F', 'FEMALE', 'VROUW'].includes(sexVal)) marriageAgesWomen.push(mAge);
+                                }
+                            }
                         }
-                    }
-
-                    if (members.wife && personsMap[members.wife]) {
-                        const wBirth = extractEventYearAndPlace(personsMap[members.wife], 'BIRT');
-                        if (wBirth.year !== null) {
-                            const mAge = mYear - wBirth.year;
-                            if (mAge >= 12 && mAge <= 100) marriageAgesWomen.push(mAge);
-                        }
-                    }
+                    });
                 }
             }
         });
@@ -603,6 +829,16 @@
 
         renderTopTable('placesTableBody', birthPlaces, 5);
         renderCenturyTable(centuryCounts);
+
+        // Render Top 10 tabellen
+        renderTopTableObject('topIslandsBody', islands.map((size, idx) => [`Eiland #${idx + 1}`, size]));
+        renderTopTable('topSurnamesBody', surnamesCount, 10);
+        renderTopTable('topGivenNamesBody', givenNamesCount, 10);
+        renderTopTable('topBirthYearsBody', birthYearsCount, 10);
+        renderTopTable('topMarriageAgesBody', marriageAgesCount, 10);
+        renderTopTable('topDeathAgesBody', deathAgesCount, 10);
+        renderTopTable('topFirstChildAgeBody', firstChildAgesCount, 10);
+        renderTopTable('topLastChildAgeBody', lastChildAgesCount, 10);
     }
 
     function estimateTreeDepth(personsMap, familiesMap) {
@@ -649,6 +885,23 @@
         const tbody = document.getElementById(elementId);
         tbody.innerHTML = '';
         const sorted = Object.entries(dataObj).sort((a, b) => b[1] - a[1]).slice(0, limit);
+
+        if (sorted.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data beschikbaar</td></tr>';
+            return;
+        }
+
+        sorted.forEach(([key, val]) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><strong>${key}</strong></td><td style="text-align: right;"><span class="badge-count">${val}</span></td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderTopTableObject(elementId, entriesArray) {
+        const tbody = document.getElementById(elementId);
+        tbody.innerHTML = '';
+        const sorted = entriesArray.slice(0, 10);
 
         if (sorted.length === 0) {
             tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data beschikbaar</td></tr>';
