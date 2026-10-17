@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatienetwerk - 5 Invoervelden met Autocomplete</title>
+    <title>Relatienetwerk - Grote Tekst & Maximize Popup</title>
     
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-VVVJZ8DBR5"></script>
@@ -42,11 +42,11 @@
         .toolbar {
             margin-bottom: 8px;
             display: flex;
-            gap: 12px;
+            gap: 10px;
             align-items: center;
             flex-wrap: wrap;
             background: #F1F3F4;
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 6px;
         }
         .input-group {
@@ -61,9 +61,9 @@
             margin-bottom: 2px;
         }
         .search-box {
-            padding: 5px 8px;
+            padding: 6px 10px;
             font-size: 13px;
-            width: 180px;
+            width: 170px;
             border: 1px solid #CCC;
             border-radius: 4px;
         }
@@ -92,18 +92,18 @@
         .autocomplete-items div:hover {
             background-color: #e9e9e9;
         }
-        .autocomplete-active {
-            background-color: #2196F3 !important;
-            color: #ffffff;
-        }
 
         .btn {
-            padding: 7px 12px;
+            padding: 8px 14px;
             font-size: 13px;
             font-weight: bold;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
         .btn-calc { background-color: #4CAF50; color: white; }
         .btn-mode { background-color: #2196F3; color: white; }
@@ -113,16 +113,17 @@
         .btn-names { background-color: #00897B; color: white; }
         
         .num-box {
-            padding: 5px;
+            padding: 6px;
             font-size: 13px;
             width: 50px;
             border: 1px solid #CCC;
             border-radius: 4px;
+            text-align: center;
         }
         .info-panel {
             background: #E3F2FD;
             border-left: 5px solid #2196F3;
-            padding: 6px 12px;
+            padding: 8px 12px;
             margin-bottom: 8px;
             font-size: 13px;
             border-radius: 4px;
@@ -132,7 +133,6 @@
             color: #1565C0;
         }
         
-        /* Modal Popup Stijlen */
         .modal {
             display: none;
             position: fixed;
@@ -179,6 +179,85 @@
             padding: 10px;
             border-radius: 4px;
             border: 1px solid #e1e8ed;
+        }
+
+        /* Sleepbare, Schaalbare én Maximize Popup */
+        #relationTooltip {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            background: #ffffff;
+            border: 2px solid #2196F3;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            width: 900px;
+            height: 600px;
+            min-width: 450px;
+            min-height: 350px;
+            overflow: hidden;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+        #relationTooltip.maximized {
+            top: 10px !important;
+            left: 10px !important;
+            width: calc(100vw - 20px) !important;
+            height: calc(100vh - 20px) !important;
+            border-radius: 8px;
+        }
+        .tooltip-header {
+            background: #E3F2FD;
+            padding: 8px 12px;
+            font-weight: bold;
+            color: #1565C0;
+            border-bottom: 1px solid #2196F3;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            user-select: none;
+            height: 40px;
+            box-sizing: border-box;
+        }
+        .tooltip-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .tooltip-controls span {
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .tooltip-controls span:hover {
+            background: rgba(33, 150, 243, 0.2);
+        }
+        .tooltip-body {
+            padding: 0;
+            height: calc(100% - 40px);
+            width: 100%;
+            position: relative;
+            background: #F8F9FA;
+        }
+        #miniPopupNetwork {
+            width: 100%;
+            height: 100%;
+            background-color: #F8F9FA;
+        }
+
+        .resizer-handle {
+            width: 18px;
+            height: 18px;
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            cursor: se-resize;
+            z-index: 10000;
+            background: linear-gradient(135deg, transparent 50%, #2196F3 50%);
+            border-bottom-right-radius: 6px;
         }
 
         .legend {
@@ -243,6 +322,13 @@
         <button class="btn btn-copy" onclick="copySelectedPath()">📋 Kopieer Pad</button>
         <button class="btn btn-file" onclick="window.location.href='index.html'">🏠 Startpagina</button>
     </div>
+
+    <div class="input-group" style="background: #e8f5e9; padding: 6px 10px; border-radius: 4px; border: 1px solid #c8e6c9;">
+        <label style="color: #2e7d32; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+            <input type="checkbox" id="enableHoverTree" checked style="cursor: pointer;"> Stamboom Popup bij Hover
+        </label>
+        <span style="font-size: 10px; color: #555;">(Selecteer eerst 1 persoon)</span>
+    </div>
 </div>
 
 <div class="info-panel" id="infoPanel">
@@ -251,7 +337,7 @@
 
 <div id="mynetwork">
     <div class="legend">
-        <strong>Legende (Sleep = verplaatsbaar | Dubbelklik = vastzetten):</strong><br>
+        <strong>Legende:</strong><br>
         <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 2px solid #D32F2F;"></span> Opgegeven Man (Rode Rand)</div>
         <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 2px solid #D32F2F;"></span> Opgegeven Vrouw (Rode Rand)</div>
         <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 1px solid #555;"></span> Tussenliggende Man</div>
@@ -262,7 +348,21 @@
     </div>
 </div>
 
-<!-- Pop-up Modal voor Familienamen -->
+<!-- Sleepbare, Schaalbare én Maximize Popup -->
+<div id="relationTooltip" onmouseenter="isHoveringTooltip = true;" onmouseleave="isHoveringTooltip = false;">
+    <div id="tooltipHeader" class="tooltip-header">
+        <span>🏔️ Berg-en-Dal Relatiepad (Popup)</span>
+        <div class="tooltip-controls">
+            <span id="maxBtn" title="Vergroot / Maximize" onclick="toggleMaximizePopup()">🗖</span>
+            <span title="Sluiten" onclick="document.getElementById('relationTooltip').style.display='none';">&times;</span>
+        </div>
+    </div>
+    <div class="tooltip-body">
+        <div id="miniPopupNetwork"></div>
+        <div id="resizerHandle" class="resizer-handle" title="Sleep om venster te vergroten/verkleinen"></div>
+    </div>
+</div>
+
 <div id="familyNamesModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -288,6 +388,93 @@
     const FAV_STORE_NAME = 'favoritesStore';
     const DB_VERSION = 4;
 
+    var currentMousePos = { x: 0, y: 0 };
+    var isHoveringTooltip = false;
+
+    document.addEventListener('mousemove', function(e) {
+        currentMousePos.x = e.clientX;
+        currentMousePos.y = e.clientY;
+    });
+
+    // SLEEPBARE POPUP LOGICA
+    let isDraggingTooltip = false;
+    let tooltipOffsetX = 0;
+    let tooltipOffsetY = 0;
+    const relationTooltip = document.getElementById('relationTooltip');
+    const tooltipHeader = document.getElementById('tooltipHeader');
+
+    tooltipHeader.addEventListener('mousedown', function(e) {
+        if (relationTooltip.classList.contains('maximized')) return; // Niet slepen in maximized mode
+        isDraggingTooltip = true;
+        tooltipOffsetX = e.clientX - relationTooltip.offsetLeft;
+        tooltipOffsetY = e.clientY - relationTooltip.offsetTop;
+        e.stopPropagation();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (isDraggingTooltip) {
+            relationTooltip.style.left = (e.clientX - tooltipOffsetX) + 'px';
+            relationTooltip.style.top = (e.clientY - tooltipOffsetY) + 'px';
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        isDraggingTooltip = false;
+    });
+
+    // MAXIMIZE / FULLSCREEN TOGGLE
+    let prevTooltipStyle = {};
+    function toggleMaximizePopup() {
+        relationTooltip.classList.toggle('maximized');
+        var maxBtn = document.getElementById('maxBtn');
+        if (relationTooltip.classList.contains('maximized')) {
+            maxBtn.innerText = "🗗";
+            maxBtn.title = "Herstel normaal formaat";
+        } else {
+            maxBtn.innerText = "🗖";
+            maxBtn.title = "Vergroot / Maximize";
+        }
+        setTimeout(() => {
+            if (miniNetwork) {
+                miniNetwork.redraw();
+                miniNetwork.fit({ animation: false });
+            }
+        }, 50);
+    }
+
+    // SCHAALBARE (RESIZABLE) POPUP LOGICA
+    const resizerHandle = document.getElementById('resizerHandle');
+    let isResizing = false;
+    let startW, startH, startX, startY;
+
+    resizerHandle.addEventListener('mousedown', function(e) {
+        if (relationTooltip.classList.contains('maximized')) return;
+        isResizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startW = parseInt(document.defaultView.getComputedStyle(relationTooltip).width, 10);
+        startH = parseInt(document.defaultView.getComputedStyle(relationTooltip).height, 10);
+        e.stopPropagation();
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (isResizing) {
+            const newW = startW + (e.clientX - startX);
+            const newH = startH + (e.clientY - startY);
+            if (newW > 450) relationTooltip.style.width = newW + 'px';
+            if (newH > 350) relationTooltip.style.height = newH + 'px';
+            if (miniNetwork) {
+                miniNetwork.redraw();
+                miniNetwork.fit({ animation: false });
+            }
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        isResizing = false;
+    });
+
     function setStatus(msg, isError) {
         console.log("LOG:", msg);
         var statusEl = document.getElementById('status');
@@ -299,48 +486,25 @@
 
     function openGedcomDB() {
         return new Promise((resolve, reject) => {
-            setStatus("⏳ Stap 1/3: Openen van IndexedDB...", false);
             const request = indexedDB.open(DB_NAME, DB_VERSION);
-            request.onerror = () => {
-                setStatus("❌ Fout bij openen IndexedDB: " + request.error, true);
-                reject(request.error);
-            };
-            request.onsuccess = () => {
-                setStatus("✅ Stap 1/3 voltooid: IndexedDB geopend.", false);
-                resolve(request.result);
-            };
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    db.createObjectStore(STORE_NAME);
-                }
-                if (!db.objectStoreNames.contains(FAV_STORE_NAME)) {
-                    db.createObjectStore(FAV_STORE_NAME, { keyPath: 'id' });
-                }
+                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+                if (!db.objectStoreNames.contains(FAV_STORE_NAME)) db.createObjectStore(FAV_STORE_NAME, { keyPath: 'id' });
             };
         });
     }
 
     async function getGedcomFromIDB() {
-        setStatus("⏳ Stap 2/3: Ophalen van GEDCOM data uit IndexedDB...", false);
         const db = await openGedcomDB();
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(STORE_NAME, 'readonly');
             const store = transaction.objectStore(STORE_NAME);
             const request = store.get('gedcomData');
-            request.onsuccess = () => {
-                if (request.result) {
-                    setStatus("✅ Stap 2/3 voltooid: Data opgehaald.", false);
-                    resolve(request.result);
-                } else {
-                    setStatus("⚠️ Geen stamboom gevonden in IndexedDB.", true);
-                    resolve(null);
-                }
-            };
-            request.onerror = () => {
-                setStatus("❌ Fout bij ophalen transactie: " + request.error, true);
-                reject(request.error);
-            };
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
         });
     }
 
@@ -354,46 +518,200 @@
     var changeIndices = [];
     var currentTargetSet = new Set();
 
+    // Hoofdraster
     var nodesDataSet = new vis.DataSet();
     var edgesDataSet = new vis.DataSet();
-
     var container = document.getElementById('mynetwork');
     var data = { nodes: nodesDataSet, edges: edgesDataSet };
-
     var options = {
-        nodes: { font: { size: 13, face: 'Segoe UI' }, margin: 8 },
-        edges: { font: { size: 10, align: 'middle' }, smooth: { type: 'cubicBezier', roundness: 0.2 } },
+        nodes: { font: { size: 12, face: 'Segoe UI' }, margin: 8 },
+        edges: { 
+            font: { size: 10, align: 'middle' }, 
+            smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 } 
+        },
         physics: {
-            solver: 'forceAtlas2Based',
-            forceAtlas2Based: { gravitationalConstant: -40, centralGravity: 0.01, springLength: 70, springConstant: 0.08 },
-            maxVelocity: 30,
-            stabilization: { iterations: 150 }
+            solver: 'hierarchicalRepulsion',
+            hierarchicalRepulsion: { nodeDistance: 130, centralGravity: 0.0, springLength: 100, springConstant: 0.01 },
+            maxVelocity: 20,
+            stabilization: { iterations: 200 }
         },
         interaction: { hover: true, tooltipDelay: 300, multiselect: true }
     };
-
     var network = new vis.Network(container, data, options);
+
+    // Mini-netwerk met EXTRA GROTE TEKST VOOR DE POPUP
+    var miniNodesDataSet = new vis.DataSet();
+    var miniEdgesDataSet = new vis.DataSet();
+    var miniContainer = document.getElementById('miniPopupNetwork');
+    var miniData = { nodes: miniNodesDataSet, edges: miniEdgesDataSet };
+    var miniOptions = {
+        nodes: { 
+            font: { size: 18, face: 'Segoe UI', bold: true, color: '#000000' }, 
+            margin: 16,
+            widthConstraint: { min: 200, max: 280 }
+        },
+        edges: { 
+            font: { size: 14, align: 'middle', background: '#ffffff', bold: true, color: '#2c3e50' }, 
+            smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.3 },
+            width: 3
+        },
+        physics: { enabled: false },
+        interaction: { hover: false, dragNodes: true, zoomView: true, dragView: true }
+    };
+    var miniNetwork = new vis.Network(miniContainer, miniData, miniOptions);
 
     const pathColors = ["#9C27B0", "#E91E63", "#00BCD4", "#FF9800", "#3F51B5", "#8BC34A"];
 
     network.on("hoverNode", function (params) {
-        var nodeId = params.node;
-        if (currentTargetSet.has(nodeId)) {
-            highlightAllPathsBetweenTargetsWithUniqueColors(nodeId);
+        var hoveredId = params.node;
+        var selectedNodes = network.getSelectedNodes();
+        var hoverCheckbox = document.getElementById('enableHoverTree');
+
+        if (hoverCheckbox && hoverCheckbox.checked && selectedNodes.length === 1) {
+            var selectedId = selectedNodes[0];
+            if (selectedId !== hoveredId) {
+                showMountainPopup(selectedId, hoveredId);
+                return;
+            }
+        }
+
+        if (currentTargetSet.has(hoveredId)) {
+            highlightAllPathsBetweenTargetsWithUniqueColors(hoveredId);
         }
     });
 
-    network.on("blurNode", function (params) {
-        var nodeId = params.node;
-        if (currentTargetSet.has(nodeId)) {
-            var selected = network.getSelectedNodes();
-            if (selected.length === 2) {
-                highlightPathBetween(selected[0], selected[1]);
-            } else {
-                resetHighlighting();
+    network.on("blurNode", function () {
+        setTimeout(() => {
+            if (!isHoveringTooltip && !isDraggingTooltip && !isResizing) {
+                relationTooltip.style.display = 'none';
             }
-        }
+        }, 200);
     });
+
+    function showMountainPopup(startId, endId) {
+        var queue = [[startId]];
+        var visited = new Set([startId]);
+        var path = null;
+
+        while (queue.length > 0) {
+            var currentPath = queue.shift();
+            var current = currentPath[currentPath.length - 1];
+            if (current === endId) { path = currentPath; break; }
+            (currentAdjMap[current] || []).forEach(function(item) {
+                if (!visited.has(item.neighbor)) {
+                    visited.add(item.neighbor);
+                    queue.push(currentPath.concat([item.neighbor]));
+                }
+            });
+        }
+
+        if (!path || path.length < 2) {
+            relationTooltip.style.display = 'none';
+            return;
+        }
+
+        miniNodesDataSet.clear();
+        miniEdgesDataSet.clear();
+
+        var positions = {};
+        var currentX = 0;
+        var currentY = 0;
+        positions[path[0]] = { x: currentX, y: currentY };
+
+        for (var i = 0; i < path.length - 1; i++) {
+            var currId = path[i];
+            var nextId = path[i + 1];
+            var currP = personsDB[currId];
+
+            currentX += 340; // Royale stap voor extra grote knoppen
+
+            if (currP && currP.parents.includes(nextId)) {
+                currentY -= 200;
+            } else if (currP && currP.children.includes(nextId)) {
+                currentY += 200;
+            } else if (currP && currP.spouses.includes(nextId)) {
+                currentY = currentY;
+            } else {
+                currentY += 200;
+            }
+
+            positions[nextId] = { x: currentX, y: currentY };
+        }
+
+        var newNodes = [];
+        var newEdges = [];
+
+        path.forEach((id, idx) => {
+            var p = personsDB[id];
+            if (!p) return;
+            var pos = positions[id] || { x: 0, y: 0 };
+            var isStart = (id === startId);
+            var isEnd = (id === endId);
+
+            var colorFill = p.gender === 'F' ? "#FFC0CB" : "#97C2FC";
+            if (isStart) colorFill = "#FFF9C4";
+            if (isEnd) colorFill = "#FFE0B2";
+
+            newNodes.push({
+                id: id,
+                label: p.name + (p.years ? "\n" + p.years : ""),
+                shape: (isStart || isEnd) ? "ellipse" : "box",
+                x: pos.x,
+                y: pos.y,
+                color: { background: colorFill, border: (isStart || isEnd) ? "#D32F2F" : "#555" },
+                borderWidth: (isStart || isEnd) ? 3 : 1
+            });
+
+            if (idx < path.length - 1) {
+                var nextId = path[idx + 1];
+                var relLabel = "verbonden";
+                var relColor = "#4CAF50";
+                var isDashed = false;
+
+                if (p.parents.includes(nextId) || p.children.includes(nextId)) {
+                    relLabel = "ouder van";
+                } else if (p.spouses.includes(nextId)) {
+                    relLabel = "partner";
+                    relColor = "#E91E63";
+                    isDashed = true;
+                }
+
+                newEdges.push({
+                    id: "mini_e_" + idx,
+                    from: id,
+                    to: nextId,
+                    label: relLabel,
+                    color: { color: relColor },
+                    dashes: isDashed,
+                    arrows: { to: { enabled: !isDashed, type: "arrow" } }
+                });
+            }
+        });
+
+        miniNodesDataSet.add(newNodes);
+        miniEdgesDataSet.add(newEdges);
+
+        relationTooltip.style.display = 'block';
+
+        if (!relationTooltip.style.left || relationTooltip.style.left === '0px' && !relationTooltip.classList.contains('maximized')) {
+            var left = currentMousePos.x + 18;
+            var top = currentMousePos.y + 18;
+            if (left + 920 > window.innerWidth) left = window.innerWidth - 940;
+            if (top + 620 > window.innerHeight) top = window.innerHeight - 640;
+            if (top < 10) top = 10;
+
+            relationTooltip.style.left = left + 'px';
+            relationTooltip.style.top = top + 'px';
+        }
+
+        setTimeout(() => { 
+            miniNetwork.fit({ animation: false });
+            var currentScale = miniNetwork.getScale();
+            if (currentScale > 0.8) {
+                miniNetwork.moveTo({ scale: 0.8 });
+            }
+        }, 50);
+    }
 
     function highlightAllPathsBetweenTargetsWithUniqueColors(hoveredId) {
         var targets = Array.from(currentTargetSet);
@@ -452,10 +770,7 @@
     network.on("dragEnd", function (params) {
         if (params.nodes.length > 0) {
             params.nodes.forEach(function (nodeId) {
-                var pointerPos = network.getPositions([nodeId]);
-                if (pointerPos[nodeId]) {
-                    nodesDataSet.update({ id: nodeId, fixed: { x: true, y: true } });
-                }
+                nodesDataSet.update({ id: nodeId, fixed: { x: true, y: true } });
             });
         }
     });
@@ -472,15 +787,6 @@
         if (params.nodes.length === 2) {
             highlightPathBetween(params.nodes[0], params.nodes[1]);
         } else if (params.nodes.length === 0) {
-            resetHighlighting();
-        }
-    });
-
-    network.on("deselectNode", function () {
-        var selected = network.getSelectedNodes();
-        if (selected.length === 2) {
-            highlightPathBetween(selected[0], selected[1]);
-        } else if (selected.length === 0) {
             resetHighlighting();
         }
     });
@@ -688,7 +994,7 @@
 
     function initTree(fileContent) {
         try {
-            setStatus("⏳ Stap 3/3: Parsen van GEDCOM data...", false);
+            setStatus("⏳ Parsen van GEDCOM data...", false);
             parseGedcomText(fileContent);
             var pIds = Object.keys(personsDB);
             if (pIds.length === 0) {
@@ -857,24 +1163,9 @@
         currentAdjMap = {};
         lastSelectedPathIds = [];
         lastSelectedPathNames = [];
-        lastPathStartName = "";
-        lastPathEndName = "";
-        lastPathCode = "";
-        changeIndices = [];
 
         var newNodes = [];
         var edgesSet = new Set();
-
-        var widthRange = 250;
-        var heightRange = 180;
-        
-        var edgePositions = [
-            { x: -widthRange, y: -heightRange },
-            { x: widthRange,  y: -heightRange },
-            { x: -widthRange, y: heightRange },
-            { x: widthRange,  y: heightRange },
-            { x: 0,           y: -heightRange-40 }
-        ];
 
         nodesToInclude.forEach(function(id) {
             var p = personsDB[id];
@@ -886,23 +1177,14 @@
             var borderWidth = isTarget ? 4 : 1;
             var shape = isTarget ? "ellipse" : "box";
 
-            var nodeConfig = {
+            newNodes.push({
                 id: id,
                 label: p.name + (p.years ? "\n" + p.years : ""),
                 shape: shape,
                 color: { background: colorFill, border: borderColor, highlight: { background: "#FFE082", border: "#FF6F00" } },
                 borderWidth: borderWidth
-            };
+            });
 
-            var targetIdx = targetList.indexOf(id);
-            if (targetIdx !== -1) {
-                var pos = edgePositions[targetIdx % edgePositions.length];
-                nodeConfig.x = pos.x;
-                nodeConfig.y = pos.y;
-                nodeConfig.fixed = false;
-            }
-
-            newNodes.push(nodeConfig);
             currentAdjMap[id] = [];
         });
 
@@ -976,7 +1258,6 @@
         if (!targetPath) return;
 
         lastSelectedPathIds = targetPath;
-
         var startPerson = personsDB[startId];
         var endPerson = personsDB[endId];
         lastPathStartName = startPerson ? startPerson.name : startId;
@@ -1026,10 +1307,6 @@
     function resetHighlighting() {
         lastSelectedPathIds = [];
         lastSelectedPathNames = [];
-        lastPathStartName = "";
-        lastPathEndName = "";
-        lastPathCode = "";
-        changeIndices = [];
         nodesDataSet.forEach(function(n) {
             nodesDataSet.update({ id: n.id, opacity: 1 });
         });
@@ -1048,7 +1325,6 @@
             return;
         }
 
-        // Stap 1: Tel hoe vaak elke familienaam voorkomt in het pad
         var surnameCounts = {};
         lastSelectedPathIds.forEach(id => {
             var p = personsDB[id];
@@ -1058,17 +1334,13 @@
             }
         });
 
-        // Stap 2: Omzetten naar een array om te kunnen sorteren
         var surnameArray = Object.keys(surnameCounts).map(surname => {
             return { name: surname, count: surnameCounts[surname] };
         });
 
-        // Stap 3: Sorteren van hoog naar laag op aantal (count), bij gelijke stand alfabetisch op achternaam
         surnameArray.sort(function(a, b) {
-            if (b.count !== a.count) {
-                return b.count - a.count; // Hoogste aantal eerst
-            }
-            return a.name.localeCompare(b.name, 'nl'); // Alfabetisch bij gelijk aantal
+            if (b.count !== a.count) return b.count - a.count;
+            return a.name.localeCompare(b.name, 'nl');
         });
 
         if (surnameArray.length === 0) {
@@ -1099,7 +1371,7 @@
         var textToCopy = titleLine + "\n" + lastSelectedPathNames.join(" ➔ ");
 
         navigator.clipboard.writeText(textToCopy).then(function() {
-            setStatus("✅ Het pad inclusief aantal personen en relatiecode (" + lastPathCode + ") is naar het klembord gekopieerd!", false);
+            setStatus("✅ Het pad is naar het klembord gekopieerd!", false);
         }).catch(function(err) {
             alert("Kopiëren mislukt: " + err);
         });
