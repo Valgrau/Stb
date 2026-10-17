@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volledig GEDCOM Statistieken Dashboard</title>
 	
-	
 	 <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-VVVJZ8DBR5"></script>
     <script>
@@ -15,14 +14,6 @@
 
       gtag('config', 'G-VVVJZ8DBR5');
     </script>
-	
-	
-	
-	
-	
-	
-	
-	
 	
     <style>
         body {
@@ -325,6 +316,41 @@
         </div>
     </div>
 
+    <!-- TOP 100 LANGSTE RELATIEPADEN & SENSATIONEEL GEGEVEN -->
+    <h2 class="section-title">🌐 Netwerk & Sensationele Feiten</h2>
+    
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🛤️ Top 100 Relatiepaden (Vanaf 20 stappen, oplopend)</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Stappen</th>
+                        <th>Van (Vertrek)</th>
+                        <th>Naar (Eindpunt)</th>
+                    </tr>
+                </thead>
+                <tbody id="topLongestPathsBody">
+                    <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🔥 Sensationeel: Grootste Leeftijdsverschil bij Huwelijk</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Verschil</th>
+                        <th>Echtpaar & Details</th>
+                    </tr>
+                </thead>
+                <tbody id="topAgeGapBody">
+                    <tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -604,7 +630,6 @@
         let familySizes = [];
         let marriedFamiliesCount = 0;
 
-        // Top 10 datastructureren
         let surnamesCount = {};
         let givenNamesCount = {};
         let birthYearsCount = {};
@@ -629,7 +654,6 @@
             }
         });
 
-        // Graaf opbouwen voor eilanden (connected components)
         items.forEach(item => {
             const tag = (item.TAG || '').toUpperCase();
             if (tag === 'FAM') {
@@ -655,7 +679,6 @@
             }
         });
 
-        // Bepaal eilanden (componenten)
         let visited = new Set();
         let islands = [];
         Object.keys(graph).forEach(id => {
@@ -736,7 +759,6 @@
 
                 familySizes.push(famChildrenCount);
 
-                // Bereken leeftijd van ouders bij eerste en laatste kind
                 if (members.children.length > 0) {
                     let childBirthYears = members.children.map(cId => {
                         if (personsMap[cId]) {
@@ -830,7 +852,6 @@
         renderTopTable('placesTableBody', birthPlaces, 5);
         renderCenturyTable(centuryCounts);
 
-        // Render Top 10 tabellen
         renderTopTableObject('topIslandsBody', islands.map((size, idx) => [`Eiland #${idx + 1}`, size]));
         renderTopTable('topSurnamesBody', surnamesCount, 10);
         renderTopTable('topGivenNamesBody', givenNamesCount, 10);
@@ -839,6 +860,14 @@
         renderTopTable('topDeathAgesBody', deathAgesCount, 10);
         renderTopTable('topFirstChildAgeBody', firstChildAgesCount, 10);
         renderTopTable('topLastChildAgeBody', lastChildAgesCount, 10);
+
+        // Render Relatiepaden (vanaf 20 stappen, oplopend gesorteerd)
+        let longestPaths = calculateLongestPaths(personsMap, graph);
+        renderLongestPathsTable(longestPaths, personsMap);
+
+        // Render Sensationeel Leeftijdsverschil
+        let sensationalGaps = processSensationalData(items, personsMap, familiesMap);
+        renderSensationalTable(sensationalGaps);
     }
 
     function estimateTreeDepth(personsMap, familiesMap) {
@@ -879,6 +908,153 @@
         });
 
         return maxDepth;
+    }
+
+    function calculateLongestPaths(personsMap, graph) {
+        const personIds = Object.keys(graph);
+        if (personIds.length === 0) return [];
+
+        let paths = [];
+        let sampleSize = Math.min(personIds.length, 250);
+        let sampleKeys = [...personIds].sort(() => 0.5 - Math.random()).slice(0, sampleSize);
+
+        sampleKeys.forEach(startId => {
+            let queue = [[startId]];
+            let visited = new Set([startId]);
+            let farthestNode = startId;
+            let farthestPath = [startId];
+
+            while (queue.length > 0) {
+                let path = queue.shift();
+                let curr = path[path.length - 1];
+                
+                if (path.length > farthestPath.length) {
+                    farthestPath = path;
+                    farthestNode = curr;
+                }
+
+                (graph[curr] || []).forEach(neighbor => {
+                    if (!visited.has(neighbor)) {
+                        visited.add(neighbor);
+                        queue.push([...path, neighbor]);
+                    }
+                });
+            }
+
+            if (farthestPath.length >= 20) { // Alleen paden van minstens 20 stappen meenemen
+                paths.push({
+                    from: farthestPath[0],
+                    to: farthestPath[farthestPath.length - 1],
+                    steps: farthestPath.length - 1
+                });
+            }
+        });
+
+        // Filter minimaal 20 stappen en sorteer OPLOPEND (van 20 stappen en zo omhoog)
+        paths = paths.filter(p => p.steps >= 20);
+        paths.sort((a, b) => a.steps - b.steps);
+        
+        let uniquePaths = [];
+        let seenPairs = new Set();
+        for (let p of paths) {
+            let pairKey = [p.from, p.to].sort().join('-');
+            if (!seenPairs.has(pairKey)) {
+                seenPairs.add(pairKey);
+                uniquePaths.push(p);
+            }
+            if (uniquePaths.length >= 100) break;
+        }
+
+        return uniquePaths;
+    }
+
+    function getPersonDisplayInfo(personItem) {
+        if (!personItem) return "Onbekend (Onbekend) - Geboren: Onbekend";
+        const name = parsePersonName(personItem);
+        const birth = extractEventYearAndPlace(personItem, 'BIRT');
+        let birthStr = birth.year ? birth.year : 'Onbekend';
+        return `<strong>${name.achternaam}</strong>, ${name.voornaam} <br><span style="font-size: 0.8rem; color: #7f8c8d;">Geboren: ${birthStr}</span>`;
+    }
+
+    function processSensationalData(items, personsMap, familiesMap) {
+        let ageGaps = [];
+
+        items.forEach(item => {
+            if ((item.TAG || '').toUpperCase() === 'FAM') {
+                const members = extractFamMembers(item);
+                const marriage = extractEventYearAndPlace(item, 'MARR');
+
+                if (members.husb && members.wife && personsMap[members.husb] && personsMap[members.wife]) {
+                    const hBirth = extractEventYearAndPlace(personsMap[members.husb], 'BIRT').year;
+                    const wBirth = extractEventYearAndPlace(personsMap[members.wife], 'BIRT').year;
+
+                    if (hBirth !== null && wBirth !== null) {
+                        let gap = Math.abs(hBirth - wBirth);
+                        ageGaps.push({
+                            gap: gap,
+                            husband: personsMap[members.husb],
+                            wife: personsMap[members.wife],
+                            marrYear: marriage.year ? `Huwelijk in ${marriage.year}` : 'Huwelijksjaar onbekend'
+                        });
+                    }
+                }
+            }
+        });
+
+        ageGaps.sort((a, b) => b.gap - a.gap);
+        return ageGaps.slice(0, 5);
+    }
+
+    function renderLongestPathsTable(paths, personsMap) {
+        const tbody = document.getElementById('topLongestPathsBody');
+        tbody.innerHTML = '';
+
+        if (paths.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen paden vanaf 20 stappen gevonden</td></tr>';
+            return;
+        }
+
+        paths.forEach(p => {
+            let fromInfo = getPersonDisplayInfo(personsMap[p.from]);
+            let toInfo = getPersonDisplayInfo(personsMap[p.to]);
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center;"><span class="badge-count">${p.steps} stappen</span></td>
+                <td>${fromInfo}</td>
+                <td>${toInfo}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderSensationalTable(gaps) {
+        const tbody = document.getElementById('topAgeGapBody');
+        tbody.innerHTML = '';
+
+        if (gaps.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen huwelijksdatums met geboortejaren gevonden</td></tr>';
+            return;
+        }
+
+        gaps.forEach(item => {
+            const hName = parsePersonName(item.husband);
+            const wName = parsePersonName(item.wife);
+            const hBirth = extractEventYearAndPlace(item.husband, 'BIRT').year || '?';
+            const wBirth = extractEventYearAndPlace(item.wife, 'BIRT').year || '?';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center;"><span class="badge-count" style="background: #fff5f5; color: #c53030;">${item.gap} jaarverschil</span></td>
+                <td>
+                    <strong>${hName.achternaam}</strong>, ${hName.voornaam} (${hBirth})<br>
+                    &amp; 
+                    <strong>${wName.achternaam}</strong>, ${wName.voornaam} (${wBirth})<br>
+                    <span style="font-size: 0.75rem; color: #a0aec0;">${item.marrYear}</span>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
     }
 
     function renderTopTable(elementId, dataObj, limit) {
