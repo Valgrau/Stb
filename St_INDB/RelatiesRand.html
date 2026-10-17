@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatienetwerk - Grote Tekst & Maximize Popup</title>
+    <title>Relatienetwerk - Compacte Lijnen & Grote Icoontjes</title>
     
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-VVVJZ8DBR5"></script>
@@ -404,7 +404,7 @@
     const tooltipHeader = document.getElementById('tooltipHeader');
 
     tooltipHeader.addEventListener('mousedown', function(e) {
-        if (relationTooltip.classList.contains('maximized')) return; // Niet slepen in maximized mode
+        if (relationTooltip.classList.contains('maximized')) return;
         isDraggingTooltip = true;
         tooltipOffsetX = e.clientX - relationTooltip.offsetLeft;
         tooltipOffsetY = e.clientY - relationTooltip.offsetTop;
@@ -423,7 +423,6 @@
     });
 
     // MAXIMIZE / FULLSCREEN TOGGLE
-    let prevTooltipStyle = {};
     function toggleMaximizePopup() {
         relationTooltip.classList.toggle('maximized');
         var maxBtn = document.getElementById('maxBtn');
@@ -539,7 +538,7 @@
     };
     var network = new vis.Network(container, data, options);
 
-    // Mini-netwerk met EXTRA GROTE TEKST VOOR DE POPUP
+    // Mini-netwerk voor de popup: GEEN tekstlabels op lijnen, compacte en krachtige weergave
     var miniNodesDataSet = new vis.DataSet();
     var miniEdgesDataSet = new vis.DataSet();
     var miniContainer = document.getElementById('miniPopupNetwork');
@@ -551,7 +550,7 @@
             widthConstraint: { min: 200, max: 280 }
         },
         edges: { 
-            font: { size: 14, align: 'middle', background: '#ffffff', bold: true, color: '#2c3e50' }, 
+            font: { enabled: false }, // Geen vervelende tekstlabels op de lijnen zelf!
             smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.3 },
             width: 3
         },
@@ -623,16 +622,16 @@
             var nextId = path[i + 1];
             var currP = personsDB[currId];
 
-            currentX += 340; // Royale stap voor extra grote knoppen
+            currentX += 260; // Compacter gezet zodat icoontjes dichterbij en groter kunnen
 
             if (currP && currP.parents.includes(nextId)) {
-                currentY -= 200;
+                currentY -= 150;
             } else if (currP && currP.children.includes(nextId)) {
-                currentY += 200;
+                currentY += 150;
             } else if (currP && currP.spouses.includes(nextId)) {
                 currentY = currentY;
             } else {
-                currentY += 200;
+                currentY += 150;
             }
 
             positions[nextId] = { x: currentX, y: currentY };
@@ -664,14 +663,10 @@
 
             if (idx < path.length - 1) {
                 var nextId = path[idx + 1];
-                var relLabel = "verbonden";
                 var relColor = "#4CAF50";
                 var isDashed = false;
 
-                if (p.parents.includes(nextId) || p.children.includes(nextId)) {
-                    relLabel = "ouder van";
-                } else if (p.spouses.includes(nextId)) {
-                    relLabel = "partner";
+                if (p.spouses.includes(nextId)) {
                     relColor = "#E91E63";
                     isDashed = true;
                 }
@@ -680,7 +675,6 @@
                     id: "mini_e_" + idx,
                     from: id,
                     to: nextId,
-                    label: relLabel,
                     color: { color: relColor },
                     dashes: isDashed,
                     arrows: { to: { enabled: !isDashed, type: "arrow" } }
@@ -707,8 +701,8 @@
         setTimeout(() => { 
             miniNetwork.fit({ animation: false });
             var currentScale = miniNetwork.getScale();
-            if (currentScale > 0.8) {
-                miniNetwork.moveTo({ scale: 0.8 });
+            if (currentScale > 0.85) {
+                miniNetwork.moveTo({ scale: 0.85 });
             }
         }, 50);
     }
