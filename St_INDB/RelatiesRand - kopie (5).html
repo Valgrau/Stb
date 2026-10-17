@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatienetwerk - Compacte Lijnen & Grote Icoontjes</title>
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VVVJZ8DBR5"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-VVVJZ8DBR5');
+    </script>
+
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style type="text/css">
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+            background-color: #FFFFFF;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+        #mynetwork {
+            width: 100%;
+            height: calc(100vh - 210px);
+            border: 1px solid #BDBDBD;
+            background-color: #F8F9FA;
+            border-radius: 4px;
+            position: relative;
+        }
+        .toolbar {
+            margin-bottom: 8px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: #F1F3F4;
+            padding: 10px 14px;
+            border-radius: 6px;
+        }
+        .input-group {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .input-group label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 2px;
+        }
+        .search-box {
+            padding: 6px 10px;
+            font-size: 13px;
+            width: 170px;
+            border: 1px solid #CCC;
+            border-radius: 4px;
+        }
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #d4d4d4;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: #fff;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0px 4px 6px rgba(0,0,0,0.1);
+            border-radius: 0 0 4px 4px;
+        }
+        .autocomplete-items div {
+            padding: 8px 10px;
+            cursor: pointer;
+            background-color: #fff;
+            border-bottom: 1px solid #d4d4d4;
+            font-size: 12px;
+        }
+        .autocomplete-items div:hover {
+            background-color: #e9e9e9;
+        }
+
+        .btn {
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn-calc { background-color: #4CAF50; color: white; }
+        .btn-mode { background-color: #2196F3; color: white; }
+        .btn-mode.active { background-color: #0D47A1; }
+        .btn-file { background-color: #FF9800; color: white; }
+        .btn-copy { background-color: #673AB7; color: white; }
+        .btn-names { background-color: #00897B; color: white; }
+        
+        .num-box {
+            padding: 6px;
+            font-size: 13px;
+            width: 50px;
+            border: 1px solid #CCC;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .info-panel {
+            background: #E3F2FD;
+            border-left: 5px solid #2196F3;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            border-radius: 4px;
+        }
+        #status {
+            font-weight: bold;
+            color: #1565C0;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .modal-header {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .close-btn {
+            cursor: pointer;
+            font-size: 18px;
+            color: #aaa;
+        }
+        .close-btn:hover { color: #000; }
+        .modal-body {
+            font-size: 13px;
+            line-height: 1.5;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #e1e8ed;
+        }
+
+        /* Sleepbare, Schaalbare én Maximize Popup */
+        #relationTooltip {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            background: #ffffff;
+            border: 2px solid #2196F3;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            width: 900px;
+            height: 600px;
+            min-width: 450px;
+            min-height: 350px;
+            overflow: hidden;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+        #relationTooltip.maximized {
+            top: 10px !important;
+            left: 10px !important;
+            width: calc(100vw - 20px) !important;
+            height: calc(100vh - 20px) !important;
+            border-radius: 8px;
+        }
+        .tooltip-header {
+            background: #E3F2FD;
+            padding: 8px 12px;
+            font-weight: bold;
+            color: #1565C0;
+            border-bottom: 1px solid #2196F3;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            user-select: none;
+            height: 40px;
+            box-sizing: border-box;
+        }
+        .tooltip-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .tooltip-controls span {
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .tooltip-controls span:hover {
+            background: rgba(33, 150, 243, 0.2);
+        }
+        .tooltip-body {
+            padding: 0;
+            height: calc(100% - 40px);
+            width: 100%;
+            position: relative;
+            background: #F8F9FA;
+        }
+        #miniPopupNetwork {
+            width: 100%;
+            height: 100%;
+            background-color: #F8F9FA;
+        }
+
+        .resizer-handle {
+            width: 18px;
+            height: 18px;
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            cursor: se-resize;
+            z-index: 10000;
+            background: linear-gradient(135deg, transparent 50%, #2196F3 50%);
+            border-bottom-right-radius: 6px;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 10px 14px;
+            border-radius: 6px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.15);
+            font-size: 12px;
+            line-height: 1.6;
+            z-index: 1000;
+            border: 1px solid #CCC;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 3px; }
+        .color-box { width: 14px; height: 14px; margin-right: 8px; border-radius: 2px; display: inline-block; }
+    </style>
+</head>
+
+<body>
+
+<h2>🩸 Relatienetwerk & Bloedverwantschap</h2>
+
+<div class="toolbar">
+    <div class="input-group">
+        <label>Persoon 1</label>
+        <input type="text" id="target1" class="search-box" placeholder="Typ naam..." autocomplete="off">
+        <input type="hidden" id="targetId1">
+    </div>
+    <div class="input-group">
+        <label>Persoon 2</label>
+        <input type="text" id="target2" class="search-box" placeholder="Typ naam..." autocomplete="off">
+        <input type="hidden" id="targetId2">
+    </div>
+    <div class="input-group">
+        <label>Persoon 3 (optioneel)</label>
+        <input type="text" id="target3" class="search-box" placeholder="Typ naam..." autocomplete="off">
+        <input type="hidden" id="targetId3">
+    </div>
+    <div class="input-group">
+        <label>Persoon 4 (optioneel)</label>
+        <input type="text" id="target4" class="search-box" placeholder="Typ naam..." autocomplete="off">
+        <input type="hidden" id="targetId4">
+    </div>
+    <div class="input-group">
+        <label>Persoon 5 (optioneel)</label>
+        <input type="text" id="target5" class="search-box" placeholder="Typ naam..." autocomplete="off">
+        <input type="hidden" id="targetId5">
+    </div>
+
+    <div class="input-group">
+        <label>Max Gen</label>
+        <input type="number" id="maxGenInput" class="num-box" value="8" min="1" max="25">
+    </div>
+
+    <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
+        <button class="btn btn-calc" onclick="calculateAndRender()">⚡ Berekenen</button>
+        <button id="btnBlood" class="btn btn-mode active" onclick="setMode('blood')">Zuiver Bloed</button>
+        <button id="btnShortest" class="btn btn-mode" onclick="setMode('shortest')">Kortste Route</button>
+        <button class="btn btn-names" onclick="showFamilyNamesPopup()">🏷️ Familienamen</button>
+        <button class="btn btn-copy" onclick="copySelectedPath()">📋 Kopieer Pad</button>
+        <button class="btn btn-file" onclick="window.location.href='index.html'">🏠 Startpagina</button>
+    </div>
+
+    <div class="input-group" style="background: #e8f5e9; padding: 6px 10px; border-radius: 4px; border: 1px solid #c8e6c9;">
+        <label style="color: #2e7d32; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+            <input type="checkbox" id="enableHoverTree" checked style="cursor: pointer;"> Stamboom Popup bij Hover
+        </label>
+        <span style="font-size: 10px; color: #555;">(Selecteer eerst 1 persoon)</span>
+    </div>
+</div>
+
+<div class="info-panel" id="infoPanel">
+    <span id="status">⏳ Initialiseren...</span>
+</div>
+
+<div id="mynetwork">
+    <div class="legend">
+        <strong>Legende:</strong><br>
+        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 2px solid #D32F2F;"></span> Opgegeven Man (Rode Rand)</div>
+        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 2px solid #D32F2F;"></span> Opgegeven Vrouw (Rode Rand)</div>
+        <div class="legend-item"><span class="color-box" style="background:#97C2FC; border: 1px solid #555;"></span> Tussenliggende Man</div>
+        <div class="legend-item"><span class="color-box" style="background:#FFC0CB; border: 1px solid #555;"></span> Tussenliggende Vrouw</div>
+        <hr style="margin: 4px 0;">
+        <div class="legend-item"><span style="color:#4CAF50; font-weight:bold; margin-right:5px;">➔</span> Ouder-kind</div>
+        <div class="legend-item"><span style="color:#E91E63; font-weight:bold; margin-right:5px;">---</span> Partner</div>
+    </div>
+</div>
+
+<!-- Sleepbare, Schaalbare én Maximize Popup -->
+<div id="relationTooltip" onmouseenter="isHoveringTooltip = true;" onmouseleave="isHoveringTooltip = false;">
+    <div id="tooltipHeader" class="tooltip-header">
+        <span>🏔️ Berg-en-Dal Relatiepad (Popup)</span>
+        <div class="tooltip-controls">
+            <span id="maxBtn" title="Vergroot / Maximize" onclick="toggleMaximizePopup()">🗖</span>
+            <span title="Sluiten" onclick="document.getElementById('relationTooltip').style.display='none';">&times;</span>
+        </div>
+    </div>
+    <div class="tooltip-body">
+        <div id="miniPopupNetwork"></div>
+        <div id="resizerHandle" class="resizer-handle" title="Sleep om venster te vergroten/verkleinen"></div>
+    </div>
+</div>
+
+<div id="familyNamesModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>🏷️ Familienamen in geselecteerd pad</span>
+            <span class="close-btn" onclick="closeFamilyNamesPopup()">&times;</span>
+        </div>
+        <div class="modal-body" id="modalFamilyNamesList">
+            Geen pad geselecteerd. Klik op een pad in het netwerk om de namen te tonen.
+        </div>
+        <button class="btn btn-calc" style="width: 100%;" onclick="closeFamilyNamesPopup()">Sluiten</button>
+    </div>
+</div>
+
+<footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
+    Laatste update van deze pagina: <span id="lastMod"></span>
+</footer>
+
+<script type="text/javascript">
+    document.getElementById('lastMod').innerText = document.lastModified;
+
+    const DB_NAME = 'GedcomDatabase';
+    const STORE_NAME = 'gedcomStore';
+    const FAV_STORE_NAME = 'favoritesStore';
+    const DB_VERSION = 4;
+
+    var currentMousePos = { x: 0, y: 0 };
+    var isHoveringTooltip = false;
+
+    document.addEventListener('mousemove', function(e) {
+        currentMousePos.x = e.clientX;
+        currentMousePos.y = e.clientY;
+    });
+
+    // SLEEPBARE POPUP LOGICA
+    let isDraggingTooltip = false;
+    let tooltipOffsetX = 0;
+    let tooltipOffsetY = 0;
+    const relationTooltip = document.getElementById('relationTooltip');
+    const tooltipHeader = document.getElementById('tooltipHeader');
+
+    tooltipHeader.addEventListener('mousedown', function(e) {
+        if (relationTooltip.classList.contains('maximized')) return;
+        isDraggingTooltip = true;
+        tooltipOffsetX = e.clientX - relationTooltip.offsetLeft;
+        tooltipOffsetY = e.clientY - relationTooltip.offsetTop;
+        e.stopPropagation();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (isDraggingTooltip) {
+            relationTooltip.style.left = (e.clientX - tooltipOffsetX) + 'px';
+            relationTooltip.style.top = (e.clientY - tooltipOffsetY) + 'px';
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        isDraggingTooltip = false;
+    });
+
+    // MAXIMIZE / FULLSCREEN TOGGLE
+    function toggleMaximizePopup() {
+        relationTooltip.classList.toggle('maximized');
+        var maxBtn = document.getElementById('maxBtn');
+        if (relationTooltip.classList.contains('maximized')) {
+            maxBtn.innerText = "🗗";
+            maxBtn.title = "Herstel normaal formaat";
+        } else {
+            maxBtn.innerText = "🗖";
+            maxBtn.title = "Vergroot / Maximize";
+        }
+        setTimeout(() => {
+            if (miniNetwork) {
+                miniNetwork.redraw();
+                miniNetwork.fit({ animation: false });
+            }
+        }, 50);
+    }
+
+    // SCHAALBARE (RESIZABLE) POPUP LOGICA
+    const resizerHandle = document.getElementById('resizerHandle');
+    let isResizing = false;
+    let startW, startH, startX, startY;
+
+    resizerHandle.addEventListener('mousedown', function(e) {
+        if (relationTooltip.classList.contains('maximized')) return;
+        isResizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startW = parseInt(document.defaultView.getComputedStyle(relationTooltip).width, 10);
+        startH = parseInt(document.defaultView.getComputedStyle(relationTooltip).height, 10);
+        e.stopPropagation();
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (isResizing) {
+            const newW = startW + (e.clientX - startX);
+            const newH = startH + (e.clientY - startY);
+            if (newW > 450) relationTooltip.style.width = newW + 'px';
+            if (newH > 350) relationTooltip.style.height = newH + 'px';
+            if (miniNetwork) {
+                miniNetwork.redraw();
+                miniNetwork.fit({ animation: false });
+            }
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        isResizing = false;
+    });
+
+    function setStatus(msg, isError) {
+        console.log("LOG:", msg);
+        var statusEl = document.getElementById('status');
+        if (statusEl) {
+            statusEl.innerText = msg;
+            statusEl.style.color = isError ? '#D32F2F' : '#1565C0';
+        }
+    }
+
+    function openGedcomDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+                if (!db.objectStoreNames.contains(FAV_STORE_NAME)) db.createObjectStore(FAV_STORE_NAME, { keyPath: 'id' });
+            };
+        });
+    }
+
+    async function getGedcomFromIDB() {
+        const db = await openGedcomDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get('gedcomData');
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    var personsDB = {};
+    var currentMode = 'blood';
+    var lastSelectedPathIds = []; 
+    var lastSelectedPathNames = []; 
+    var lastPathStartName = "";
+    var lastPathEndName = "";
+    var lastPathCode = "";
+    var changeIndices = [];
+    var currentTargetSet = new Set();
+
+    // Hoofdraster
+    var nodesDataSet = new vis.DataSet();
+    var edgesDataSet = new vis.DataSet();
+    var container = document.getElementById('mynetwork');
+    var data = { nodes: nodesDataSet, edges: edgesDataSet };
+    var options = {
+        nodes: { font: { size: 12, face: 'Segoe UI' }, margin: 8 },
+        edges: { 
+            font: { size: 10, align: 'middle' }, 
+            smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 } 
+        },
+        physics: {
+            solver: 'hierarchicalRepulsion',
+            hierarchicalRepulsion: { nodeDistance: 130, centralGravity: 0.0, springLength: 100, springConstant: 0.01 },
+            maxVelocity: 20,
+            stabilization: { iterations: 200 }
+        },
+        interaction: { hover: true, tooltipDelay: 300, multiselect: true }
+    };
+    var network = new vis.Network(container, data, options);
+
+    // Mini-netwerk voor de popup: GEEN tekstlabels op lijnen, compacte en krachtige weergave
+    var miniNodesDataSet = new vis.DataSet();
+    var miniEdgesDataSet = new vis.DataSet();
+    var miniContainer = document.getElementById('miniPopupNetwork');
+    var miniData = { nodes: miniNodesDataSet, edges: miniEdgesDataSet };
+    var miniOptions = {
+        nodes: { 
+            font: { size: 18, face: 'Segoe UI', bold: true, color: '#000000' }, 
+            margin: 16,
+            widthConstraint: { min: 200, max: 280 }
+        },
+        edges: { 
+            font: { enabled: false }, // Geen vervelende tekstlabels op de lijnen zelf!
+            smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.3 },
+            width: 3
+        },
+        physics: { enabled: false },
+        interaction: { hover: false, dragNodes: true, zoomView: true, dragView: true }
+    };
+    var miniNetwork = new vis.Network(miniContainer, miniData, miniOptions);
+
+    const pathColors = ["#9C27B0", "#E91E63", "#00BCD4", "#FF9800", "#3F51B5", "#8BC34A"];
+
+    network.on("hoverNode", function (params) {
+        var hoveredId = params.node;
+        var selectedNodes = network.getSelectedNodes();
+        var hoverCheckbox = document.getElementById('enableHoverTree');
+
+        if (hoverCheckbox && hoverCheckbox.checked && selectedNodes.length === 1) {
+            var selectedId = selectedNodes[0];
+            if (selectedId !== hoveredId) {
+                showMountainPopup(selectedId, hoveredId);
+                return;
+            }
+        }
+
+        if (currentTargetSet.has(hoveredId)) {
+            highlightAllPathsBetweenTargetsWithUniqueColors(hoveredId);
+        }
+    });
+
+    network.on("blurNode", function () {
+        setTimeout(() => {
+            if (!isHoveringTooltip && !isDraggingTooltip && !isResizing) {
+                relationTooltip.style.display = 'none';
+            }
+        }, 200);
+    });
+
+    function showMountainPopup(startId, endId) {
+        var queue = [[startId]];
+        var visited = new Set([startId]);
+        var path = null;
+
+        while (queue.length > 0) {
+            var currentPath = queue.shift();
+            var current = currentPath[currentPath.length - 1];
+            if (current === endId) { path = currentPath; break; }
+            (currentAdjMap[current] || []).forEach(function(item) {
+                if (!visited.has(item.neighbor)) {
+                    visited.add(item.neighbor);
+                    queue.push(currentPath.concat([item.neighbor]));
+                }
+            });
+        }
+
+        if (!path || path.length < 2) {
+            relationTooltip.style.display = 'none';
+            return;
+        }
+
+        miniNodesDataSet.clear();
+        miniEdgesDataSet.clear();
+
+        var positions = {};
+        var currentX = 0;
+        var currentY = 0;
+        positions[path[0]] = { x: currentX, y: currentY };
+
+        for (var i = 0; i < path.length - 1; i++) {
+            var currId = path[i];
+            var nextId = path[i + 1];
+            var currP = personsDB[currId];
+
+            currentX += 260; // Compacter gezet zodat icoontjes dichterbij en groter kunnen
+
+            if (currP && currP.parents.includes(nextId)) {
+                currentY -= 150;
+            } else if (currP && currP.children.includes(nextId)) {
+                currentY += 150;
+            } else if (currP && currP.spouses.includes(nextId)) {
+                currentY = currentY;
+            } else {
+                currentY += 150;
+            }
+
+            positions[nextId] = { x: currentX, y: currentY };
+        }
+
+        var newNodes = [];
+        var newEdges = [];
+
+        path.forEach((id, idx) => {
+            var p = personsDB[id];
+            if (!p) return;
+            var pos = positions[id] || { x: 0, y: 0 };
+            var isStart = (id === startId);
+            var isEnd = (id === endId);
+
+            var colorFill = p.gender === 'F' ? "#FFC0CB" : "#97C2FC";
+            if (isStart) colorFill = "#FFF9C4";
+            if (isEnd) colorFill = "#FFE0B2";
+
+            newNodes.push({
+                id: id,
+                label: p.name + (p.years ? "\n" + p.years : ""),
+                shape: (isStart || isEnd) ? "ellipse" : "box",
+                x: pos.x,
+                y: pos.y,
+                color: { background: colorFill, border: (isStart || isEnd) ? "#D32F2F" : "#555" },
+                borderWidth: (isStart || isEnd) ? 3 : 1
+            });
+
+            if (idx < path.length - 1) {
+                var nextId = path[idx + 1];
+                var relColor = "#4CAF50";
+                var isDashed = false;
+
+                if (p.spouses.includes(nextId)) {
+                    relColor = "#E91E63";
+                    isDashed = true;
+                }
+
+                newEdges.push({
+                    id: "mini_e_" + idx,
+                    from: id,
+                    to: nextId,
+                    color: { color: relColor },
+                    dashes: isDashed,
+                    arrows: { to: { enabled: !isDashed, type: "arrow" } }
+                });
+            }
+        });
+
+        miniNodesDataSet.add(newNodes);
+        miniEdgesDataSet.add(newEdges);
+
+        relationTooltip.style.display = 'block';
+
+        if (!relationTooltip.style.left || relationTooltip.style.left === '0px' && !relationTooltip.classList.contains('maximized')) {
+            var left = currentMousePos.x + 18;
+            var top = currentMousePos.y + 18;
+            if (left + 920 > window.innerWidth) left = window.innerWidth - 940;
+            if (top + 620 > window.innerHeight) top = window.innerHeight - 640;
+            if (top < 10) top = 10;
+
+            relationTooltip.style.left = left + 'px';
+            relationTooltip.style.top = top + 'px';
+        }
+
+        setTimeout(() => { 
+            miniNetwork.fit({ animation: false });
+            var currentScale = miniNetwork.getScale();
+            if (currentScale > 0.85) {
+                miniNetwork.moveTo({ scale: 0.85 });
+            }
+        }, 50);
+    }
+
+    function highlightAllPathsBetweenTargetsWithUniqueColors(hoveredId) {
+        var targets = Array.from(currentTargetSet);
+        var edgeColorMap = {};
+        var activePathNodes = new Set([hoveredId]);
+        let colorIdx = 0;
+
+        targets.forEach(function(targetId) {
+            if (targetId === hoveredId) return;
+
+            var queue = [[hoveredId]];
+            var visited = new Set([hoveredId]);
+            var foundPath = null;
+
+            while (queue.length > 0) {
+                var path = queue.shift();
+                var current = path[path.length - 1];
+                if (current === targetId) { foundPath = path; break; }
+                (currentAdjMap[current] || []).forEach(function(item) {
+                    if (!visited.has(item.neighbor)) {
+                        visited.add(item.neighbor);
+                        queue.push(path.concat([item.neighbor]));
+                    }
+                });
+            }
+
+            if (foundPath) {
+                foundPath.forEach(n => activePathNodes.add(n));
+                var assignedColor = pathColors[colorIdx % pathColors.length];
+                colorIdx++;
+
+                for (var i = 0; i < foundPath.length - 1; i++) {
+                    var u = foundPath[i], v = foundPath[i + 1];
+                    (currentAdjMap[u] || []).forEach(function(item) {
+                        if (item.neighbor === v) {
+                            edgeColorMap[item.edgeId] = assignedColor;
+                        }
+                    });
+                }
+            }
+        });
+
+        nodesDataSet.forEach(function(n) {
+            nodesDataSet.update({ id: n.id, opacity: activePathNodes.has(n.id) ? 1 : 0.25 });
+        });
+        edgesDataSet.forEach(function(e) {
+            var isHighlight = edgeColorMap[e.id] !== undefined;
+            edgesDataSet.update({ 
+                id: e.id, 
+                color: { color: isHighlight ? edgeColorMap[e.id] : "#E0E0E0" }, 
+                width: isHighlight ? 4 : 1 
+            });
+        });
+    }
+
+    network.on("dragEnd", function (params) {
+        if (params.nodes.length > 0) {
+            params.nodes.forEach(function (nodeId) {
+                nodesDataSet.update({ id: nodeId, fixed: { x: true, y: true } });
+            });
+        }
+    });
+
+    network.on("doubleClick", function (params) {
+        if (params.nodes.length > 0) {
+            params.nodes.forEach(function (nodeId) {
+                nodesDataSet.update({ id: nodeId, fixed: false });
+            });
+        }
+    });
+
+    network.on("select", function (params) {
+        if (params.nodes.length === 2) {
+            highlightPathBetween(params.nodes[0], params.nodes[1]);
+        } else if (params.nodes.length === 0) {
+            resetHighlighting();
+        }
+    });
+
+    function parseYearString(str) {
+        if (!str) return '';
+        var match = String(str).match(/\b(1\d{3}|20\d{2})\b/);
+        return match ? match[1] : '';
+    }
+
+    function parseGedcomText(gedcomText) {
+        personsDB = {};
+        var rawFams = {};
+        
+        var lines = gedcomText.split(/\r?\n/);
+        var currentRecordType = null;
+        var currentIndi = null;
+        var currentFam = null;
+        var currentSubTag = null;
+
+        lines.forEach(function(line) {
+            var trimmed = line.trim();
+            if (!trimmed) return;
+
+            var parts = trimmed.split(' ');
+            var level = parseInt(parts[0], 10);
+            var tag = '';
+            var val = '';
+            var id = '';
+
+            if (isNaN(level)) return;
+
+            if (parts[1] && parts[1].startsWith('@') && parts[1].endsWith('@')) {
+                id = parts[1].replace(/@/g, '');
+                tag = parts[2] ? parts[2].toUpperCase() : '';
+                val = parts.slice(3).join(' ');
+            } else {
+                tag = parts[1] ? parts[1].toUpperCase() : '';
+                val = parts.slice(2).join(' ');
+            }
+
+            if (level === 0) {
+                currentIndi = null;
+                currentFam = null;
+                currentRecordType = null;
+
+                if (tag === 'INDI') {
+                    currentRecordType = 'INDI';
+                    currentIndi = {
+                        id: id,
+                        name: 'Onbekend',
+                        surname: '',
+                        gender: 'U',
+                        birt: '',
+                        deat: '',
+                        years: '',
+                        famc: [],
+                        fams: [],
+                        parents: [],
+                        children: [],
+                        spouses: []
+                    };
+                    personsDB[id] = currentIndi;
+                } else if (tag === 'FAM') {
+                    currentRecordType = 'FAM';
+                    currentFam = {
+                        id: id,
+                        husb: [],
+                        wife: [],
+                        children: []
+                    };
+                    rawFams[id] = currentFam;
+                }
+            } else if (level === 1) {
+                currentSubTag = tag;
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if (tag === 'SEX') {
+                        currentIndi.gender = val.trim().toUpperCase();
+                    } else if (tag === 'NAME') {
+                        currentIndi.name = val.replace(/\//g, '').trim();
+                        var surnameMatch = val.match(/\/([^/]+)\/l?/);
+                        if (surnameMatch && surnameMatch[1]) {
+                            currentIndi.surname = surnameMatch[1].trim();
+                        } else {
+                            var partsName = currentIndi.name.split(' ');
+                            currentIndi.surname = partsName[partsName.length - 1] || 'Onbekend';
+                        }
+                    } else if (tag === 'FAMC') {
+                        var fId = val.replace(/@/g, '').trim();
+                        if (fId) currentIndi.famc.push(fId);
+                    } else if (tag === 'FAMS') {
+                        var fId = val.replace(/@/g, '').trim();
+                        if (fId) currentIndi.fams.push(fId);
+                    }
+                } else if (currentRecordType === 'FAM' && currentFam) {
+                    if (tag === 'HUSB') {
+                        var hId = val.replace(/@/g, '').trim();
+                        if (hId) currentFam.husb.push(hId);
+                    } else if (tag === 'WIFE') {
+                        var wId = val.replace(/@/g, '').trim();
+                        if (wId) currentFam.wife.push(wId);
+                    } else if (tag === 'CHIL') {
+                        var cId = val.replace(/@/g, '').trim();
+                        if (cId) currentFam.children.push(cId);
+                    }
+                }
+            } else if (level === 2 || level === 3) {
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if ((currentSubTag === 'BIRT' || currentSubTag === 'DEAT') && tag === 'DATE') {
+                        var yr = parseYearString(val);
+                        if (yr) {
+                            if (currentSubTag === 'BIRT') currentIndi.birt = yr;
+                            if (currentSubTag === 'DEAT') currentIndi.deat = yr;
+                        }
+                    }
+                }
+            }
+        });
+
+        Object.values(personsDB).forEach(function(p) {
+            if (p.birt || p.deat) {
+                p.years = "(" + p.birt + " - " + p.deat + ")";
+            }
+        });
+
+        Object.values(rawFams).forEach(function(fam) {
+            var parents = [].concat(fam.husb, fam.wife);
+            fam.husb.forEach(function(hId) {
+                fam.wife.forEach(function(wId) {
+                    if (personsDB[hId] && !personsDB[hId].spouses.includes(wId)) personsDB[hId].spouses.push(wId);
+                    if (personsDB[wId] && !personsDB[wId].spouses.includes(hId)) personsDB[wId].spouses.push(hId);
+                });
+            });
+            fam.children.forEach(function(childId) {
+                if (personsDB[childId]) {
+                    parents.forEach(function(pId) {
+                        if (personsDB[pId]) {
+                            if (!personsDB[childId].parents.includes(pId)) personsDB[childId].parents.push(pId);
+                            if (!personsDB[pId].children.includes(childId)) personsDB[pId].children.push(childId);
+                        }
+                    });
+                }
+            });
+        });
+
+        setupAutocomplete();
+    }
+
+    function setupAutocomplete() {
+        for (let i = 1; i <= 5; i++) {
+            let input = document.getElementById("target" + i);
+            let hiddenId = document.getElementById("targetId" + i);
+
+            input.removeEventListener("input", input._autocompleteHandler);
+            input._autocompleteHandler = function() {
+                let val = this.value;
+                closeAllLists();
+                if (!val || val.length < 2) {
+                    hiddenId.value = "";
+                    return;
+                }
+
+                let listDiv = document.createElement("DIV");
+                listDiv.setAttribute("id", this.id + "-autocomplete-list");
+                listDiv.setAttribute("class", "autocomplete-items");
+                this.parentNode.appendChild(listDiv);
+
+                let personsArray = Object.values(personsDB);
+                for (let p of personsArray) {
+                    if (p.name.toLowerCase().indexOf(val.toLowerCase()) !== -1) {
+                        let itemDiv = document.createElement("DIV");
+                        itemDiv.innerHTML = "<strong>" + p.name + "</strong> " + (p.years ? p.years : "") + " <span style='color:#777;'>(" + p.id + ")</span>";
+                        
+                        itemDiv.addEventListener("click", function() {
+                            input.value = p.name;
+                            hiddenId.value = p.id;
+                            closeAllLists();
+                        });
+                        listDiv.appendChild(itemDiv);
+                    }
+                }
+            };
+            input.addEventListener("input", input._autocompleteHandler);
+
+            input.addEventListener("blur", function() {
+                setTimeout(() => {
+                    if (!input.value) hiddenId.value = "";
+                }, 200);
+            });
+        }
+    }
+
+    function closeAllLists(elmnt) {
+        let items = document.getElementsByClassName("autocomplete-items");
+        for (let i = 0; i < items.length; i++) {
+            if (elmnt != items[i] && elmnt != event?.target) {
+                items[i].parentNode.removeChild(items[i]);
+            }
+        }
+    }
+
+    document.addEventListener("click", function (e) {
+        closeAllLists(e.target);
+    });
+
+    function initTree(fileContent) {
+        try {
+            setStatus("⏳ Parsen van GEDCOM data...", false);
+            parseGedcomText(fileContent);
+            var pIds = Object.keys(personsDB);
+            if (pIds.length === 0) {
+                setStatus("⚠️ Geen geldige personen gevonden in de data.", true);
+                return;
+            }
+            setStatus("✅ Data geladen (" + pIds.length + " personen).", false);
+
+            if (personsDB["I5147"]) {
+                document.getElementById("targetId1").value = "I5147";
+                document.getElementById("target1").value = personsDB["I5147"].name;
+            } else if (pIds.length > 0) {
+                document.getElementById("targetId1").value = pIds[0];
+                document.getElementById("target1").value = personsDB[pIds[0]].name;
+            }
+
+            var storedP2 = sessionStorage.getItem('persoon2Id');
+            if (storedP2 && personsDB[storedP2]) {
+                document.getElementById("targetId2").value = storedP2;
+                document.getElementById("target2").value = personsDB[storedP2].name;
+                sessionStorage.removeItem('persoon2Id');
+            }
+
+            calculateAndRender();
+        } catch (err) {
+            setStatus("⚠️ Fout bij verwerken data: " + err.message, true);
+        }
+    }
+
+    async function initTreeFromIndexedDB() {
+        try {
+            var savedData = await getGedcomFromIDB();
+            if (savedData) {
+                initTree(savedData);
+            } else {
+                setStatus("⚠️ Geen stamboom gevonden in IndexedDB. Ga terug naar de startpagina.", true);
+            }
+        } catch (err) {
+            console.error("Fout bij openen IndexedDB:", err);
+            setStatus("⚠️ Kan geen verbinding maken met IndexedDB.", true);
+        }
+    }
+
+    window.addEventListener('load', function() {
+        initTreeFromIndexedDB();
+    });
+
+    function getAncestorsWithPaths(startId, maxGenerations) {
+        var ancestors = {};
+        var queue = [{ id: startId, path: [startId] }];
+        while (queue.length > 0) {
+            var item = queue.shift();
+            if (item.path.length > maxGenerations) continue;
+            var pObj = personsDB[item.id];
+            if (!pObj) continue;
+            pObj.parents.forEach(function(pId) {
+                if (!ancestors[pId]) {
+                    var newPath = item.path.concat([pId]);
+                    ancestors[pId] = newPath;
+                    queue.push({ id: pId, path: newPath });
+                }
+            });
+        }
+        return ancestors;
+    }
+
+    function findBloodRelationships(targetList, maxGen) {
+        var nodesToInclude = new Set(targetList);
+        var ancestorDict = {};
+        targetList.forEach(function(tId) {
+            ancestorDict[tId] = getAncestorsWithPaths(tId, maxGen);
+        });
+
+        for (var i = 0; i < targetList.length; i++) {
+            for (var j = i + 1; j < targetList.length; j++) {
+                var p1 = targetList[i], p2 = targetList[j];
+                var anc1 = ancestorDict[p1] || {}, anc2 = ancestorDict[p2] || {};
+                var common = Object.keys(anc1).filter(a => a in anc2);
+                common.forEach(function(mrca) {
+                    (anc1[mrca] || []).forEach(n => nodesToInclude.add(n));
+                    (anc2[mrca] || []).forEach(n => nodesToInclude.add(n));
+                });
+            }
+        }
+        return nodesToInclude;
+    }
+
+    function findShortestAnyPath(targetList) {
+        var nodesToInclude = new Set(targetList);
+        targetList.forEach(function(startId) {
+            var visited = new Set([startId]);
+            var queue = [[startId]];
+            while (queue.length > 0) {
+                var path = queue.shift();
+                var node = path[path.length - 1];
+                if (targetList.includes(node) && node !== startId) {
+                    path.forEach(n => nodesToInclude.add(n));
+                }
+                var pObj = personsDB[node];
+                if (!pObj) continue;
+                var neighbors = [].concat(pObj.parents, pObj.children, pObj.spouses);
+                neighbors.forEach(function(nbr) {
+                    if (nbr && !visited.has(nbr)) {
+                        visited.add(nbr);
+                        queue.push(path.concat([nbr]));
+                    }
+                });
+            }
+        });
+        return nodesToInclude;
+    }
+
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('btnBlood').className = 'btn btn-mode' + (mode === 'blood' ? ' active' : '');
+        document.getElementById('btnShortest').className = 'btn btn-mode' + (mode === 'shortest' ? ' active' : '');
+        calculateAndRender();
+    }
+
+    function calculateAndRender() {
+        var targetList = [];
+        currentTargetSet.clear();
+
+        for (let i = 1; i <= 5; i++) {
+            let hiddenId = document.getElementById("targetId" + i).value;
+            let textVal = document.getElementById("target" + i).value.trim();
+
+            if (hiddenId && personsDB[hiddenId]) {
+                targetList.push(hiddenId);
+                currentTargetSet.add(hiddenId);
+            } else if (textVal) {
+                let found = Object.values(personsDB).find(p => p.name.toLowerCase() === textVal.toLowerCase());
+                if (found) {
+                    targetList.push(found.id);
+                    currentTargetSet.add(found.id);
+                }
+            }
+        }
+
+        var maxGen = parseInt(document.getElementById('maxGenInput').value, 10);
+        if (isNaN(maxGen) || maxGen < 1) maxGen = 10;
+
+        if (targetList.length === 0) {
+            setStatus("⚠️ Kies ten minste 1 persoon uit de invulvelden.", true);
+            return;
+        }
+
+        var nodesToInclude = (currentMode === 'blood') 
+            ? findBloodRelationships(targetList, maxGen) 
+            : findShortestAnyPath(targetList);
+
+        if (nodesToInclude.size === 0) {
+            setStatus("⚠️ Geen relaties gevonden voor deze personen binnen deze limiet.", true);
+            return;
+        }
+
+        renderNetworkGraph(nodesToInclude, currentTargetSet, targetList);
+        setStatus("✅ Weergave van " + nodesToInclude.size + " personen.", false);
+    }
+
+    var currentAdjMap = {};
+
+    function renderNetworkGraph(nodesToInclude, targetSet, targetList) {
+        nodesDataSet.clear();
+        edgesDataSet.clear();
+        currentAdjMap = {};
+        lastSelectedPathIds = [];
+        lastSelectedPathNames = [];
+
+        var newNodes = [];
+        var edgesSet = new Set();
+
+        nodesToInclude.forEach(function(id) {
+            var p = personsDB[id];
+            if (!p) return;
+
+            var isTarget = targetSet.has(id);
+            var colorFill = p.gender === 'F' ? "#FFC0CB" : "#97C2FC";
+            var borderColor = isTarget ? "#D32F2F" : "#555555";
+            var borderWidth = isTarget ? 4 : 1;
+            var shape = isTarget ? "ellipse" : "box";
+
+            newNodes.push({
+                id: id,
+                label: p.name + (p.years ? "\n" + p.years : ""),
+                shape: shape,
+                color: { background: colorFill, border: borderColor, highlight: { background: "#FFE082", border: "#FF6F00" } },
+                borderWidth: borderWidth
+            });
+
+            currentAdjMap[id] = [];
+        });
+
+        nodesToInclude.forEach(function(id) {
+            var p = personsDB[id];
+            if (!p) return;
+
+            p.spouses.forEach(function(sId) {
+                if (nodesToInclude.has(sId)) {
+                    var pairKey = [id, sId].sort().join('-partner-');
+                    edgesSet.add(JSON.stringify({ key: pairKey, from: id, to: sId, label: "partner", color: { color: "#E91E63" }, dashes: true, arrows: { to: false } }));
+                }
+            });
+
+            p.children.forEach(function(cId) {
+                if (nodesToInclude.has(cId)) {
+                    var pairKey = id + '->' + cId + '-parent';
+                    edgesSet.add(JSON.stringify({ key: pairKey, from: id, to: cId, label: "ouder van", color: { color: "#4CAF50" }, arrows: { to: { enabled: true, type: "arrow" } } }));
+                }
+            });
+        });
+
+        var newEdges = [];
+        var edgeIndex = 0;
+        edgesSet.forEach(function(str) {
+            var e = JSON.parse(str);
+            e.id = "e_" + (edgeIndex++);
+            newEdges.push(e);
+            if (currentAdjMap[e.from]) currentAdjMap[e.from].push({ neighbor: e.to, edgeId: e.id });
+            if (currentAdjMap[e.to]) currentAdjMap[e.to].push({ neighbor: e.from, edgeId: e.id });
+        });
+
+        nodesDataSet.add(newNodes);
+        edgesDataSet.add(newEdges);
+        network.fit();
+    }
+
+    function getRelationCodeChar(fromId, toId) {
+        var fromP = personsDB[fromId];
+        var toP = personsDB[toId];
+        if (!fromP || !toP) return '?';
+
+        if (fromP.parents.includes(toId)) {
+            return toP.gender === 'F' ? 'M' : 'V';
+        }
+        if (fromP.children.includes(toId)) {
+            return 'K';
+        }
+        if (fromP.spouses.includes(toId)) {
+            return 'P';
+        }
+        return '?';
+    }
+
+    function highlightPathBetween(startId, endId) {
+        var queue = [[startId]];
+        var visited = new Set([startId]);
+        var targetPath = null;
+
+        while (queue.length > 0) {
+            var path = queue.shift();
+            var current = path[path.length - 1];
+            if (current === endId) { targetPath = path; break; }
+            (currentAdjMap[current] || []).forEach(function(item) {
+                if (!visited.has(item.neighbor)) {
+                    visited.add(item.neighbor);
+                    queue.push(path.concat([item.neighbor]));
+                }
+            });
+        }
+        if (!targetPath) return;
+
+        lastSelectedPathIds = targetPath;
+        var startPerson = personsDB[startId];
+        var endPerson = personsDB[endId];
+        lastPathStartName = startPerson ? startPerson.name : startId;
+        lastPathEndName = endPerson ? endPerson.name : endId;
+
+        var codeChars = [];
+        var lastGroup = ''; 
+        changeIndices = [];
+
+        for (var i = 0; i < targetPath.length - 1; i++) {
+            var charCode = getRelationCodeChar(targetPath[i], targetPath[i+1]);
+            var currentGroup = (charCode === 'V' || charCode === 'M') ? 'PARENT' : charCode;
+
+            if (lastGroup !== '' && lastGroup !== currentGroup) {
+                codeChars.push('-');
+                changeIndices.push(i);
+            }
+            codeChars.push(charCode);
+            lastGroup = currentGroup;
+        }
+        lastPathCode = codeChars.join('');
+
+        lastSelectedPathNames = targetPath.map(function(id, idx) {
+            var p = personsDB[id];
+            var namePart = p ? (p.name + (p.years ? " " + p.years : "") + " (@" + id + "@)") : id;
+            if (changeIndices.includes(idx)) {
+                return "🔴 " + namePart + " (Richtsverandering)";
+            }
+            return namePart;
+        });
+
+        var pathNodesSet = new Set(targetPath);
+        var pathEdgesSet = new Set();
+        for (var i = 0; i < targetPath.length - 1; i++) {
+            var u = targetPath[i], v = targetPath[i + 1];
+            (currentAdjMap[u] || []).forEach(function(item) { if (item.neighbor === v) pathEdgesSet.add(item.edgeId); });
+        }
+
+        nodesDataSet.forEach(function(n) {
+            nodesDataSet.update({ id: n.id, opacity: pathNodesSet.has(n.id) ? 1 : 0.25 });
+        });
+        edgesDataSet.forEach(function(e) {
+            edgesDataSet.update({ id: e.id, color: { color: pathEdgesSet.has(e.id) ? "#FF6F00" : "#E0E0E0" }, width: pathEdgesSet.has(e.id) ? 4 : 1 });
+        });
+    }
+
+    function resetHighlighting() {
+        lastSelectedPathIds = [];
+        lastSelectedPathNames = [];
+        nodesDataSet.forEach(function(n) {
+            nodesDataSet.update({ id: n.id, opacity: 1 });
+        });
+        edgesDataSet.forEach(function(e) {
+            edgesDataSet.update({ id: e.id, color: { color: e.label === "ouder van" ? "#4CAF50" : "#E91E63" }, width: 1 });
+        });
+    }
+
+    function showFamilyNamesPopup() {
+        var modal = document.getElementById('familyNamesModal');
+        var listContainer = document.getElementById('modalFamilyNamesList');
+
+        if (!lastSelectedPathIds || lastSelectedPathIds.length === 0) {
+            listContainer.innerHTML = "⚠️ Selecteer eerst 2 personen in het netwerk door er op te klikken zodat het pad oplicht.";
+            modal.style.display = "flex";
+            return;
+        }
+
+        var surnameCounts = {};
+        lastSelectedPathIds.forEach(id => {
+            var p = personsDB[id];
+            if (p && p.surname) {
+                var s = p.surname;
+                surnameCounts[s] = (surnameCounts[s] || 0) + 1;
+            }
+        });
+
+        var surnameArray = Object.keys(surnameCounts).map(surname => {
+            return { name: surname, count: surnameCounts[surname] };
+        });
+
+        surnameArray.sort(function(a, b) {
+            if (b.count !== a.count) return b.count - a.count;
+            return a.name.localeCompare(b.name, 'nl');
+        });
+
+        if (surnameArray.length === 0) {
+            listContainer.innerHTML = "Geen familienamen gevonden in dit pad.";
+        } else {
+            var html = "<strong>Familienamen in dit pad (gesorteerd op frequentie):</strong><br><ul style='margin: 5px 0 0 20px; padding: 0;'>";
+            surnameArray.forEach(item => {
+                html += `<li><strong>${item.name}</strong>: ${item.count} ${item.count === 1 ? 'keer' : 'keer'}</li>`;
+            });
+            html += "</ul>";
+            listContainer.innerHTML = html;
+        }
+
+        modal.style.display = "flex";
+    }
+
+    function closeFamilyNamesPopup() {
+        document.getElementById('familyNamesModal').style.display = "none";
+    }
+
+    function copySelectedPath() {
+        if (!lastSelectedPathNames || lastSelectedPathNames.length === 0) {
+            alert("Selecteer eerst exact 2 personen in het netwerk door erop te klikken zodat het pad oplicht.");
+            return;
+        }
+
+        var titleLine = "Pad van " + lastPathStartName + " naar " + lastPathEndName + " (" + lastSelectedPathNames.length + " personen, relatiecode: " + lastPathCode + "):";
+        var textToCopy = titleLine + "\n" + lastSelectedPathNames.join(" ➔ ");
+
+        navigator.clipboard.writeText(textToCopy).then(function() {
+            setStatus("✅ Het pad is naar het klembord gekopieerd!", false);
+        }).catch(function(err) {
+            alert("Kopiëren mislukt: " + err);
+        });
+    }
+</script>
+
+</body>
+</html>

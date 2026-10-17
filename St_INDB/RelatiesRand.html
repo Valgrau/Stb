@@ -325,7 +325,7 @@
 
     <div class="input-group" style="background: #e8f5e9; padding: 6px 10px; border-radius: 4px; border: 1px solid #c8e6c9;">
         <label style="color: #2e7d32; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-            <input type="checkbox" id="enableHoverTree" checked style="cursor: pointer;"> Stamboom Popup bij Hover
+            <input type="checkbox" id="enableRightClickTree" checked style="cursor: pointer;"> Stamboom Popup bij Rechtermuisklik
         </label>
         <span style="font-size: 10px; color: #555;">(Selecteer eerst 1 persoon)</span>
     </div>
@@ -538,6 +538,11 @@
     };
     var network = new vis.Network(container, data, options);
 
+    // Voorkom standaard rechtermuisklik (contextmenu) binnen het netwerk om onze eigen popup te triggeren
+    container.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+    });
+
     // Mini-netwerk voor de popup: GEEN tekstlabels op lijnen, compacte en krachtige weergave
     var miniNodesDataSet = new vis.DataSet();
     var miniEdgesDataSet = new vis.DataSet();
@@ -561,30 +566,35 @@
 
     const pathColors = ["#9C27B0", "#E91E63", "#00BCD4", "#FF9800", "#3F51B5", "#8BC34A"];
 
-    network.on("hoverNode", function (params) {
-        var hoveredId = params.node;
-        var selectedNodes = network.getSelectedNodes();
-        var hoverCheckbox = document.getElementById('enableHoverTree');
+    // RECHTERMUISKLIK (oncontext) event in plaats van hoverNode
+    network.on("oncontext", function (params) {
+        params.event.preventDefault();
+        var clickedNodeId = network.getNodeAt(params.pointer.DOM);
+        
+        if (!clickedNodeId) return;
 
-        if (hoverCheckbox && hoverCheckbox.checked && selectedNodes.length === 1) {
+        var selectedNodes = network.getSelectedNodes();
+        var rightClickCheckbox = document.getElementById('enableRightClickTree');
+
+        if (rightClickCheckbox && rightClickCheckbox.checked && selectedNodes.length === 1) {
             var selectedId = selectedNodes[0];
-            if (selectedId !== hoveredId) {
-                showMountainPopup(selectedId, hoveredId);
+            if (selectedId !== clickedNodeId) {
+                showMountainPopup(selectedId, clickedNodeId);
                 return;
             }
         }
+    });
 
+    // Hover behouden voor het highlighten van paden tussen targets indien gewenst
+    network.on("hoverNode", function (params) {
+        var hoveredId = params.node;
         if (currentTargetSet.has(hoveredId)) {
             highlightAllPathsBetweenTargetsWithUniqueColors(hoveredId);
         }
     });
 
     network.on("blurNode", function () {
-        setTimeout(() => {
-            if (!isHoveringTooltip && !isDraggingTooltip && !isResizing) {
-                relationTooltip.style.display = 'none';
-            }
-        }, 200);
+        // Eventueel blur gedrag indien nodig
     });
 
     function showMountainPopup(startId, endId) {
