@@ -245,6 +245,46 @@
         </tbody>
     </table>
 
+    <!-- TOEGEVOEGDE TOP 20 SECTIES -->
+    <h2 class="section-title">🌳 Top 20 Stamboom Omvang & Generaties</h2>
+
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">Top 20 Personen met de MEESTE voorouders</h3>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Rang</th><th>Persoon</th><th style="text-align: right;">Voorouders</th></tr>
+                </thead>
+                <tbody id="topAncestorsBody">
+                    <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">Top 20 Meest VOLLEDIG OPGEVULDE generaties</h3>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Rang</th><th>Persoon</th><th style="text-align: right;">Volledige gen.</th></tr>
+                </thead>
+                <tbody id="topCompleteGenerationsBody">
+                    <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div>
+        <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">Top 20 Personen met de meeste afstammelingen</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>Rang</th><th>Persoon</th><th style="text-align: right;">Afstammelingen</th></tr>
+            </thead>
+            <tbody id="topDescendantsBody">
+                <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
     <!-- TOP 10 SECTIE -->
     <h2 class="section-title">🏆 Top 10 Overzichten</h2>
     
@@ -852,6 +892,11 @@
         renderTopTable('placesTableBody', birthPlaces, 5);
         renderCenturyTable(centuryCounts);
 
+        // Render de 3 toegevoegde tabellen
+        renderTopAncestorsTable(personsMap, familiesMap);
+        renderTopCompleteGenerationsTable(personsMap, familiesMap);
+        renderTopDescendantsTable(personsMap, items);
+
         renderTopTableObject('topIslandsBody', islands.map((size, idx) => [`Eiland #${idx + 1}`, size]));
         renderTopTable('topSurnamesBody', surnamesCount, 10);
         renderTopTable('topGivenNamesBody', givenNamesCount, 10);
@@ -861,11 +906,9 @@
         renderTopTable('topFirstChildAgeBody', firstChildAgesCount, 10);
         renderTopTable('topLastChildAgeBody', lastChildAgesCount, 10);
 
-        // Render Relatiepaden (vanaf 20 stappen, oplopend gesorteerd)
         let longestPaths = calculateLongestPaths(personsMap, graph);
         renderLongestPathsTable(longestPaths, personsMap);
 
-        // Render Sensationeel Leeftijdsverschil
         let sensationalGaps = processSensationalData(items, personsMap, familiesMap);
         renderSensationalTable(sensationalGaps);
     }
@@ -910,6 +953,181 @@
         return maxDepth;
     }
 
+    // 1. Top 20 personen met de MEESTE voorouders
+    function renderTopAncestorsTable(personsMap, familiesMap) {
+        const tbody = document.getElementById('topAncestorsBody');
+        tbody.innerHTML = '';
+        let list = [];
+
+        function countAncestors(personId, visited = new Set()) {
+            const person = personsMap[personId];
+            if (!person) return;
+            let parentFamIds = [];
+            (person.children || []).forEach(c => {
+                if (c.tag === 'FAMC' && c.value) parentFamIds.push(cleanId(c.value));
+            });
+            parentFamIds.forEach(famId => {
+                const fam = familiesMap[famId];
+                if (fam) {
+                    const members = extractFamMembers(fam);
+                    [members.husb, members.wife].forEach(pId => {
+                        if (pId && personsMap[pId] && !visited.has(pId)) {
+                            visited.add(pId);
+                            countAncestors(pId, visited);
+                        }
+                    });
+                }
+            });
+            return visited.size;
+        }
+
+        Object.keys(personsMap).forEach(id => {
+            let count = countAncestors(id, new Set());
+            if (count > 0) list.push({ id: id, count: count });
+        });
+
+        list.sort((a, b) => b.count - a.count);
+        let top20 = list.slice(0, 20);
+
+        if (top20.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>';
+            return;
+        }
+
+        top20.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center; font-weight: bold; color: #3498db;">#${index + 1}</td>
+                <td>${getPersonDisplayInfo(personsMap[item.id])}</td>
+                <td style="text-align: right;"><span class="badge-count">${item.count}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 2. Top 20 personen met meest VOLLEDIG OPGEVULDE GENERATIES VOOROUDERS
+    function renderTopCompleteGenerationsTable(personsMap, familiesMap) {
+        const tbody = document.getElementById('topCompleteGenerationsBody');
+        tbody.innerHTML = '';
+        let list = [];
+
+        function getCompleteGenerations(personId) {
+            let currentGenIds = [personId];
+            let gen = 0;
+
+            while (true) {
+                let nextGenIds = [];
+                let expectedCount = Math.pow(2, gen + 1);
+                let missing = false;
+
+                for (let pId of currentGenIds) {
+                    const person = personsMap[pId];
+                    if (!person) { missing = true; break; }
+
+                    let famcId = null;
+                    (person.children || []).forEach(c => {
+                        if (c.tag === 'FAMC' && c.value) famcId = cleanId(c.value);
+                    });
+
+                    if (!famcId) { missing = true; break; }
+                    const fam = familiesMap[famcId];
+                    if (!fam) { missing = true; break; }
+
+                    const members = extractFamMembers(fam);
+                    if (!members.husb || !members.wife || !personsMap[members.husb] || !personsMap[members.wife]) {
+                        missing = true; break;
+                    }
+
+                    nextGenIds.push(members.husb, members.wife);
+                }
+
+                if (missing || nextGenIds.length < expectedCount) {
+                    break;
+                }
+
+                gen++;
+                currentGenIds = nextGenIds;
+            }
+            return gen;
+        }
+
+        Object.keys(personsMap).forEach(id => {
+            let genCount = getCompleteGenerations(id);
+            if (genCount > 0) list.push({ id: id, gen: genCount });
+        });
+
+        list.sort((a, b) => b.gen - a.gen);
+        let top20 = list.slice(0, 20);
+
+        if (top20.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen volledige generaties gevonden</td></tr>';
+            return;
+        }
+
+        top20.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center; font-weight: bold; color: #3498db;">#${index + 1}</td>
+                <td>${getPersonDisplayInfo(personsMap[item.id])}</td>
+                <td style="text-align: right;"><span class="badge-count">${item.gen} gen. compleet</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 3. Top 20 personen met de meeste afstammelingen
+    function renderTopDescendantsTable(personsMap, items) {
+        const tbody = document.getElementById('topDescendantsBody');
+        tbody.innerHTML = '';
+        let list = [];
+
+        let parentToChildren = {};
+        items.forEach(item => {
+            if ((item.TAG || '').toUpperCase() === 'FAM') {
+                const members = extractFamMembers(item);
+                const parents = [members.husb, members.wife].filter(Boolean);
+                parents.forEach(pId => {
+                    if (!parentToChildren[pId]) parentToChildren[pId] = new Set();
+                    members.children.forEach(cId => parentToChildren[pId].add(cId));
+                });
+            }
+        });
+
+        function countDescendants(personId, visited = new Set()) {
+            const children = parentToChildren[personId] || [];
+            children.forEach(cId => {
+                if (!visited.has(cId)) {
+                    visited.add(cId);
+                    countDescendants(cId, visited);
+                }
+            });
+            return visited.size;
+        }
+
+        Object.keys(personsMap).forEach(id => {
+            let count = countDescendants(id, new Set());
+            if (count > 0) list.push({ id: id, count: count });
+        });
+
+        list.sort((a, b) => b.count - a.count);
+        let top20 = list.slice(0, 20);
+
+        if (top20.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen afstammelingen gevonden</td></tr>';
+            return;
+        }
+
+        top20.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center; font-weight: bold; color: #3498db;">#${index + 1}</td>
+                <td>${getPersonDisplayInfo(personsMap[item.id])}</td>
+                <td style="text-align: right;"><span class="badge-count">${item.count}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
     function calculateLongestPaths(personsMap, graph) {
         const personIds = Object.keys(graph);
         if (personIds.length === 0) return [];
@@ -941,7 +1159,7 @@
                 });
             }
 
-            if (farthestPath.length >= 20) { // Alleen paden van minstens 20 stappen meenemen
+            if (farthestPath.length >= 20) {
                 paths.push({
                     from: farthestPath[0],
                     to: farthestPath[farthestPath.length - 1],
@@ -950,7 +1168,6 @@
             }
         });
 
-        // Filter minimaal 20 stappen en sorteer OPLOPEND (van 20 stappen en zo omhoog)
         paths = paths.filter(p => p.steps >= 20);
         paths.sort((a, b) => a.steps - b.steps);
         

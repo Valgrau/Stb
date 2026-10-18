@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volledig GEDCOM Statistieken Dashboard</title>
+	
+	 <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VVVJZ8DBR5"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-VVVJZ8DBR5');
+    </script>
+	
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 30px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .status-banner {
+            text-align: center;
+            padding: 15px;
+            background: #e8f4fd;
+            border: 2px dashed #3498db;
+            color: #2980b9;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+        .file-select-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .file-select-btn:hover {
+            background-color: #2980b9;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .stat-icon { font-size: 1.8rem; margin-bottom: 5px; }
+        .stat-number { font-size: 1.6em; font-weight: bold; color: #2980b9; margin: 8px 0; }
+        .stat-label { color: #7f8c8d; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.5px; }
+        .section-title {
+            color: #2c3e50;
+            font-size: 1.2rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .data-table th, .data-table td {
+            padding: 10px 15px;
+            text-align: left;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 0.9rem;
+        }
+        .data-table th {
+            background-color: #f8fafc;
+            color: #4a5568;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+        .badge-count {
+            background: #ebf8ff;
+            color: #2b6cb0;
+            font-weight: bold;
+            padding: 3px 10px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌳 Volledig GEDCOM Statistieken Dashboard</h1>
+
+    <div class="status-banner" id="statusBanner">
+        <span id="statusText">⏳ Gegevens ophalen uit IndexedDB...</span>
+        <div id="fileFallback" style="display: none; margin-top: 10px;">
+            <p style="margin: 5px 0; font-size: 0.9rem; color: #555;">
+                Geen opgeslagen stamboom gevonden in IndexedDB. Ga eerst naar de <a href="index.html">Startpagina</a> of selecteer hier een bestand:
+            </p>
+            <input type="file" id="gedcomFileInput" style="display: none;">
+            <button class="file-select-btn" onclick="document.getElementById('gedcomFileInput').click();">
+                📁 Selecteer GEDCOM-bestand
+            </button>
+        </div>
+    </div>
+
+    <!-- Hoofdstatistieken -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-number" id="totalPersons">0</div>
+            <div class="stat-label">Personen</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🏠</div>
+            <div class="stat-number" id="totalFamilies">0</div>
+            <div class="stat-label">Gezinnen</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🕊️</div>
+            <div class="stat-number" id="avgAgeOverall">0 jr</div>
+            <div class="stat-label">Gem. Leeftijd</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">💍</div>
+            <div class="stat-number" id="avgMarriageAgeOverall">0 jr</div>
+            <div class="stat-label">Gem. Huwelijksleeftijd</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">👶</div>
+            <div class="stat-number" id="avgFamilySize">0</div>
+            <div class="stat-label">Kind./gezin (gem.)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📈</div>
+            <div class="stat-number" id="maxGenerations">0</div>
+            <div class="stat-label">Generaties diep</div>
+        </div>
+    </div>
+
+    <!-- Huwelijk & Gezin & Datakwaliteit -->
+    <div class="grid-2">
+        <div>
+            <h2 class="section-title">💍 Huwelijk & Gezin</h2>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Statistiek</th><th style="text-align: right;">Waarde</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Gem. huwelijksleeftijd mannen</td><td style="text-align: right;" id="avgMarriageMen">-</td></tr>
+                    <tr><td>Gem. huwelijksleeftijd vrouwen</td><td style="text-align: right;" id="avgMarriageWomen">-</td></tr>
+                    <tr><td>Gemiddeld aantal kinderen per gezin</td><td style="text-align: right;" id="valAvgChildren">-</td></tr>
+                    <tr><td>Totaal aantal getrouwde gezinnen</td><td style="text-align: right;" id="valTotalMarrFamilies">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h2 class="section-title">🔍 Datakwaliteit & Compleetheid</h2>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Gegeven / Ontbrekend</th><th style="text-align: right;">Percentage</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Personen met geboortedatum</td><td style="text-align: right;" id="pctBirth">-</td></tr>
+                    <tr><td>Personen die overlijdensdatum missen</td><td style="text-align: right;" id="pctMissingDeath">-</td></tr>
+                    <tr><td>Gezinnen die huwelijksdatum missen</td><td style="text-align: right;" id="pctMissingMarriage">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Leeftijd bij Overlijden & Top Geboorteplaatsen -->
+    <div class="grid-2">
+        <div>
+            <h2 class="section-title">⌛ Leeftijd bij Overlijden</h2>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Categorie</th><th style="text-align: right;">Gemiddeld</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Mannen</td><td style="text-align: right;" id="avgAgeMen">-</td></tr>
+                    <tr><td>Vrouwen</td><td style="text-align: right;" id="avgAgeWomen">-</td></tr>
+                    <tr><td>Totaal</td><td style="text-align: right;" id="avgAgeTotal">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h2 class="section-title">📍 Top Geboorteplaatsen</h2>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Plaats</th><th style="text-align: right;">Aantal</th></tr>
+                </thead>
+                <tbody id="placesTableBody">
+                    <tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Geboorten per eeuw -->
+    <h2 class="section-title">⏳ Aantal geboorten per eeuw</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Eeuw (Periode)</th>
+                <th style="text-align: right;">Aantal Geboorten</th>
+            </tr>
+        </thead>
+        <tbody id="centuryTableBody">
+            <tr>
+                <td colspan="2" style="text-align: center; color: #a0aec0;">Geen data geladen...</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- TOP 10 SECTIE -->
+    <h2 class="section-title">🏆 Top 10 Overzichten</h2>
+    
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🏝️ Top 10 Eilanden (Familie-eilanden)</h3>
+            <table class="data-table">
+                <thead><tr><th>Eiland / Component</th><th style="text-align: right;">Aantal personen</th></tr></thead>
+                <tbody id="topIslandsBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">📜 Top 10 Familienamen</h3>
+            <table class="data-table">
+                <thead><tr><th>Familienaam</th><th style="text-align: right;">Aantal</th></tr></thead>
+                <tbody id="topSurnamesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🏷️ Top 10 Voornamen</h3>
+            <table class="data-table">
+                <thead><tr><th>Voornaam</th><th style="text-align: right;">Aantal</th></tr></thead>
+                <tbody id="topGivenNamesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">📅 Top 10 Geboortejaren</h3>
+            <table class="data-table">
+                <thead><tr><th>Geboortejaar</th><th style="text-align: right;">Aantal</th></tr></thead>
+                <tbody id="topBirthYearsBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">💍 Top 10 Huwelijksleeftijden</h3>
+            <table class="data-table">
+                <thead><tr><th>Leeftijd bij Huwelijk</th><th style="text-align: right;">Aantal personen</th></tr></thead>
+                <tbody id="topMarriageAgesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🕊️ Top 10 Ouderdom bij Overlijden</h3>
+            <table class="data-table">
+                <thead><tr><th>Leeftijd bij Overlijden</th><th style="text-align: right;">Aantal personen</th></tr></thead>
+                <tbody id="topDeathAgesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">👶 Top 10 Leeftijd ouders bij Eerste Kind</h3>
+            <table class="data-table">
+                <thead><tr><th>Leeftijd ouder</th><th style="text-align: right;">Aantal</th></tr></thead>
+                <tbody id="topFirstChildAgeBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🍼 Top 10 Leeftijd ouders bij Laatste Kind</h3>
+            <table class="data-table">
+                <thead><tr><th>Leeftijd ouder</th><th style="text-align: right;">Aantal</th></tr></thead>
+                <tbody id="topLastChildAgeBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TOP 100 LANGSTE RELATIEPADEN & SENSATIONEEL GEGEVEN -->
+    <h2 class="section-title">🌐 Netwerk & Sensationele Feiten</h2>
+    
+    <div class="grid-2">
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🛤️ Top 100 Relatiepaden (Vanaf 20 stappen, oplopend)</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Stappen</th>
+                        <th>Van (Vertrek)</th>
+                        <th>Naar (Eindpunt)</th>
+                    </tr>
+                </thead>
+                <tbody id="topLongestPathsBody">
+                    <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🔥 Sensationeel: Grootste Leeftijdsverschil bij Huwelijk</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Verschil</th>
+                        <th>Echtpaar & Details</th>
+                    </tr>
+                </thead>
+                <tbody id="topAgeGapBody">
+                    <tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const DB_NAME = 'GedcomDatabase';
+    const STORE_NAME = 'gedcomStore';
+    const FAV_STORE_NAME = 'favoritesStore';
+    const DB_VERSION = 4;
+
+    function openGedcomDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+                if (!db.objectStoreNames.contains(FAV_STORE_NAME)) {
+                    db.createObjectStore(FAV_STORE_NAME, { keyPath: 'id' });
+                }
+            };
+        });
+    }
+
+    async function saveGedcomToIDB(textData) {
+        const db = await openGedcomDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put(textData, 'gedcomData');
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function getGedcomFromIDB() {
+        const db = await openGedcomDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get('gedcomData');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const savedData = await getGedcomFromIDB();
+            if (savedData) {
+                showSuccess('✅ Data succesvol geladen uit IndexedDB.');
+                const parsedData = parseGedcom(savedData);
+                processGedcomData(parsedData);
+            } else {
+                showFilePickerFallback();
+            }
+        } catch (err) {
+            console.error("Fout bij ophalen uit IndexedDB:", err);
+            showFilePickerFallback();
+        }
+    });
+
+    document.getElementById('gedcomFileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function(evt) {
+            try {
+                const text = evt.target.result;
+                await saveGedcomToIDB(text);
+                showSuccess('✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!');
+                const parsedData = parseGedcom(text);
+                processGedcomData(parsedData);
+            } catch (err) {
+                alert('Fout bij het parsen of opslaan van het GEDCOM bestand!');
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    function showSuccess(msg) {
+        const banner = document.getElementById('statusBanner');
+        banner.style.backgroundColor = '#e6fffa';
+        banner.style.borderColor = '#38b2ac';
+        banner.style.color = '#234e52';
+        document.getElementById('statusText').innerHTML = msg;
+        document.getElementById('fileFallback').style.display = 'none';
+    }
+
+    function showFilePickerFallback() {
+        const banner = document.getElementById('statusBanner');
+        banner.style.backgroundColor = '#fffaf0';
+        banner.style.borderColor = '#dd6b20';
+        banner.style.color = '#7b341e';
+        document.getElementById('statusText').innerHTML = '⚠️ Geen geladen stamboom gevonden in IndexedDB.';
+        document.getElementById('fileFallback').style.display = 'block';
+    }
+
+    function parseGedcom(gedcomText) {
+        const lines = gedcomText.split(/\r?\n/);
+        let records = [];
+        let currentRecord = null;
+        let currentEvent = null;
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+
+            const parts = trimmed.split(' ');
+            const level = parseInt(parts[0], 10);
+            
+            if (isNaN(level)) return;
+
+            if (level === 0) {
+                if (currentRecord) records.push(currentRecord);
+                currentEvent = null;
+                
+                let id = '';
+                let tag = '';
+                if (parts[1].startsWith('@')) {
+                    id = parts[1].replace(/@/g, '');
+                    tag = parts[2] ? parts[2].toUpperCase() : '';
+                } else {
+                    tag = parts[1].toUpperCase();
+                }
+
+                currentRecord = { TAG: tag, id: id, children: [] };
+            } else if (currentRecord) {
+                let tag = parts[1] ? parts[1].toUpperCase() : '';
+                let value = parts.slice(2).join(' ');
+
+                if (value.startsWith('@') && value.endsWith('@')) {
+                    value = value.replace(/@/g, '');
+                }
+
+                const node = { tag: tag, value: value, children: [] };
+
+                if (level === 1) {
+                    currentRecord[tag] = value;
+                    currentRecord.children.push(node);
+                    currentEvent = node;
+                } else if (level === 2 && currentEvent) {
+                    currentEvent.children.push(node);
+                    if (tag === 'DATE') currentEvent.DATE = value;
+                    if (tag === 'PLAC') currentEvent.PLAC = value;
+                }
+            }
+        });
+        if (currentRecord) records.push(currentRecord);
+        return records;
+    }
+
+    function extractItems(data) {
+        if (Array.isArray(data)) return data;
+        return [];
+    }
+
+    function cleanId(idStr) {
+        if (!idStr) return '';
+        return String(idStr).replace(/@/g, '').trim();
+    }
+
+    function extractId(item) {
+        return cleanId(item.id || '');
+    }
+
+    function extractSex(item) {
+        if (item.SEX) return String(item.SEX);
+        const children = item.children || [];
+        const sexNode = children.find(c => c && c.tag === 'SEX');
+        return sexNode ? String(sexNode.value) : '';
+    }
+
+    function extractEventYearAndPlace(item, eventTag) {
+        let dateStr = '';
+        let placeStr = '';
+
+        const evObj = item.children ? item.children.find(c => c.tag === eventTag) : null;
+        if (evObj) {
+            dateStr = evObj.DATE || '';
+            placeStr = evObj.PLAC || '';
+            
+            if (!dateStr || !placeStr) {
+                (evObj.children || []).forEach(sub => {
+                    if (sub.tag === 'DATE' && !dateStr) dateStr = sub.value;
+                    if (sub.tag === 'PLAC' && !placeStr) placeStr = sub.value;
+                });
+            }
+        }
+
+        let year = null;
+        if (dateStr) {
+            const match = String(dateStr).match(/\b(\d{3,4})\b/);
+            if (match) {
+                const y = parseInt(match[1], 10);
+                if (y >= 500 && y <= 2100) year = y;
+            }
+        }
+
+        return { year: year, place: String(placeStr).trim() };
+    }
+
+    function extractFamMembers(famItem) {
+        let husb = cleanId(famItem.HUSB || '');
+        let wife = cleanId(famItem.WIFE || '');
+        let childrenIds = [];
+
+        (famItem.children || []).forEach(c => {
+            if (c.tag === 'HUSB' && !husb) husb = cleanId(c.value);
+            if (c.tag === 'WIFE' && !wife) wife = cleanId(c.value);
+            if (c.tag === 'CHIL' && c.value) childrenIds.push(cleanId(c.value));
+        });
+
+        return {
+            husb: husb,
+            wife: wife,
+            children: [...new Set(childrenIds)].filter(Boolean)
+        };
+    }
+
+    function parsePersonName(item) {
+        let fullName = item.NAME || '';
+        if (!fullName && item.children) {
+            const nameNode = item.children.find(c => c.tag === 'NAME');
+            if (nameNode) fullName = nameNode.value || '';
+        }
+
+        let voornaam = '';
+        let achternaam = '';
+
+        if (fullName.includes('/')) {
+            let parts = fullName.split('/');
+            voornaam = parts[0].trim();
+            achternaam = parts[1] ? parts[1].trim() : '';
+        } else {
+            voornaam = fullName.trim();
+        }
+
+        if (item.children) {
+            item.children.forEach(c => {
+                if (c.tag === 'NAME' && c.children) {
+                    c.children.forEach(sub => {
+                        if (sub.tag === 'GIVN' && sub.value) voornaam = sub.value.trim();
+                        if (sub.tag === 'SURN' && sub.value) achternaam = sub.value.trim();
+                    });
+                }
+            });
+        }
+
+        return {
+            voornaam: voornaam || 'Onbekend',
+            achternaam: achternaam || 'Onbekend'
+        };
+    }
+
+    function processGedcomData(data) {
+        const items = extractItems(data);
+
+        let totalPersons = 0;
+        let totalMen = 0;
+        let totalWomen = 0;
+        let totalFamilies = 0;
+
+        let withBirthCount = 0;
+        let withDeathCount = 0;
+
+        let centuryCounts = {};
+        let birthPlaces = {};
+
+        let agesMen = [];
+        let agesWomen = [];
+        let marriageAgesMen = [];
+        let marriageAgesWomen = [];
+
+        let familySizes = [];
+        let marriedFamiliesCount = 0;
+
+        let surnamesCount = {};
+        let givenNamesCount = {};
+        let birthYearsCount = {};
+        let marriageAgesCount = {};
+        let deathAgesCount = {};
+        let firstChildAgesCount = {};
+        let lastChildAgesCount = {};
+
+        const personsMap = {};
+        const familiesMap = {};
+        const graph = {};
+
+        items.forEach(item => {
+            const tag = (item.TAG || '').toUpperCase();
+            const id = extractId(item);
+            if (id) {
+                if (tag === 'INDI') {
+                    personsMap[id] = item;
+                    graph[id] = [];
+                }
+                if (tag === 'FAM') familiesMap[id] = item;
+            }
+        });
+
+        items.forEach(item => {
+            const tag = (item.TAG || '').toUpperCase();
+            if (tag === 'FAM') {
+                const members = extractFamMembers(item);
+                const parents = [members.husb, members.wife].filter(Boolean);
+
+                parents.forEach(pId => {
+                    members.children.forEach(cId => {
+                        if (graph[pId] && graph[cId]) {
+                            if (!graph[pId].includes(cId)) graph[pId].push(cId);
+                            if (!graph[cId].includes(pId)) graph[cId].push(pId);
+                        }
+                    });
+                });
+
+                parents.forEach(p1 => {
+                    parents.forEach(p2 => {
+                        if (p1 !== p2 && graph[p1] && graph[p2]) {
+                            if (!graph[p1].includes(p2)) graph[p1].push(p2);
+                        }
+                    });
+                });
+            }
+        });
+
+        let visited = new Set();
+        let islands = [];
+        Object.keys(graph).forEach(id => {
+            if (!visited.has(id)) {
+                let islandSize = 0;
+                let queue = [id];
+                visited.add(id);
+                while (queue.length > 0) {
+                    let curr = queue.shift();
+                    islandSize++;
+                    (graph[curr] || []).forEach(neighbor => {
+                        if (!visited.has(neighbor)) {
+                            visited.add(neighbor);
+                            queue.push(neighbor);
+                        }
+                    });
+                }
+                islands.push(islandSize);
+            }
+        });
+        islands.sort((a, b) => b - a);
+
+        items.forEach(item => {
+            const tag = (item.TAG || '').toUpperCase();
+
+            if (tag === 'INDI') {
+                totalPersons++;
+
+                const sexVal = extractSex(item).trim().toUpperCase();
+                const isMale = ['M', 'MALE', 'MAN'].includes(sexVal);
+                const isFemale = ['F', 'FEMALE', 'VROUW'].includes(sexVal);
+
+                if (isMale) totalMen++;
+                else if (isFemale) totalWomen++;
+
+                const nameObj = parsePersonName(item);
+                surnamesCount[nameObj.achternaam] = (surnamesCount[nameObj.achternaam] || 0) + 1;
+                givenNamesCount[nameObj.voornaam] = (givenNamesCount[nameObj.voornaam] || 0) + 1;
+
+                const birth = extractEventYearAndPlace(item, 'BIRT');
+                const death = extractEventYearAndPlace(item, 'DEAT');
+
+                if (birth.year !== null) {
+                    withBirthCount++;
+                    birthYearsCount[birth.year] = (birthYearsCount[birth.year] || 0) + 1;
+
+                    const century = Math.floor(birth.year / 100) + 1;
+                    const startYear = (century - 1) * 100;
+                    const centuryKey = `${century}e eeuw (${startYear} - ${startYear + 99})`;
+                    if (!centuryCounts[centuryKey]) {
+                        centuryCounts[centuryKey] = { centuryNum: century, label: centuryKey, count: 0 };
+                    }
+                    centuryCounts[centuryKey].count++;
+
+                    if (birth.place) {
+                        birthPlaces[birth.place] = (birthPlaces[birth.place] || 0) + 1;
+                    }
+                }
+
+                if (death.year !== null) {
+                    withDeathCount++;
+                }
+
+                if (birth.year !== null && death.year !== null) {
+                    const age = death.year - birth.year;
+                    if (age >= 0 && age <= 120) {
+                        if (isMale) agesMen.push(age);
+                        else if (isFemale) agesWomen.push(age);
+                        deathAgesCount[age] = (deathAgesCount[age] || 0) + 1;
+                    }
+                }
+
+            } else if (tag === 'FAM') {
+                totalFamilies++;
+                const members = extractFamMembers(item);
+                const marriage = extractEventYearAndPlace(item, 'MARR');
+                const famChildrenCount = members.children.length;
+
+                familySizes.push(famChildrenCount);
+
+                if (members.children.length > 0) {
+                    let childBirthYears = members.children.map(cId => {
+                        if (personsMap[cId]) {
+                            return extractEventYearAndPlace(personsMap[cId], 'BIRT').year;
+                        }
+                        return null;
+                    }).filter(y => y !== null).sort((a, b) => a - b);
+
+                    if (childBirthYears.length > 0) {
+                        let firstChildYear = childBirthYears[0];
+                        let lastChildYear = childBirthYears[childBirthYears.length - 1];
+
+                        [members.husb, members.wife].forEach(parentID => {
+                            if (parentID && personsMap[parentID]) {
+                                let pBirth = extractEventYearAndPlace(personsMap[parentID], 'BIRT').year;
+                                if (pBirth !== null) {
+                                    let ageFirst = firstChildYear - pBirth;
+                                    let ageLast = lastChildYear - pBirth;
+                                    if (ageFirst >= 12 && ageFirst <= 80) {
+                                        firstChildAgesCount[ageFirst] = (firstChildAgesCount[ageFirst] || 0) + 1;
+                                    }
+                                    if (ageLast >= 12 && ageLast <= 90) {
+                                        lastChildAgesCount[ageLast] = (lastChildAgesCount[ageLast] || 0) + 1;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+
+                if (marriage.year !== null) {
+                    marriedFamiliesCount++;
+                    const mYear = marriage.year;
+
+                    [members.husb, members.wife].forEach(pId => {
+                        if (pId && personsMap[pId]) {
+                            const pBirth = extractEventYearAndPlace(personsMap[pId], 'BIRT');
+                            if (pBirth.year !== null) {
+                                const mAge = mYear - pBirth.year;
+                                if (mAge >= 12 && mAge <= 100) {
+                                    marriageAgesCount[mAge] = (marriageAgesCount[mAge] || 0) + 1;
+                                    const sexVal = extractSex(personsMap[pId]).trim().toUpperCase();
+                                    if (['M', 'MALE', 'MAN'].includes(sexVal)) marriageAgesMen.push(mAge);
+                                    else if (['F', 'FEMALE', 'VROUW'].includes(sexVal)) marriageAgesWomen.push(mAge);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        let maxGenerations = estimateTreeDepth(personsMap, familiesMap);
+
+        document.getElementById('totalPersons').innerText = totalPersons;
+        document.getElementById('totalFamilies').innerText = totalFamilies;
+
+        const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+        const avgM = avg(agesMen);
+        const avgW = avg(agesWomen);
+        const allAges = [...agesMen, ...agesWomen];
+        const avgT = avg(allAges);
+
+        const avgMarM = avg(marriageAgesMen);
+        const avgMarW = avg(marriageAgesWomen);
+        const allMarAges = [...marriageAgesMen, ...marriageAgesWomen];
+        const avgMarT = avg(allMarAges);
+
+        const avgFamSize = familySizes.length ? (familySizes.reduce((a, b) => a + b, 0) / familySizes.length).toFixed(1) : '0';
+
+        document.getElementById('avgAgeMen').innerText = avgM !== null ? avgM + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgAgeWomen').innerText = avgW !== null ? avgW + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgAgeTotal').innerText = avgT !== null ? avgT + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgAgeOverall').innerText = avgT !== null ? avgT + ' jr' : '-';
+
+        document.getElementById('avgMarriageMen').innerText = avgMarM !== null ? avgMarM + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgMarriageWomen').innerText = avgMarW !== null ? avgMarW + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgMarriageAgeOverall').innerText = avgMarT !== null ? avgMarT + ' jr' : '-';
+
+        document.getElementById('valAvgChildren').innerText = avgFamSize;
+        document.getElementById('valTotalMarrFamilies').innerText = marriedFamiliesCount;
+        document.getElementById('maxGenerations').innerText = maxGenerations > 0 ? maxGenerations : 'Onbekend';
+
+        const pctBirthVal = totalPersons ? Math.round((withBirthCount / totalPersons) * 100) : 0;
+        const missingDeathVal = totalPersons ? Math.round(((totalPersons - withDeathCount) / totalPersons) * 100) : 0;
+        
+        document.getElementById('pctBirth').innerText = pctBirthVal + '%';
+        document.getElementById('pctMissingDeath').innerText = missingDeathVal + '%';
+        document.getElementById('pctMissingMarriage').innerText = totalFamilies ? Math.round(((totalFamilies - marriedFamiliesCount) / totalFamilies) * 100) + '%' : '0%';
+
+        renderTopTable('placesTableBody', birthPlaces, 5);
+        renderCenturyTable(centuryCounts);
+
+        renderTopTableObject('topIslandsBody', islands.map((size, idx) => [`Eiland #${idx + 1}`, size]));
+        renderTopTable('topSurnamesBody', surnamesCount, 10);
+        renderTopTable('topGivenNamesBody', givenNamesCount, 10);
+        renderTopTable('topBirthYearsBody', birthYearsCount, 10);
+        renderTopTable('topMarriageAgesBody', marriageAgesCount, 10);
+        renderTopTable('topDeathAgesBody', deathAgesCount, 10);
+        renderTopTable('topFirstChildAgeBody', firstChildAgesCount, 10);
+        renderTopTable('topLastChildAgeBody', lastChildAgesCount, 10);
+
+        // Render Relatiepaden (vanaf 20 stappen, oplopend gesorteerd)
+        let longestPaths = calculateLongestPaths(personsMap, graph);
+        renderLongestPathsTable(longestPaths, personsMap);
+
+        // Render Sensationeel Leeftijdsverschil
+        let sensationalGaps = processSensationalData(items, personsMap, familiesMap);
+        renderSensationalTable(sensationalGaps);
+    }
+
+    function estimateTreeDepth(personsMap, familiesMap) {
+        let maxDepth = 0;
+        const personDepths = {};
+
+        function getDepth(personId, visited = new Set()) {
+            if (visited.has(personId)) return 0;
+            if (personDepths[personId] !== undefined) return personDepths[personId];
+            visited.add(personId);
+
+            const person = personsMap[personId];
+            if (!person) return 1;
+
+            let parentFamIds = [];
+            (person.children || []).forEach(c => {
+                if (c.tag === 'FAMC' && c.value) parentFamIds.push(cleanId(c.value));
+            });
+
+            let maxParentDepth = 0;
+            parentFamIds.forEach(famId => {
+                const fam = familiesMap[famId];
+                if (fam) {
+                    const members = extractFamMembers(fam);
+                    if (members.husb) maxParentDepth = Math.max(maxParentDepth, getDepth(members.husb, visited));
+                    if (members.wife) maxParentDepth = Math.max(maxParentDepth, getDepth(members.wife, visited));
+                }
+            });
+
+            const depth = 1 + maxParentDepth;
+            personDepths[personId] = depth;
+            return depth;
+        }
+
+        Object.keys(personsMap).forEach(id => {
+            const d = getDepth(id);
+            if (d > maxDepth) maxDepth = d;
+        });
+
+        return maxDepth;
+    }
+
+    function calculateLongestPaths(personsMap, graph) {
+        const personIds = Object.keys(graph);
+        if (personIds.length === 0) return [];
+
+        let paths = [];
+        let sampleSize = Math.min(personIds.length, 250);
+        let sampleKeys = [...personIds].sort(() => 0.5 - Math.random()).slice(0, sampleSize);
+
+        sampleKeys.forEach(startId => {
+            let queue = [[startId]];
+            let visited = new Set([startId]);
+            let farthestNode = startId;
+            let farthestPath = [startId];
+
+            while (queue.length > 0) {
+                let path = queue.shift();
+                let curr = path[path.length - 1];
+                
+                if (path.length > farthestPath.length) {
+                    farthestPath = path;
+                    farthestNode = curr;
+                }
+
+                (graph[curr] || []).forEach(neighbor => {
+                    if (!visited.has(neighbor)) {
+                        visited.add(neighbor);
+                        queue.push([...path, neighbor]);
+                    }
+                });
+            }
+
+            if (farthestPath.length >= 20) { // Alleen paden van minstens 20 stappen meenemen
+                paths.push({
+                    from: farthestPath[0],
+                    to: farthestPath[farthestPath.length - 1],
+                    steps: farthestPath.length - 1
+                });
+            }
+        });
+
+        // Filter minimaal 20 stappen en sorteer OPLOPEND (van 20 stappen en zo omhoog)
+        paths = paths.filter(p => p.steps >= 20);
+        paths.sort((a, b) => a.steps - b.steps);
+        
+        let uniquePaths = [];
+        let seenPairs = new Set();
+        for (let p of paths) {
+            let pairKey = [p.from, p.to].sort().join('-');
+            if (!seenPairs.has(pairKey)) {
+                seenPairs.add(pairKey);
+                uniquePaths.push(p);
+            }
+            if (uniquePaths.length >= 100) break;
+        }
+
+        return uniquePaths;
+    }
+
+    function getPersonDisplayInfo(personItem) {
+        if (!personItem) return "Onbekend (Onbekend) - Geboren: Onbekend";
+        const name = parsePersonName(personItem);
+        const birth = extractEventYearAndPlace(personItem, 'BIRT');
+        let birthStr = birth.year ? birth.year : 'Onbekend';
+        return `<strong>${name.achternaam}</strong>, ${name.voornaam} <br><span style="font-size: 0.8rem; color: #7f8c8d;">Geboren: ${birthStr}</span>`;
+    }
+
+    function processSensationalData(items, personsMap, familiesMap) {
+        let ageGaps = [];
+
+        items.forEach(item => {
+            if ((item.TAG || '').toUpperCase() === 'FAM') {
+                const members = extractFamMembers(item);
+                const marriage = extractEventYearAndPlace(item, 'MARR');
+
+                if (members.husb && members.wife && personsMap[members.husb] && personsMap[members.wife]) {
+                    const hBirth = extractEventYearAndPlace(personsMap[members.husb], 'BIRT').year;
+                    const wBirth = extractEventYearAndPlace(personsMap[members.wife], 'BIRT').year;
+
+                    if (hBirth !== null && wBirth !== null) {
+                        let gap = Math.abs(hBirth - wBirth);
+                        ageGaps.push({
+                            gap: gap,
+                            husband: personsMap[members.husb],
+                            wife: personsMap[members.wife],
+                            marrYear: marriage.year ? `Huwelijk in ${marriage.year}` : 'Huwelijksjaar onbekend'
+                        });
+                    }
+                }
+            }
+        });
+
+        ageGaps.sort((a, b) => b.gap - a.gap);
+        return ageGaps.slice(0, 5);
+    }
+
+    function renderLongestPathsTable(paths, personsMap) {
+        const tbody = document.getElementById('topLongestPathsBody');
+        tbody.innerHTML = '';
+
+        if (paths.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen paden vanaf 20 stappen gevonden</td></tr>';
+            return;
+        }
+
+        paths.forEach(p => {
+            let fromInfo = getPersonDisplayInfo(personsMap[p.from]);
+            let toInfo = getPersonDisplayInfo(personsMap[p.to]);
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center;"><span class="badge-count">${p.steps} stappen</span></td>
+                <td>${fromInfo}</td>
+                <td>${toInfo}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderSensationalTable(gaps) {
+        const tbody = document.getElementById('topAgeGapBody');
+        tbody.innerHTML = '';
+
+        if (gaps.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen huwelijksdatums met geboortejaren gevonden</td></tr>';
+            return;
+        }
+
+        gaps.forEach(item => {
+            const hName = parsePersonName(item.husband);
+            const wName = parsePersonName(item.wife);
+            const hBirth = extractEventYearAndPlace(item.husband, 'BIRT').year || '?';
+            const wBirth = extractEventYearAndPlace(item.wife, 'BIRT').year || '?';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center;"><span class="badge-count" style="background: #fff5f5; color: #c53030;">${item.gap} jaarverschil</span></td>
+                <td>
+                    <strong>${hName.achternaam}</strong>, ${hName.voornaam} (${hBirth})<br>
+                    &amp; 
+                    <strong>${wName.achternaam}</strong>, ${wName.voornaam} (${wBirth})<br>
+                    <span style="font-size: 0.75rem; color: #a0aec0;">${item.marrYear}</span>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderTopTable(elementId, dataObj, limit) {
+        const tbody = document.getElementById(elementId);
+        tbody.innerHTML = '';
+        const sorted = Object.entries(dataObj).sort((a, b) => b[1] - a[1]).slice(0, limit);
+
+        if (sorted.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data beschikbaar</td></tr>';
+            return;
+        }
+
+        sorted.forEach(([key, val]) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><strong>${key}</strong></td><td style="text-align: right;"><span class="badge-count">${val}</span></td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderTopTableObject(elementId, entriesArray) {
+        const tbody = document.getElementById(elementId);
+        tbody.innerHTML = '';
+        const sorted = entriesArray.slice(0, 10);
+
+        if (sorted.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data beschikbaar</td></tr>';
+            return;
+        }
+
+        sorted.forEach(([key, val]) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><strong>${key}</strong></td><td style="text-align: right;"><span class="badge-count">${val}</span></td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderCenturyTable(centuryCounts) {
+        const tbody = document.getElementById('centuryTableBody');
+        tbody.innerHTML = '';
+        const sortedCenturies = Object.values(centuryCounts).sort((a, b) => a.centuryNum - b.centuryNum);
+
+        if (sortedCenturies.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen geboortedatums gevonden.</td></tr>';
+            return;
+        }
+
+        sortedCenturies.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><strong>${item.label}</strong></td><td style="text-align: right;"><span class="badge-count">${item.count}</span></td>`;
+            tbody.appendChild(tr);
+        });
+    }
+</script>
+
+</body>
+</html>
