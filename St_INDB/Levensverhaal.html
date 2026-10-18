@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chronologisch Levensverhaal</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 30px;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        h2 {
+            color: #2980b9;
+            margin-top: 30px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background-color: #718096;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .back-btn:hover {
+            background-color: #4a5568;
+        }
+        .info-box {
+            background: #e8f4fd;
+            border: 1px solid #bbeeff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        .timeline-year-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8fafc;
+            border-left: 4px solid #3498db;
+            border-radius: 0 8px 8px 0;
+        }
+        .timeline-year-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #c05621;
+            margin-bottom: 8px;
+        }
+        ul {
+            padding-left: 20px;
+            margin: 0;
+            line-height: 1.6;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+        .unknown-section {
+            background: #fffaf0;
+            border: 1px solid #feebc8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="Filter.html" class="back-btn">⬅ Terug naar Filter</a>
+    
+    <div id="verhaalContent">
+        <p>⏳ Gegevens laden...</p>
+    </div>
+</div>
+
+<script>
+    const DB_NAME = 'GedcomDatabase';
+    const STORE_NAME = 'gedcomStore';
+    const DB_VERSION = 4;
+
+    const wereldGebeurtenissen = [
+        { jaar: 1700, gebeurtenis: "Begin van de Spaanse Successieoorlog" },
+        { jaar: 1709, gebeurtenis: "De 'Grote Winter' met extreme vorst en hongersnood in Europa" },
+        { jaar: 1713, gebeurtenis: "Vrede van Utrecht: de Zuidelijke Nederlanden komen onder Oostenrijks bewind" },
+        { jaar: 1721, gebeurtenis: "Einde van de Grote Noordse Oorlog" },
+        { jaar: 1738, gebeurtenis: "Uitvinding van de vliegende schietspoel (revolutie in de textielindustrie)" },
+        { jaar: 1740, gebeurtenis: "Begin van de Oostenrijkse Successieoorlog" },
+        { jaar: 1748, gebeurtenis: "Vrede van Aken maakt een einde aan de Oostenrijkse Successieoorlog" },
+        { jaar: 1756, gebeurtenis: "Begin van de Zevenjarige Oorlog tussen grootmachten" },
+        { jaar: 1769, gebeurtenis: "James Watt patenteert de stoommachine" },
+        { jaar: 1776, gebeurtenis: "Amerikaanse Onafhankelijkheidsverklaring" },
+        { jaar: 1780, gebeurtenis: "Begin van de Vierde Engelse Oorlog tegen de Republiek" },
+        { jaar: 1784, gebeurtenis: "Vrede van Parijs beëindigt de Vierde Engelse Oorlog" },
+        { jaar: 1789, gebeurtenis: "Franse Revolutie & Brabantse Omwenteling tegen Oostenrijk" },
+        { jaar: 1792, gebeurtenis: "Slag bij Jemappes en uitroeping van de Eerste Franse Republiek" },
+        { jaar: 1794, gebeurtenis: "Slag bij Fleurus: Franse legers veroveren de Zuidelijke Nederlanden definitief" },
+        { jaar: 1795, gebeurtenis: "Officiële inlijving van de Zuidelijke Nederlanden bij de Franse Republiek (Franse Tijd)" },
+        { jaar: 1798, gebeurtenis: "Boerenkrijg: Vlaamse boerenopstand tegen de Franse bezetting en conscriptie" },
+        { jaar: 1799, gebeurtenis: "Staatsgreep van Napoleon Bonaparte (Begin Franse Consulaat)" },
+        { jaar: 1804, gebeurtenis: "Napoleon kroont zichzelf tot keizer & invoering van de Code Napoléon" },
+        { jaar: 1809, gebeurtenis: "Slag bij Wagram en hoogtepunt van het Franse Keizerrijk" },
+        { jaar: 1812, gebeurtenis: "Catastrofale Veldtocht van Napoleon naar Rusland" },
+        { jaar: 1813, gebeurtenis: "Slag bij Leipzig (Volkerenslag) en verdrijving van de Fransen" },
+        { jaar: 1815, gebeurtenis: "Slag bij Waterloo & Congres van Wenen (Stichting Verenigd Koninkrijk der Nederlanden)" },
+        { jaar: 1821, gebeurtenis: "Overlijden van Napoleon Bonaparte op Sint-Helena" },
+        { jaar: 1830, gebeurtenis: "Belgische Revolutie & uitroeping van de Onafhankelijkheid van België" },
+        { jaar: 1831, gebeurtenis: "Eedaflegging van Koning Leopold I & goedkeuring van de Belgische Grondwet" },
+        { jaar: 1835, gebeurtenis: "Opening van de eerste spoorlijn op het Europese vasteland (Brussel-Mechelen)" },
+        { jaar: 1839, gebeurtenis: "Verdrag van Londen: erkenning van de Belgische onafhankelijkheid en neutraliteit" },
+        { jaar: 1845, gebeurtenis: "Grote Aardappelziekte veroorzaakt hongersnood in Europa en Ierland" },
+        { jaar: 1848, gebeurtenis: "Februarirevolutie in Europa, 'Lente der Volkeren' & liberale grondwetsherziening in België" },
+        { jaar: 1851, gebeurtenis: "Eerste Wereldtentoonstelling in het Crystal Palace te Londen" },
+        { jaar: 1853, gebeurtenis: "Begin van de Krimoorlog tussen Rusland en geallieerden" },
+        { jaar: 1860, gebeurtenis: "Bloeiperiode van de Belgische steenkool- en staalindustrie (Industriële Revolutie)" },
+        { jaar: 1863, gebeurtenis: "Afschaffing van de slavernij in Nederlandse koloniën en de Amerikaanse Emancipatieproclamatie" },
+        { jaar: 1865, gebeurtenis: "Overlijden van Koning Leopold I & troonsbestijging van Koning Leopold II" },
+        { jaar: 1869, gebeurtenis: "Opening van het Suezkanaal verbindt Europa met Azië" },
+        { jaar: 1870, gebeurtenis: "Uitbraak van de Frans-Duitse Oorlog & val van het Franse Keizerrijk" },
+        { jaar: 1879, gebeurtenis: "Eerste Schoolstrijd in België over het seculiere onderwijs" },
+        { jaar: 1885, gebeurtenis: "Oprichting van de Onafhankelijke Congostaat onder persoonlijk gezag van Leopold II" },
+        { jaar: 1886, gebeurtenis: "Bloedige sociale opschuddingen en arbeidersopstanden in Wallonië" },
+        { jaar: 1893, gebeurtenis: "Invoering van het meervoudig algemeen stemrecht voor mannen na massastakingen in België" },
+        { jaar: 1895, gebeurtenis: "Eerste openbare filmvoorstelling door de broers Lumière" },
+        { jaar: 1901, gebeurtenis: "Uitreiking van de allereerste Nobelprijzen in Stockholm" },
+        { jaar: 1908, gebeurtenis: "Congo wordt officieel een Belgische kolonie (Belgisch-Congo)" },
+        { jaar: 1912, gebeurtenis: "De tragische ondergang van de RMS Titanic tijdens haar maidentrip" },
+        { jaar: 1914, gebeurtenis: "Moord op aartshertog Franz Ferdinand & uitbraak van de Eerste Wereldoorlog (Duitse inval in België)" },
+        { jaar: 1915, gebeurtenis: "Eerste grootschalige inzet van gifgas aan het Ieperse front" },
+        { jaar: 1916, gebeurtenis: "Slag om Verdun en de Slag aan de Somme" },
+        { jaar: 1917, gebeurtenis: "Russische Revolutie en intrede van de Verenigde Staten in de oorlog" },
+        { jaar: 1918, gebeurtenis: "Wapenstilstand (11 november): Einde Eerste Wereldoorlog & invoering enkelvoudig algemeen stemrecht voor mannen" },
+        { jaar: 1920, gebeurtenis: "Organisatie van de Olympische Zomerspelen in Antwerpen & oprichting Volkenbond" },
+        { jaar: 1922, gebeurtenis: "Oprichting van de Sovjet-Unie & ontdekking van het graf van Toetanchamon" },
+        { jaar: 1925, gebeurtenis: "Verdrag van Locarno voor Europese stabiliteit" },
+        { jaar: 1929, gebeurtenis: "Beurskrach van Wall Street en start van de Grote Depressie wereldwijd" },
+        { jaar: 1930, gebeurtenis: "Herdenking van 100 jaar Belgische onafhankelijkheid & arbeidersrellen in Luik en Charleroi" },
+        { jaar: 1934, gebeurtenis: "Overlijden van Koning Albert I in Marche-les-Dames & troonsbestijging Leopold III" },
+        { jaar: 1935, gebeurtenis: "Wereldtentoonstelling te Brussel & economische crisis in België" },
+        { jaar: 1936, gebeurtenis: "Uitbraak van de Spaanse Burgeroorlog & invoering van de 40-urige werkweek in België" },
+        { jaar: 1939, gebeurtenis: "Duitse inval in Polen en begin van de Tweede Wereldoorlog in Europa" },
+        { jaar: 1940, gebeurtenis: "Duitse Blitzkrieg en Achttiendaagse Veldtocht: België bezet door nazi-Duitsland" },
+        { jaar: 1942, gebeurtenis: "Begin van de systematische deportatie van Joden vanuit Mechelen (Dossinkazerne)" },
+        { jaar: 1944, gebeurtenis: "D-Day & triomfantelijke bevrijding van België in september" },
+        { jaar: 1945, gebeurtenis: "Capitulatie van nazi-Duitsland en Japan, einde Tweede Wereldoorlog & oprichting VN" },
+        { jaar: 1947, gebeurtenis: "Start van het Marshallplan voor de Europese wederopbouw" },
+        { jaar: 1948, gebeurtenis: "Oprichting van de Benelux-douane-unie & Verklaring van de Rechten van de Mens" },
+        { jaar: 1950, gebeurtenis: "Uitbraak van de Koreaanse Oorlog & hoogtepunt van de Belgische Koningskwestie" },
+        { jaar: 1951, gebeurtenis: "Oprichting van de EGKS (voorloper van de Europese Unie) door o.a. België" },
+        { jaar: 1953, gebeurtenis: "Verwoestende Watersnoodramp in Nederland, Zeeland en Vlaanderen" },
+        { jaar: 1954, gebeurtenis: "Tweede Schoolstrijd in België over staatssubsidies voor het vrij onderwijs" },
+        { jaar: 1957, gebeurtenis: "Ondertekening van de Verdragen van Rome (Geboorte van de EEG)" },
+        { jaar: 1958, gebeurtenis: "Expo 58 & Wereldtentoonstelling in Brussel met de bouw van het Atomium" },
+        { jaar: 1960, gebeurtenis: "Onafhankelijkheid van Belgisch-Congo & de grote Belgische eenheidstaking" },
+        { jaar: 1961, gebeurtenis: "Bouw van de Berlijnse Muur verdeelt de Koude Oorlog" },
+        { jaar: 1962, gebeurtenis: "Cubaanse raketcrisis brengt de wereld aan de rand van een kernoorlog" },
+        { jaar: 1966, gebeurtenis: "Vrouwenstaking bij FN Herstal voor gelijke loonrechten" },
+        { jaar: 1968, gebeurtenis: "Studentenrevolte van Mei '68 & taalbarsten rond de splitsing van Leuven (KUL/UCL)" },
+        { jaar: 1969, gebeurtenis: "Apollo 11: Neil Armstrong zet als eerste mens voet op de maan" },
+        { jaar: 1970, gebeurtenis: "Eerste staatshervorming: België wordt geleidelijk een federale staat" },
+        { jaar: 1973, gebeurtenis: "Eerste oliecrisis zorgt voor autoloze zondagen en economische malaise" },
+        { jaar: 1975, gebeurtenis: "Ondertekening van de Akkoorden van Helsinki over mensenrechten" },
+        { jaar: 1979, gebeurtenis: "Eerste rechtstreekse verkiezingen voor het Europees Parlement" },
+        { jaar: 1980, gebeurtenis: "Tweede staatshervorming: oprichting van de Vlaamse en Franse Gemeenschap" },
+        { jaar: 1981, gebeurtenis: "Lancering van de allereerste Space Shuttle" },
+        { jaar: 1985, gebeurtenis: "De Heizeldrama-tragedie in Brussel & akkoord van Schengen" },
+        { jaar: 1986, gebeurtenis: "Kernramp van Tsjernobyl brengt radioactieve wolk over Europa" },
+        { jaar: 1989, gebeurtenis: "Val van de Berlijnse Muur en val van het communisme in Oost-Europa" },
+        { jaar: 1990, gebeurtenis: "Hereniging van Duitsland & koninklijke crisis rond de abortuswet in België" },
+        { jaar: 1991, gebeurtenis: "Ineenstorting van de Sovjet-Unie & opkomst van het World Wide Web (internet)" },
+        { jaar: 1993, gebeurtenis: "Sint-Michielsakkoord: België wordt een federale staat; overlijden Koning Baudouin" },
+        { jaar: 1995, gebeurtenis: "Toetreding van Oostenrijk, Finland en Zweden tot de EU" },
+        { jaar: 1999, gebeurtenis: "Introductie van de euro als giraal betaalmiddel & paarse regering-Verhofstadt I" },
+        { jaar: 2001, gebeurtenis: "Terroristische aanslagen op het World Trade Center in New York (9/11)" },
+        { jaar: 2002, gebeurtenis: "Invoering van de fysieke euromunten en -biljetten in het dagelijks leven" },
+        { jaar: 2004, gebeurtenis: "Grootste uitbreiding van de Europese Unie met 10 landen" },
+        { jaar: 2005, gebeurtenis: "Lancering van YouTube en verdere opkomst van sociale media" },
+        { jaar: 2008, gebeurtenis: "Wereldwijde banken- en financiële crisis na het omvallen van Lehman Brothers" },
+        { jaar: 2010, gebeurtenis: "Historische politieke crisis in België: record van 541 dagen zonder regering" },
+        { jaar: 2011, gebeurtenis: "Arabische Lente & kernramp in Fukushima (Japan)" },
+        { jaar: 2013, gebeurtenis: "Troonsafstand van Koning Albert II en eedaflegging van Koning Filip" },
+        { jaar: 2015, gebeurtenis: "Parijs-klimaatakkoord & Europese vluchtelingencrisis" },
+        { jaar: 2016, gebeurtenis: "Brexit-referendum & terroristische aanslagen in Brussel (Zaventem en Maalbeek)" },
+        { jaar: 2019, gebeurtenis: "Eerste rechtstreekse foto van een zwart gat & klimaatmarsen in België" },
+        { jaar: 2020, gebeurtenis: "Wereldwijde uitbraak van de COVID-19-pandemie met lockdowns" },
+        { jaar: 2021, gebeurtenis: "Grote overstromingen in Wallonië en delen van Vlaanderen" },
+        { jaar: 2022, gebeurtenis: "Russische inval in Oekraïne en aanhoudende energiecrisis in Europa" }
+    ];
+
+    function openGedcomDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+        });
+    }
+
+    async function getStoredGedcomText() {
+        const db = await openGedcomDB();
+        return new Promise((resolve) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const req = store.get('gedcomData');
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => resolve(null);
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        const persoonId = sessionStorage.getItem('levensverhaalPersoonId');
+        if (!persoonId) {
+            document.getElementById('verhaalContent').innerHTML = '<p style="color: red;">Geen persoon geselecteerd. Ga terug naar de filterpagina en kies een persoon via rechtermuisklik.</p>';
+            return;
+        }
+
+        let toonWereld = confirm("Wilt u de wereldgebeurtenissen toevoegen aan het levensverhaal?\n\nKlik op 'OK' voor mét wereldgebeurtenissen, of op 'Annuleren' voor zonder.");
+
+        try {
+            const gedcomText = await getStoredGedcomText();
+            if (!gedcomText) {
+                document.getElementById('verhaalContent').innerHTML = '<p style="color: red;">Geen stamboomdata gevonden in de database.</p>';
+                return;
+            }
+
+            setTimeout(() => {
+                parseAndGenerateChronologicalStory(gedcomText, persoonId, toonWereld);
+            }, 50);
+        } catch (err) {
+            console.error(err);
+            document.getElementById('verhaalContent').innerHTML = '<p style="color: red;">Fout bij het laden van het levensverhaal: ' + err.message + '</p>';
+        }
+    });
+
+    function parseAndGenerateChronologicalStory(gedcomText, targetId, toonWereld) {
+        const lines = gedcomText.split(/\r?\n/);
+        let records = [];
+        let currentRecord = null;
+        let currentEvent = null;
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+            const parts = trimmed.split(' ');
+            const level = parseInt(parts[0], 10);
+            if (isNaN(level)) return;
+
+            if (level === 0) {
+                if (currentRecord) records.push(currentRecord);
+                currentEvent = null;
+                let id = '', tag = '';
+                if (parts[1].startsWith('@')) {
+                    id = parts[1].replace(/@/g, '');
+                    tag = parts[2] ? parts[2].toUpperCase() : '';
+                } else {
+                    tag = parts[1].toUpperCase();
+                }
+                currentRecord = { TAG: tag, id: id, children: [] };
+            } else if (currentRecord) {
+                let tag = parts[1] ? parts[1].toUpperCase() : '';
+                let value = parts.slice(2).join(' ').replace(/@/g, '');
+                const node = { tag: tag, value: value, children: [] };
+
+                if (level === 1) {
+                    currentRecord[tag] = value;
+                    currentRecord.children.push(node);
+                    currentEvent = node;
+                } else if (level === 2 && currentEvent) {
+                    currentEvent.children.push(node);
+                    if (tag === 'DATE') currentEvent.DATE = value;
+                    if (tag === 'PLAC') currentEvent.PLAC = value;
+                }
+            }
+        });
+        if (currentRecord) records.push(currentRecord);
+
+        let indiMap = {};
+        records.forEach(rec => {
+            if ((rec.TAG || '').toUpperCase() === 'INDI') {
+                indiMap[rec.id] = parsePersonFull(rec);
+            }
+        });
+
+        let parentFamilies = {}; 
+        let parentToChildrenMap = {}; 
+        let familyDetails = [];
+
+        records.forEach(rec => {
+            if ((rec.TAG || '').toUpperCase() === 'FAM') {
+                let husb = '', wife = '', children = [];
+                let marrDate = '', marrPlace = '', marrYear = null;
+
+                (rec.children || []).forEach(c => {
+                    if (c.tag === 'HUSB') husb = c.value;
+                    if (c.tag === 'WIFE') wife = c.value;
+                    if (c.tag === 'CHIL') children.push(c.value);
+                    if (c.tag === 'MARR') {
+                        marrDate = c.DATE || '';
+                        marrPlace = c.PLAC || '';
+                        if (!marrDate && c.children) {
+                            let d = c.children.find(s => s.tag === 'DATE');
+                            if (d) marrDate = d.value;
+                            let p = c.children.find(s => s.tag === 'PLAC');
+                            if (p) marrPlace = p.value;
+                        }
+                    }
+                });
+
+                const match = String(marrDate).match(/\b(\d{3,4})\b/);
+                if (match) marrYear = parseInt(match[1], 10);
+
+                familyDetails.push({ husb, wife, marrDate, marrPlace, marrYear });
+
+                children.forEach(chId => {
+                    parentFamilies[chId] = { husb, wife };
+                });
+
+                if (husb) {
+                    if (!parentToChildrenMap[husb]) parentToChildrenMap[husb] = [];
+                    parentToChildrenMap[husb].push(...children);
+                }
+                if (wife) {
+                    if (!parentToChildrenMap[wife]) parentToChildrenMap[wife] = [];
+                    parentToChildrenMap[wife].push(...children);
+                }
+            }
+        });
+
+        const person = indiMap[targetId];
+        if (!person) {
+            document.getElementById('verhaalContent').innerHTML = `<p style="color: red;">Persoon met ID ${targetId} niet gevonden in de stamboom.</p>`;
+            return;
+        }
+
+        let gebJaar = person.birthYear || 1850;
+        let overlJaar = person.deatYear || (gebJaar + 80);
+
+        let familieMap = new Map();
+        familieMap.set(targetId, "Hoofdpersoon");
+
+        // 1. Ouders (1e graad)
+        let oudersIds = [];
+        let pFam = parentFamilies[targetId];
+        if (pFam) {
+            if (pFam.husb && indiMap[pFam.husb]) { oudersIds.push(pFam.husb); familieMap.set(pFam.husb, "Vader"); }
+            if (pFam.wife && indiMap[pFam.wife]) { oudersIds.push(pFam.wife); familieMap.set(pFam.wife, "Moeder"); }
+        }
+
+        // 2. Grootouders (2e graad)
+        let grootoudersIds = [];
+        oudersIds.forEach(oId => {
+            let oFam = parentFamilies[oId];
+            if (oFam) {
+                if (oFam.husb && indiMap[oFam.husb]) { grootoudersIds.push(oFam.husb); familieMap.set(oFam.husb, "Grootvader"); }
+                if (oFam.wife && indiMap[oFam.wife]) { grootoudersIds.push(oFam.wife); familieMap.set(oFam.wife, "Grootmoeder"); }
+            }
+        });
+
+        // 3. Nonkels/tantes & neven/nichten (tot 4e graad)
+        grootoudersIds.forEach(gId => {
+            let oomsTantesKids = parentToChildrenMap[gId] || [];
+            oomsTantesKids.forEach(otId => {
+                if (indiMap[otId] && otId !== targetId && !oudersIds.includes(otId)) {
+                    let p = indiMap[otId];
+                    let rol = (p.geslacht === 'M') ? "Nonkel (Oom)" : "Tante";
+                    familieMap.set(otId, rol);
+
+                    let nevenNichten = parentToChildrenMap[otId] || [];
+                    nevenNichten.forEach(nnId => {
+                        if (indiMap[nnId]) {
+                            let np = indiMap[nnId];
+                            let nnRol = (np.geslacht === 'M') ? "Neef" : "Nicht";
+                            familieMap.set(nnId, nnRol);
+                        }
+                    });
+                }
+            });
+        });
+
+        // Broers en zussen van hoofdpersoon
+        oudersIds.forEach(oId => {
+            let broersZussen = parentToChildrenMap[oId] || [];
+            broersZussen.forEach(bzId => {
+                if (indiMap[bzId] && bzId !== targetId) {
+                    let p = indiMap[bzId];
+                    let rol = (p.geslacht === 'M') ? "Broer" : "Zus";
+                    familieMap.set(bzId, rol);
+
+                    let kindBz = parentToChildrenMap[bzId] || [];
+                    kindBz.forEach(kbdId => {
+                        if (indiMap[kbdId]) {
+                            let np = indiMap[kbdId];
+                            let nnRol = (np.geslacht === 'M') ? "Neef" : "Nicht";
+                            familieMap.set(kbdId, nnRol);
+                        }
+                    });
+                }
+            });
+        });
+
+        // 4. Partners
+        familyDetails.forEach(fam => {
+            if ((fam.husb === targetId || fam.wife === targetId) && (familieMap.has(fam.husb) || familieMap.has(fam.wife))) {
+                let partnerId = (fam.husb === targetId) ? fam.wife : fam.husb;
+                if (partnerId && indiMap[partnerId]) {
+                    let p = indiMap[partnerId];
+                    let rol = (p.geslacht === 'M') ? "Echtgenoot" : "Echtgenote";
+                    familieMap.set(partnerId, rol);
+                }
+            }
+        });
+
+        // 5. Nakomelingen
+        let queue = [{ id: targetId, gen: 0 }];
+        let visitedDesc = new Set([targetId]);
+
+        while (queue.length > 0) {
+            let item = queue.shift();
+            if (item.gen < 4) {
+                let kids = parentToChildrenMap[item.id] || [];
+                kids.forEach(kId => {
+                    if (!visitedDesc.has(kId) && indiMap[kId]) {
+                        visitedDesc.add(kId);
+                        let p = indiMap[kId];
+                        let rol = "Nakomeling";
+                        if (item.gen === 0) rol = (p.geslacht === 'M') ? "Zoon" : "Dochter";
+                        else if (item.gen === 1) rol = (p.geslacht === 'M') ? "Kleinzoon" : "Kleindochter";
+                        else if (item.gen === 2) rol = (p.geslacht === 'M') ? "Achterkleinzoon" : "Achterkleindochter";
+                        
+                        familieMap.set(kId, rol);
+                        queue.push({ id: kId, gen: item.gen + 1 });
+                    }
+                });
+            }
+        }
+
+        let gebeurtenissen = {};
+        let onbekendeGebeurtenissen = [];
+
+        function voegGebeurtenisToe(jaar, tekst) {
+            if (jaar && !isNaN(jaar) && jaar >= gebJaar && jaar <= overlJaar) {
+                if (!gebeurtenissen[jaar]) gebeurtenissen[jaar] = [];
+                gebeurtenissen[jaar].push(tekst);
+            } else if (!jaar || isNaN(jaar)) {
+                onbekendeGebeurtenissen.push(tekst);
+            }
+        }
+
+        // Hoofdpersoon
+        if (person.birthYear) voegGebeurtenisToe(person.birthYear, `<strong>${person.voornaam} ${person.achternaam}</strong> is geboren ${person.birthPlace ? 'te ' + person.birthPlace : ''}.`);
+        if (person.deatYear) voegGebeurtenisToe(person.deatYear, `<strong>${person.voornaam} ${person.achternaam}</strong> is overleden ${person.deatPlace ? 'te ' + person.deatPlace : ''}.`);
+
+        // Huwelijken uitsluitend controleren voor bekende familieleden om vertraging te voorkomen
+        familyDetails.forEach(fam => {
+            if (familieMap.has(fam.husb) || familieMap.has(fam.wife)) {
+                let p1 = indiMap[fam.husb];
+                let p2 = indiMap[fam.wife];
+                if (p1 && p2) {
+                    let r1 = familieMap.get(fam.husb);
+                    let r2 = familieMap.get(fam.wife);
+
+                    let omschrijvingP1 = r1 ? ` (${r1.toLowerCase()})` : '';
+                    let omschrijvingP2 = r2 ? ` (${r2.toLowerCase()})` : '';
+
+                    let huwelijkTekst = `Huwelijk van <strong>${p1.voornaam} ${p1.achternaam}</strong>${omschrijvingP1} en <strong>${p2.voornaam} ${p2.achternaam}</strong>${omschrijvingP2} ${fam.marrPlace ? 'te ' + fam.marrPlace : ''}.`;
+
+                    if (fam.marrYear) {
+                        voegGebeurtenisToe(fam.marrYear, huwelijkTekst);
+                    } else {
+                        onbekendeGebeurtenissen.push(huwelijkTekst);
+                    }
+                }
+            }
+        });
+
+        // Geboorte & Overlijden van alle familieleden
+        familieMap.forEach((rol, id) => {
+            if (id === targetId) return;
+            let p = indiMap[id];
+            if (!p) return;
+
+            if (p.birthYear) {
+                voegGebeurtenisToe(p.birthYear, `Geboorte van ${rol.toLowerCase()}: <strong>${p.voornaam} ${p.achternaam}</strong> ${p.birthPlace ? 'te ' + p.birthPlace : ''}.`);
+            } else {
+                onbekendeGebeurtenissen.push(`Geboorte van ${rol.toLowerCase()}: <strong>${p.voornaam} ${p.achternaam}</strong> ${p.birthPlace ? 'te ' + p.birthPlace : ''}.`);
+            }
+
+            if (p.deatYear) {
+                voegGebeurtenisToe(p.deatYear, `Overlijden van ${rol.toLowerCase()}: <strong>${p.voornaam} ${p.achternaam}</strong> ${p.deatPlace ? 'te ' + p.deatPlace : ''}.`);
+            } else if (p.deatDate) {
+                onbekendeGebeurtenissen.push(`Overlijden van ${rol.toLowerCase()}: <strong>${p.voornaam} ${p.achternaam}</strong> ${p.deatPlace ? 'te ' + p.deatPlace : ''}.`);
+            }
+        });
+
+        // Wereldgebeurtenissen
+        if (toonWereld) {
+            wereldGebeurtenissen.forEach(w => {
+                voegGebeurtenisToe(w.jaar, `🌍 <em>Wereldgebeurtenis:</em> ${w.gebeurtenis}`);
+            });
+        }
+
+        let alleJaren = Object.keys(gebeurtenissen).map(Number).sort((a, b) => a - b);
+
+        let html = `
+            <h1>📖 Chronologisch Levensverhaal van ${person.voornaam} ${person.achternaam} (${person.id})</h1>
+            
+            <div class="info-box">
+                <p><strong>Levensperiode:</strong> ${person.birthDate || 'Onbekend'} tot ${person.deatDate || 'Onbekend'} (Jaren ${gebJaar} t/m ${overlJaar})</p>
+                <p>Dit overzicht toont gebeurtenissen binnen het leven van deze persoon (inclusief relatieaanduiding bij huwelijken, geboortes en overlijdens van de familie tot de 4e graad).</p>
+            </div>
+            
+            <h2>⏳ Tijdlijn per Jaar</h2>
+        `;
+
+        if (alleJaren.length === 0) {
+            html += `<p>Geen gedateerde gebeurtenissen gevonden binnen deze levensperiode.</p>`;
+        } else {
+            alleJaren.forEach(jaar => {
+                html += `
+                    <div class="timeline-year-group">
+                        <div class="timeline-year-title">📅 Jaar ${jaar}</div>
+                        <ul>
+                            ${gebeurtenissen[jaar].map(item => `<li>${item}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            });
+        }
+
+        if (onbekendeGebeurtenissen.length > 0) {
+            html += `
+                <div class="unknown-section">
+                    <h3>❓ Gebeurtenissen zonder bekende datum of jaar</h3>
+                    <ul>
+                        ${onbekendeGebeurtenissen.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        document.getElementById('verhaalContent').innerHTML = html;
+    }
+
+    function parsePersonFull(rec) {
+        let voornaam = '', achternaam = '', geslacht = '-';
+        let birthDate = '', birthPlace = '', birthYear = null;
+        let deatDate = '', deatPlace = '', deatYear = null;
+
+        (rec.children || []).forEach(c => {
+            if (c.tag === 'SEX') geslacht = c.value ? c.value.trim().toUpperCase() : '-';
+            if (c.tag === 'NAME') {
+                let rawName = c.value || '';
+                if (rawName.includes('/')) {
+                    let parts = rawName.split('/');
+                    voornaam = parts[0].trim();
+                    achternaam = parts[1] ? parts[1].trim() : '';
+                } else {
+                    voornaam = rawName;
+                }
+                if (c.children) {
+                    c.children.forEach(sub => {
+                        if (sub.tag === 'GIVN') voornaam = sub.value.trim();
+                        if (sub.tag === 'SURN') achternaam = sub.value.trim();
+                    });
+                }
+            }
+            if (c.tag === 'BIRT') {
+                birthDate = c.DATE || '';
+                birthPlace = c.PLAC || '';
+                if (!birthDate && c.children) {
+                    let d = c.children.find(s => s.tag === 'DATE');
+                    if (d) birthDate = d.value;
+                    let p = c.children.find(s => s.tag === 'PLAC');
+                    if (p) birthPlace = p.value;
+                }
+                const match = String(birthDate).match(/\b(\d{3,4})\b/);
+                if (match) birthYear = parseInt(match[1], 10);
+            }
+            if (c.tag === 'DEAT') {
+                deatDate = c.DATE || '';
+                deatPlace = c.PLAC || '';
+                if (!deatDate && c.children) {
+                    let d = c.children.find(s => s.tag === 'DATE');
+                    if (d) deatDate = d.value;
+                    let p = c.children.find(s => s.tag === 'PLAC');
+                    if (p) deatPlace = p.value;
+                }
+                const match = String(deatDate).match(/\b(\d{3,4})\b/);
+                if (match) deatYear = parseInt(match[1], 10);
+            }
+        });
+
+        return { id: rec.id, voornaam, achternaam, geslacht, birthDate, birthPlace, birthYear, deatDate, deatPlace, deatYear };
+    }
+</script>
+
+</body>
+</html>

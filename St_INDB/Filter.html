@@ -134,7 +134,7 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             border-radius: 6px;
             padding: 5px 0;
-            min-width: 180px;
+            min-width: 200px;
         }
         .context-menu-item {
             padding: 8px 15px;
@@ -258,9 +258,11 @@
     </div>
 </div>
 
+<!-- Contextmenu -->
 <div id="contextMenu">
     <div class="context-menu-item" onclick="setAsMainPerson()">⭐ Maak hoofdpersoon</div>
     <div class="context-menu-item" onclick="openRelatiesRand()">🔗 Naar RelatiesRand (Persoon 2)</div>
+    <div class="context-menu-item" onclick="openLevensverhaal()" style="font-weight: bold; color: #2b6cb0;">📖 Toon Levensverhaal</div>
 </div>
 
 <footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
@@ -784,7 +786,7 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong style="color: #c05621;">${sosaDisplay}</strong></td>
-                <td><strong class="indi-link" title="Dubbelklik = Naar RelatiesRand | Rechterklik = Opties" ondblclick="openRelatiesRandFromId('${p.id}')" oncontextmenu="handleContextMenu(event, '${p.id}')">${p.id}</strong></td>
+                <td><strong class="indi-link" title="Rechterklik = Opties" oncontextmenu="handleContextMenu(event, '${p.id}')">${p.id}</strong></td>
                 <td>${p.voornaam || '-'}</td>
                 <td>${p.achternaam || '-'}</td>
                 <td><strong>${p.geslacht}</strong></td>
@@ -833,10 +835,12 @@
         document.getElementById('contextMenu').style.display = 'none';
     }
 
-    // Specifieke hulpfunctie voor dubbelklik om direct RelatiesRand te openen voor de geklikte persoon
-    function openRelatiesRandFromId(personId) {
-        sessionStorage.setItem('persoon2Id', personId);
-        window.location.href = 'RelatiesRand.html';
+    function openLevensverhaal() {
+        if (contextMenuTargetId) {
+            sessionStorage.setItem('levensverhaalPersoonId', contextMenuTargetId);
+            window.location.href = 'Levensverhaal.html';
+        }
+        document.getElementById('contextMenu').style.display = 'none';
     }
 </script>
 
