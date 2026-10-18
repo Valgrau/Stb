@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactieve Voorouderwaaier (Fan Chart)</title>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 30px;
+            color: #333;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            text-decoration: none;
+            color: #3498db;
+            font-weight: bold;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .status-banner {
+            text-align: center;
+            padding: 15px;
+            background: #e8f4fd;
+            border: 2px dashed #3498db;
+            color: #2980b9;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+        .fanchart-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e1e8ed;
+            margin-bottom: 20px;
+        }
+        .fanchart-controls select, .fanchart-controls button {
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+        }
+        .fanchart-controls button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .fanchart-controls button:hover {
+            background-color: #2980b9;
+        }
+        .generation-range-box {
+            background: #f8fafc;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .generation-range-box h3 {
+            margin: 0 0 8px 0;
+            color: #2c3e50;
+            font-size: 1rem;
+        }
+        .generation-range-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .generation-range-list li {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+        }
+        .fanchart-container {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+            min-height: 700px;
+        }
+        .fan-slice {
+            cursor: pointer;
+            transition: fill 0.2s;
+        }
+        .fan-slice:hover {
+            fill: #f39c12 !important;
+        }
+        .fanchart-tooltip {
+            position: fixed;
+            background: rgba(15, 23, 42, 0.9);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            pointer-events: none;
+            display: none;
+            z-index: 99999;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="Statistiek.html" class="back-link">← Terug naar Dashboard</a>
+    <h1>🎨 Interactieve Voorouderwaaier (Fan Chart)</h1>
+
+    <div class="status-banner" id="statusBanner">
+        <span id="statusText">⏳ Gegevens ophalen uit IndexedDB...</span>
+    </div>
+
+    <div class="fanchart-controls" id="controlsSection" style="display: none;">
+        <label for="fanRootSelect"><strong>Startpersoon:</strong></label>
+        <select id="fanRootSelect" style="flex: 1; min-width: 250px;">
+            <option value="">-- Selecteer een persoon --</option>
+        </select>
+
+        <label for="fanGenerations"><strong>Generaties:</strong></label>
+        <select id="fanGenerations">
+            <option value="3">3 Generaties</option>
+            <option value="4">4 Generaties</option>
+            <option value="5">5 Generaties</option>
+            <option value="6" selected>6 Generaties</option>
+        </select>
+
+        <button onclick="generateFanChart()">Genereer Waaier</button>
+    </div>
+
+    <div class="generation-range-box" id="genRangeBox" style="display: none;">
+        <h3>📅 Geboortedatums per generatie:</h3>
+        <ul class="generation-range-list" id="genRangeList"></ul>
+    </div>
+    
+    <div class="fanchart-container" id="fanChartContainer">
+        <div class="fanchart-tooltip" id="fanTooltip"></div>
+        <svg id="fanChartSvg" viewBox="0 0 1200 700" width="100%" height="100%">
+            <text x="600" y="350" text-anchor="middle" fill="#94a3b8" font-size="16">Laad eerst een stamboom om de waaier te bekijken</text>
+        </svg>
+    </div>
+</div>
+
+<script>
+    const DB_NAME = 'GedcomDatabase';
+    const STORE_NAME = 'gedcomStore';
+    const DB_VERSION = 4;
+
+    let globalPersonsMap = {};
+    let globalFamiliesMap = {};
+
+    function openGedcomDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+        });
+    }
+
+    async function getGedcomFromIDB() {
+        const db = await openGedcomDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get('gedcomData');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const savedData = await getGedcomFromIDB();
+            if (savedData) {
+                showSuccess('✅ Data succesvol geladen uit IndexedDB.');
+                const parsedData = parseGedcom(savedData);
+                processGedcomData(parsedData);
+            } else {
+                showError('⚠️ Geen opgeslagen stamboom gevonden in IndexedDB. Ga eerst naar de startpagina om een GEDCOM-bestand in te laden.');
+            }
+        } catch (err) {
+            console.error("Fout bij ophalen uit IndexedDB:", err);
+            showError('⚠️ Fout bij het ophalen van gegevens uit IndexedDB.');
+        }
+    });
+
+    function showSuccess(msg) {
+        const banner = document.getElementById('statusBanner');
+        banner.style.backgroundColor = '#e6fffa';
+        banner.style.borderColor = '#38b2ac';
+        banner.style.color = '#234e52';
+        document.getElementById('statusText').innerHTML = msg;
+        document.getElementById('controlsSection').style.display = 'flex';
+    }
+
+    function showError(msg) {
+        const banner = document.getElementById('statusBanner');
+        banner.style.backgroundColor = '#fffaf0';
+        banner.style.borderColor = '#dd6b20';
+        banner.style.color = '#7b341e';
+        document.getElementById('statusText').innerHTML = msg;
+    }
+
+    function parseGedcom(gedcomText) {
+        const lines = gedcomText.split(/\r?\n/);
+        let records = [];
+        let currentRecord = null;
+        let currentEvent = null;
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+
+            const parts = trimmed.split(' ');
+            const level = parseInt(parts[0], 10);
+            
+            if (isNaN(level)) return;
+
+            if (level === 0) {
+                if (currentRecord) records.push(currentRecord);
+                currentEvent = null;
+                
+                let id = '';
+                let tag = '';
+                if (parts[1].startsWith('@')) {
+                    id = parts[1].replace(/@/g, '');
+                    tag = parts[2] ? parts[2].toUpperCase() : '';
+                } else {
+                    tag = parts[1].toUpperCase();
+                }
+
+                currentRecord = { TAG: tag, id: id, children: [] };
+            } else if (currentRecord) {
+                let tag = parts[1] ? parts[1].toUpperCase() : '';
+                let value = parts.slice(2).join(' ');
+
+                if (value.startsWith('@') && value.endsWith('@')) {
+                    value = value.replace(/@/g, '');
+                }
+
+                const node = { tag: tag, value: value, children: [] };
+
+                if (level === 1) {
+                    currentRecord[tag] = value;
+                    currentRecord.children.push(node);
+                    currentEvent = node;
+                } else if (level === 2 && currentEvent) {
+                    currentEvent.children.push(node);
+                    if (tag === 'DATE') currentEvent.DATE = value;
+                    if (tag === 'PLAC') currentEvent.PLAC = value;
+                }
+            }
+        });
+        if (currentRecord) records.push(currentRecord);
+        return records;
+    }
+
+    function cleanId(idStr) {
+        if (!idStr) return '';
+        return String(idStr).replace(/@/g, '').trim();
+    }
+
+    function extractId(item) {
+        return cleanId(item.id || '');
+    }
+
+    function extractSex(item) {
+        if (item.SEX) return String(item.SEX);
+        const children = item.children || [];
+        const sexNode = children.find(c => c && c.tag === 'SEX');
+        return sexNode ? String(sexNode.value) : '';
+    }
+
+    function extractEventYearAndPlace(item, eventTag) {
+        let dateStr = '';
+        const evObj = item.children ? item.children.find(c => c.tag === eventTag) : null;
+        if (evObj) {
+            dateStr = evObj.DATE || '';
+            if (!dateStr) {
+                (evObj.children || []).forEach(sub => {
+                    if (sub.tag === 'DATE' && !dateStr) dateStr = sub.value;
+                });
+            }
+        }
+        let year = null;
+        if (dateStr) {
+            const match = String(dateStr).match(/\b(\d{3,4})\b/);
+            if (match) {
+                const y = parseInt(match[1], 10);
+                if (y >= 500 && y <= 2100) year = y;
+            }
+        }
+        return { year: year };
+    }
+
+    function extractFamMembers(famItem) {
+        let husb = cleanId(famItem.HUSB || '');
+        let wife = cleanId(famItem.WIFE || '');
+        let childrenIds = [];
+
+        (famItem.children || []).forEach(c => {
+            if (c.tag === 'HUSB' && !husb) husb = cleanId(c.value);
+            if (c.tag === 'WIFE' && !wife) wife = cleanId(c.value);
+            if (c.tag === 'CHIL' && c.value) childrenIds.push(cleanId(c.value));
+        });
+
+        return { husb: husb, wife: wife, children: [...new Set(childrenIds)].filter(Boolean) };
+    }
+
+    function parsePersonName(item) {
+        let fullName = item.NAME || '';
+        if (!fullName && item.children) {
+            const nameNode = item.children.find(c => c.tag === 'NAME');
+            if (nameNode) fullName = nameNode.value || '';
+        }
+
+        let voornaam = '';
+        let achternaam = '';
+
+        if (fullName.includes('/')) {
+            let parts = fullName.split('/');
+            voornaam = parts[0].trim();
+            achternaam = parts[1] ? parts[1].trim() : '';
+        } else {
+            voornaam = fullName.trim();
+        }
+
+        if (item.children) {
+            item.children.forEach(c => {
+                if (c.tag === 'NAME' && c.children) {
+                    c.children.forEach(sub => {
+                        if (sub.tag === 'GIVN' && sub.value) voornaam = sub.value.trim();
+                        if (sub.tag === 'SURN' && sub.value) achternaam = sub.value.trim();
+                    });
+                }
+            });
+        }
+
+        return { voornaam: voornaam || 'Onbekend', achternaam: achternaam || 'Onbekend' };
+    }
+
+    function processGedcomData(data) {
+        const items = Array.isArray(data) ? data : [];
+        const personsMap = {};
+        const familiesMap = {};
+
+        items.forEach(item => {
+            const tag = (item.TAG || '').toUpperCase();
+            const id = extractId(item);
+            if (id) {
+                if (tag === 'INDI') personsMap[id] = item;
+                if (tag === 'FAM') familiesMap[id] = item;
+            }
+        });
+
+        globalPersonsMap = personsMap;
+        globalFamiliesMap = familiesMap;
+
+        populatePersonDropdown(personsMap);
+    }
+
+    function populatePersonDropdown(personsMap) {
+        const select = document.getElementById('fanRootSelect');
+        select.innerHTML = '<option value="">-- Selecteer een persoon --</option>';
+        
+        let personList = [];
+        Object.keys(personsMap).forEach(id => {
+            const person = personsMap[id];
+            const name = parsePersonName(person);
+            const birth = extractEventYearAndPlace(person, 'BIRT');
+            personList.push({
+                id: id,
+                name: `${name.achternaam}, ${name.voornaam} (°${birth.year ? birth.year : '?'})`,
+                sortKey: `${name.achternaam} ${name.voornaam}`.toLowerCase()
+            });
+        });
+
+        personList.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+        personList.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            select.appendChild(opt);
+        });
+    }
+
+    function generateFanChart() {
+        const rootId = document.getElementById('fanRootSelect').value;
+        const maxGen = parseInt(document.getElementById('fanGenerations').value, 10) || 4;
+        
+        if (!rootId) {
+            alert('Selecteer eerst een persoon uit de lijst!');
+            return;
+        }
+
+        renderAncestorFanChart(rootId, maxGen);
+    }
+
+    function renderAncestorFanChart(rootId, maxGen) {
+        const svg = document.getElementById('fanChartSvg');
+        svg.innerHTML = '';
+
+        let tree = {};
+        tree["0-0"] = rootId;
+
+        // Opslag voor generatie datumbereik
+        let genYears = {};
+
+        for (let g = 0; g < maxGen; g++) {
+            for (let i = 0; i < Math.pow(2, g); i++) {
+                let pId = tree[`${g}-${i}`];
+                let fatherId = null;
+                let motherId = null;
+
+                if (pId && globalPersonsMap[pId]) {
+                    const person = globalPersonsMap[pId];
+                    let famcId = null;
+                    (person.children || []).forEach(c => {
+                        if (c.tag === 'FAMC' && c.value) famcId = cleanId(c.value);
+                    });
+                    if (famcId && globalFamiliesMap[famcId]) {
+                        const fam = globalFamiliesMap[famcId];
+                        const members = extractFamMembers(fam);
+                        fatherId = members.husb || null;
+                        motherId = members.wife || null;
+                    }
+                }
+
+                tree[`${g+1}-${2*i}`] = fatherId;
+                tree[`${g+1}-${2*i + 1}`] = motherId;
+            }
+        }
+
+        // Bereken datumbereik per generatie
+        for (let g = 0; g <= maxGen; g++) {
+            let years = [];
+            let count = Math.pow(2, g);
+            for (let i = 0; i < count; i++) {
+                let pId = tree[`${g}-${i}`];
+                if (pId && globalPersonsMap[pId]) {
+                    let birth = extractEventYearAndPlace(globalPersonsMap[pId], 'BIRT');
+                    if (birth.year) years.push(birth.year);
+                }
+            }
+            if (years.length > 0) {
+                genYears[g] = { min: Math.min(...years), max: Math.max(...years) };
+            }
+        }
+
+        // Update generatie range UI box
+        updateGenerationRangeUI(genYears, maxGen);
+
+        const cx = 600;
+        const cy = 660;
+        const r0 = 50;
+        const dr = 55;
+
+        const tooltip = document.getElementById('fanTooltip');
+
+        for (let g = 0; g <= maxGen; g++) {
+            let rIn = r0 + (g * dr);
+            let rOut = r0 + ((g + 1) * dr);
+            let count = Math.pow(2, g);
+            let angleSpan = Math.PI / count;
+
+            for (let i = 0; i < count; i++) {
+                let pId = tree[`${g}-${i}`];
+                let angleStart = i * angleSpan;
+                let angleEnd = (i + 1) * angleSpan;
+                let angleMid = (angleStart + angleEnd) / 2;
+
+                let pathData = describeArcSegment(cx, cy, rIn, rOut, angleStart, angleEnd);
+                
+                let fillColor = '#f8fafc';
+                let strokeColor = '#cbd5e1';
+                let textColor = '#334155';
+
+                let voornaam = 'Onbekend';
+                let achternaam = 'Onbekend';
+                let birthYear = '?';
+                let deathYear = '?';
+
+                if (pId && globalPersonsMap[pId]) {
+                    const p = globalPersonsMap[pId];
+                    const name = parsePersonName(p);
+                    const birth = extractEventYearAndPlace(p, 'BIRT');
+                    const death = extractEventYearAndPlace(p, 'DEAT');
+                    const sex = extractSex(p).toUpperCase();
+
+                    voornaam = name.voornaam;
+                    achternaam = name.achternaam;
+                    birthYear = birth.year ? birth.year : '?';
+                    deathYear = death.year ? death.year : '?';
+
+                    if (g === 0) {
+                        fillColor = '#3498db';
+                        textColor = '#ffffff';
+                    } else if (['M', 'MALE', 'MAN'].includes(sex)) {
+                        fillColor = '#e0f2fe';
+                    } else if (['F', 'FEMALE', 'VROUW'].includes(sex)) {
+                        fillColor = '#fce7f3';
+                    } else {
+                        fillColor = '#f1f5f9';
+                    }
+                }
+
+                let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", pathData);
+                path.setAttribute("fill", fillColor);
+                path.setAttribute("stroke", strokeColor);
+                path.setAttribute("stroke-width", "1");
+                path.setAttribute("class", "fan-slice");
+
+                path.addEventListener('mousemove', (e) => {
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = (e.clientX + 15) + 'px';
+                    tooltip.style.top = (e.clientY + 15) + 'px';
+                    tooltip.innerHTML = `<strong>${voornaam} ${achternaam}</strong><br>Geboren: ${birthYear} | Overleden: ${deathYear} <br><span style="font-size:0.75rem; color:#94a3b8;">Generatie ${g}</span>`;
+                });
+                path.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                });
+
+                svg.appendChild(path);
+
+                if (pId && g <= maxGen) {
+                    let rMid = (rIn + rOut) / 2;
+                    let tx = cx + rMid * Math.cos(angleMid);
+                    let ty = cy - rMid * Math.sin(angleMid);
+
+                    let angleDeg = angleMid * (180 / Math.PI);
+                    if (angleDeg > 90 && angleDeg < 270) {
+                        angleDeg += 180;
+                    }
+
+                    let gTag = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    gTag.setAttribute("transform", `translate(${tx}, ${ty}) rotate(${angleDeg})`);
+
+                    let fontSize = g === 0 ? "12" : (g <= 2 ? "10" : (g <= 4 ? "7" : "6"));
+
+                    let t1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    t1.setAttribute("x", "0");
+                    t1.setAttribute("y", g === 0 ? "-10" : (g >= 5 ? "-5" : "-8"));
+                    t1.setAttribute("fill", textColor);
+                    t1.setAttribute("font-size", fontSize);
+                    t1.setAttribute("font-weight", g === 0 ? "bold" : "normal");
+                    t1.setAttribute("text-anchor", "middle");
+                    t1.textContent = voornaam.length > 14 ? voornaam.substring(0, 12) + '..' : voornaam;
+                    gTag.appendChild(t1);
+
+                    let t2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    t2.setAttribute("x", "0");
+                    t2.setAttribute("y", "0");
+                    t2.setAttribute("fill", textColor);
+                    t2.setAttribute("font-size", fontSize);
+                    t2.setAttribute("font-weight", "bold");
+                    t2.setAttribute("text-anchor", "middle");
+                    t2.textContent = achternaam.length > 14 ? achternaam.substring(0, 12) + '..' : achternaam;
+                    gTag.appendChild(t2);
+
+                    let t3 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    t3.setAttribute("x", "0");
+                    t3.setAttribute("y", g === 0 ? "10" : (g >= 5 ? "6" : "9"));
+                    t3.setAttribute("fill", textColor);
+                    t3.setAttribute("font-size", g === 0 ? "11" : (g >= 5 ? "5" : "7"));
+                    t3.setAttribute("text-anchor", "middle");
+                    t3.textContent = `°${birthYear}`;
+                    gTag.appendChild(t3);
+
+                    svg.appendChild(gTag);
+                }
+            }
+        }
+    }
+
+    function updateGenerationRangeUI(genYears, maxGen) {
+        const box = document.getElementById('genRangeBox');
+        const list = document.getElementById('genRangeList');
+        list.innerHTML = '';
+
+        let hasData = false;
+        for (let g = 0; g <= maxGen; g++) {
+            if (genYears[g]) {
+                hasData = true;
+                let li = document.createElement('li');
+                let label = g === 0 ? 'Startpersoon' : (g === 1 ? 'Ouders (Gen 1)' : `Gen ${g}`);
+                li.innerHTML = `<strong>${label}:</strong> ${genYears[g].min} t/m ${genYears[g].max}`;
+                list.appendChild(li);
+            }
+        }
+
+        box.style.display = hasData ? 'block' : 'none';
+    }
+
+    function describeArcSegment(cx, cy, r1, r2, angleStart, angleEnd) {
+        const start1 = { x: cx + r1 * Math.cos(angleStart), y: cy - r1 * Math.sin(angleStart) };
+        const end1 = { x: cx + r1 * Math.cos(angleEnd), y: cy - r1 * Math.sin(angleEnd) };
+        const start2 = { x: cx + r2 * Math.cos(angleStart), y: cy - r2 * Math.sin(angleStart) };
+        const end2 = { x: cx + r2 * Math.cos(angleEnd), y: cy - r2 * Math.sin(angleEnd) };
+
+        const largeArcFlag = (angleEnd - angleStart) > Math.PI ? 1 : 0;
+
+        return [
+            `M ${start1.x} ${start1.y}`,
+            `A ${r1} ${r1} 0 ${largeArcFlag} 0 ${end1.x} ${end1.y}`,
+            `L ${end2.x} ${end2.y}`,
+            `A ${r2} ${r2} 0 ${largeArcFlag} 1 ${start2.x} ${start2.y}`,
+            `Z`
+        ].join(' ');
+    }
+</script>
+
+</body>
+</html>

@@ -133,6 +133,65 @@
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
             line-height: 1.4;
         }
+
+        /* Verplaatsbare en schaalbare Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            width: 500px;
+            min-width: 300px;
+            min-height: 250px;
+            max-width: 90vw;
+            max-height: 85vh;
+            resize: both;
+            overflow: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            padding: 5px 0 15px 0;
+            cursor: move;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 15px;
+            user-select: none;
+        }
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .close-btn:hover { color: #000; }
+        .timeline {
+            margin-top: 10px;
+            border-left: 3px solid #3498db;
+            padding-left: 15px;
+        }
+        .timeline-item {
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        .timeline-year {
+            font-weight: bold;
+            color: #2980b9;
+        }
     </style>
 </head>
 <body>
@@ -175,6 +234,19 @@
     </div>
 </div>
 
+<!-- Modal voor Levensloop & Wereldgebeurtenissen (Sleepbaar & Schaalbaar) -->
+<div class="modal" id="personModal">
+    <div class="modal-content" id="modalContentBox">
+        <div class="modal-header" id="modalHeader">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2 id="modalPersonName" style="margin:0; color:#2c3e50; font-size: 1.3rem;"></h2>
+            <p id="modalPersonDetails" style="color: #64748b; font-size: 0.9rem; margin: 5px 0 0 0;"></p>
+        </div>
+        <h4 style="margin: 0 0 10px 0; color: #1e293b;">🌍 Wereldgebeurtenissen tijdens dit leven:</h4>
+        <div class="timeline" id="modalTimeline"></div>
+    </div>
+</div>
+
 <script>
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
@@ -182,6 +254,115 @@
 
     let globalPersonsMap = {};
     let globalFamiliesMap = {};
+
+    // Ingebouwde uitgebreide historische wereld- en Belgische gebeurtenissen
+    const wereldGebeurtenissen = [
+        { jaar: 1700, gebeurtenis: "Begin van de Spaanse Successieoorlog" },
+        { jaar: 1709, gebeurtenis: "De 'Grote Winter' met extreme vorst en hongersnood in Europa" },
+        { jaar: 1713, gebeurtenis: "Vrede van Utrecht: de Zuidelijke Nederlanden komen onder Oostenrijks bewind" },
+        { jaar: 1721, gebeurtenis: "Einde van de Grote Noordse Oorlog" },
+        { jaar: 1738, gebeurtenis: "Uitvinding van de vliegende schietspoel (revolutie in de textielindustrie)" },
+        { jaar: 1740, gebeurtenis: "Begin van de Oostenrijkse Successieoorlog" },
+        { jaar: 1748, gebeurtenis: "Vrede van Aken maakt een einde aan de Oostenrijkse Successieoorlog" },
+        { jaar: 1756, gebeurtenis: "Begin van de Zevenjarige Oorlog tussen grootmachten" },
+        { jaar: 1769, gebeurtenis: "James Watt patenteert de stoommachine" },
+        { jaar: 1776, gebeurtenis: "Amerikaanse Onafhankelijkheidsverklaring" },
+        { jaar: 1780, gebeurtenis: "Begin van de Vierde Engelse Oorlog tegen de Republiek" },
+        { jaar: 1784, gebeurtenis: "Vrede van Parijs beëindigt de Vierde Engelse Oorlog" },
+        { jaar: 1789, gebeurtenis: "Franse Revolutie & Brabantse Omwenteling tegen Oostenrijk" },
+        { jaar: 1792, gebeurtenis: "Slag bij Jemappes en uitroeping van de Eerste Franse Republiek" },
+        { jaar: 1794, gebeurtenis: "Slag bij Fleurus: Franse legers veroveren de Zuidelijke Nederlanden definitief" },
+        { jaar: 1795, gebeurtenis: "Officiële inlijving van de Zuidelijke Nederlanden bij de Franse Republiek (Franse Tijd)" },
+        { jaar: 1798, gebeurtenis: "Boerenkrijg: Vlaamse boerenopstand tegen de Franse bezetting en conscriptie" },
+        { jaar: 1799, gebeurtenis: "Staatsgreep van Napoleon Bonaparte (Begin Franse Consulaat)" },
+        { jaar: 1804, gebeurtenis: "Napoleon kroont zichzelf tot keizer & invoering van de Code Napoléon" },
+        { jaar: 1809, gebeurtenis: "Slag bij Wagram en hoogtepunt van het Franse Keizerrijk" },
+        { jaar: 1812, gebeurtenis: "Catastrofale Veldtocht van Napoleon naar Rusland" },
+        { jaar: 1813, gebeurtenis: "Slag bij Leipzig (Volkerenslag) en verdrijving van de Fransen" },
+        { jaar: 1815, gebeurtenis: "Slag bij Waterloo & Congres van Wenen (Stichting Verenigd Koninkrijk der Nederlanden)" },
+        { jaar: 1821, gebeurtenis: "Overlijden van Napoleon Bonaparte op Sint-Helena" },
+        { jaar: 1830, gebeurtenis: "Belgische Revolutie & uitroeping van de Onafhankelijkheid van België" },
+        { jaar: 1831, gebeurtenis: "Eeduitreding van Koning Leopold I & goedkeuring van de Belgische Grondwet" },
+        { jaar: 1835, gebeurtenis: "Opening van de eerste spoorlijn op het Europese vasteland (Brussel-Mechelen)" },
+        { jaar: 1839, gebeurtenis: "Verdrag van Londen: erkenning van de Belgische onafhankelijkheid en neutraliteit" },
+        { jaar: 1845, gebeurtenis: "Grote Aardappelziekte veroorzaakt hongersnood in Europa en Ierland" },
+        { jaar: 1848, gebeurtenis: "Februarirevolutie in Europa, 'Lente der Volkeren' & liberale grondwetsherziening in België" },
+        { jaar: 1851, gebeurtenis: "Eerste Wereldtentoonstelling in het Crystal Palace te Londen" },
+        { jaar: 1853, gebeurtenis: "Begin van de Krimoorlog tussen Rusland en geallieerden" },
+        { jaar: 1860, gebeurtenis: "Bloeiperiode van de Belgische steenkool- en staalindustrie (Industriële Revolutie)" },
+        { jaar: 1863, gebeurtenis: "Afschaffing van de slavernij in Nederlandse koloniën en de Amerikaanse Emancipatieproclamatie" },
+        { jaar: 1865, gebeurtenis: "Overlijden van Koning Leopold I & troonsbestijging van Koning Leopold II" },
+        { jaar: 1869, gebeurtenis: "Opening van het Suezkanaal verbindt Europa met Azië" },
+        { jaar: 1870, gebeurtenis: "Uitbraak van de Frans-Duitse Oorlog & val van het Franse Keizerrijk" },
+        { jaar: 1879, gebeurtenis: "Eerste Schoolstrijd in België over het seculiere onderwijs" },
+        { jaar: 1885, gebeurtenis: "Oprichting van de Onafhankelijke Congostaat onder persoonlijk gezag van Leopold II" },
+        { jaar: 1886, gebeurtenis: "Bloedige sociale opschuddingen en arbeidersopstanden in Wallonië" },
+        { jaar: 1893, gebeurtenis: "Invoering van het meervoudig algemeen stemrecht voor mannen na massastakingen in België" },
+        { jaar: 1895, gebeurtenis: "Eerste openbare filmvoorstelling door de broers Lumière" },
+        { jaar: 1901, gebeurtenis: "Uitreiking van de allereerste Nobelprijzen in Stockholm" },
+        { jaar: 1908, gebeurtenis: "Congo wordt officieel een officiële Belgische kolonie (Belgisch-Congo)" },
+        { jaar: 1912, gebeurtenis: "De tragische ondergang van de RMS Titanic tijdens haar maidentrip" },
+        { jaar: 1914, gebeurtenis: "Moord op aartshertog Franz Ferdinand & uitbraak van de Eerste Wereldoorlog (Duitse inval in België)" },
+        { jaar: 1915, gebeurtenis: "Eerste grootschalige inzet van gifgas aan het Ieperse front" },
+        { jaar: 1916, gebeurtenis: "Slag om Verdun en de Slag aan de Somme" },
+        { jaar: 1917, gebeurtenis: "Russische Revolutie en intrede van de Verenigde Staten in de oorlog" },
+        { jaar: 1918, gebeurtenis: "Wapenstilstand (11 november): Einde Eerste Wereldoorlog & invoering enkelvoudig algemeen stemrecht voor mannen" },
+        { jaar: 1920, gebeurtenis: "Organisatie van de Olympische Zomerspelen in Antwerpen & oprichting Volkenbond" },
+        { jaar: 1922, gebeurtenis: "Oprichting van de Sovjet-Unie & ontdekking van het graf van Toetanchamon" },
+        { jaar: 1925, gebeurtenis: "Verdrag van Locarno voor Europese stabiliteit" },
+        { jaar: 1929, gebeurtenis: "Beurskrach van Wall Street en start van de Grote Depressie wereldwijd" },
+        { jaar: 1930, gebeurtenis: "Herdenking van 100 jaar Belgische onafhankelijkheid & arbeidersrellen in Luik en Charleroi" },
+        { jaar: 1934, gebeurtenis: "Overlijden van Koning Albert I in Marche-les-Dames & troonsbestijging Leopold III" },
+        { jaar: 1935, gebeurtenis: "Wereldtentoonstelling te Brussel & economische crisis in België" },
+        { jaar: 1936, gebeurtenis: "Uitbraak van de Spaanse Burgeroorlog & invoering van de 40-urige werkweek in België" },
+        { jaar: 1939, gebeurtenis: "Duitse inval in Polen en begin van de Tweede Wereldoorlog in Europa" },
+        { jaar: 1940, gebeurtenis: "Duitse Blitzkrieg en Achttiendaagse Veldtocht: België bezet door nazi-Duitsland" },
+        { jaar: 1942, gebeurtenis: "Begin van de systematische deportatie van Joden en zigeurds vanuit Mechelen (Dossinkazerne)" },
+        { jaar: 1944, gebeurtenis: "D-Day (Allied landing in Normandië) & triomfantelijke bevrijding van België in september" },
+        { jaar: 1945, gebeurtenis: "Capitulatie van nazi-Duitsland en Japan, einde Tweede Wereldoorlog & oprichting van de Verenigde Naties (VN)" },
+        { jaar: 1947, gebeurtenis: "Start van het Marshallplan voor de Europese wederopbouw" },
+        { jaar: 1948, gebeurtenis: "Oprichting van de Benelux-douane-unie & ondertekening Universele Verklaring van de Rechten van de Mens" },
+        { jaar: 1950, gebeurtenis: "Uitbraak van de Koreaanse Oorlog & het hoogtepunt van de Belgische Koningskwestie" },
+        { jaar: 1951, gebeurtenis: "Oprichting van de EGKS (voorloper van de Europese Unie) door zes landen waaronder België" },
+        { jaar: 1953, gebeurtenis: "VerwoestendeWatersnoodramp in Nederland, Zeeland en Vlaanderen" },
+        { jaar: 1954, gebeurtenis: "Tweede Schoolstrijd in België over staatssubsidies voor het vrij onderwijs" },
+        { jaar: 1957, gebeurtenis: "Ondertekening van de Verdragen van Rome (Geboorte van de EEG en Euratom)" },
+        { jaar: 1958, gebeurtenis: "Expo 58 & Wereldtentoonstelling in Brussel met de iconische bouw van het Atomium" },
+        { jaar: 1960, gebeurtenis: "Onafhankelijkheid van Belgisch-Congo & de grote Belgische eenheidstaking tegen de Eenheidswet" },
+        { jaar: 1961, gebeurtenis: "Bouw van de Berlijnse Muur verdeelt de Koude Oorlog" },
+        { jaar: 1962, gebeurtenis: "Cubaanse raketcrisis brengt de wereld aan de rand van een kernoorlog" },
+        { jaar: 1966, gebeurtenis: "Vrouwenstaking bij FN Herstal voor gelijke loonrechten" },
+        { jaar: 1968, gebeurtenis: "Studentenrevolte van Mei '68 & taalbarsten en barsten rond de splitsing van de Leuvense universiteit (KUL/UCL)" },
+        { jaar: 1969, gebeurtenis: "Apollo 11: Neil Armstrong zet als eerste mens voet op de maan" },
+        { jaar: 1970, gebeurtenis: "Eerste grondwetswijziging en staatshervorming: België wordt geleidelijk een federale staat" },
+        { jaar: 1973, gebeurtenis: "Eerste oliecrisis zorgt voor autoloze zondagen en economische malaise" },
+        { jaar: 1975, gebeurtenis: "Ondertekening van de Akkoorden van Helsinki over mensenrechten" },
+        { jaar: 1979, gebeurtenis: "Eerste rechtstreekse verkiezingen voor het Europees Parlement" },
+        { jaar: 1980, gebeurtenis: "Tweede staatshervorming: officiële oprichting van de Vlaamse en Franse Gemeenschap" },
+        { jaar: 1981, gebeurtenis: "Lancering van de allereerste Space Shuttle & economische herstructureringen in België" },
+        { jaar: 1985, gebeurtenis: "De Heizeldrama-tragedie bij de Europacupfinale in Brussel & akkoord van Schengen" },
+        { jaar: 1986, gebeurtenis: "Kernramp van Tsjernobyl brengt radioactieve wolk over Europa" },
+        { jaar: 1989, gebeurtenis: "Val van de Berlijnse Muur en de vreedzame val van het communisme in Oost-Europa" },
+        { jaar: 1990, gebeurtenis: "Hereniging van Duitsland & koninklijke crisis rond de abortuswet in België (Koning Baudouin weigert te tekenen)" },
+        { jaar: 1991, gebeurtenis: "Ineenstorting van de Sovjet-Unie & opkomst van het World Wide Web (internet)" },
+        { jaar: 1993, gebeurtenis: "Sint-Michielsakkoord: België wordt officieel en definitief een federale staat; overlijden van Koning Baudouin" },
+        { jaar: 1995, gebeurtenis: "Toetreding van Oostenrijk, Finland en Zweden tot de EU & oprichting van de Wereldhandelsorganisatie (WTO)" },
+        { jaar: 1999, gebeurtenis: "Introductie van de euro als giraal betaalmiddel & paarse regering-Verhofstadt I in België" },
+        { jaar: 2001, gebeurtenis: "Terroristische aanslagen op het World Trade Center in New York (9/11)" },
+        { jaar: 2002, gebeurtenis: "Invoering van de fysieke euromunten en -biljetten in het dagelijks leven" },
+        { jaar: 2004, gebeurtenis: "Grootste uitbreiding van de Europese Unie met 10 landen uit Midden- en Oost-Europa" },
+        { jaar: 2005, gebeurtenis: "Lancering van YouTube en verdere opkomst van sociale media" },
+        { jaar: 2008, gebeurtenis: "Wereldwijde banken- en financiële crisis na het omvallen van Lehman Brothers" },
+        { jaar: 2010, gebeurtenis: "Historische politieke crisis in België: record van 541 dagen zonder federale regering" },
+        { jaar: 2011, gebeurtenis: "Arabische Lente & kernramp in Fukushima (Japan)" },
+        { jaar: 2013, gebeurtenis: "Troonsafstand van Koning Albert II en eedaflegging van Koning Filip" },
+        { jaar: 2015, gebeurtenis: "Parijs-klimaatakkoord & Europese vluchtelingencrisis" },
+        { jaar: 2016, gebeurtenis: "Brexit-referendum in het Verenigd Koninkrijk & terroristische aanslagen in Brussel (Zaventem en Maalbeek)" },
+        { jaar: 2019, gebeurtenis: "Eerste rechtstreekse foto van een zwart gat & klimaatmarsen van jeugd in België" },
+        { jaar: 2020, gebeurtenis: "Wereldwijde uitbraak van de COVID-19-pandemie met lockdowns en reizenrestricties" },
+        { jaar: 2021, gebeurtenis: "Grote overstromingen in Wallonië en delen van Vlaanderen met materiële schade" },
+        { jaar: 2022, gebeurtenis: "Russische inval in Oekraïne en aanhoudende energiecrisis in Europa" }
+    ];
 
     function openGedcomDB() {
         return new Promise((resolve, reject) => {
@@ -222,6 +403,9 @@
             console.error("Fout bij ophalen uit IndexedDB:", err);
             showError('⚠️ Fout bij het ophalen van gegevens uit IndexedDB.');
         }
+
+        // Activeer sleepfunctionaliteit (Draggable) voor de modal
+        makeElementDraggable(document.getElementById('modalContentBox'), document.getElementById('modalHeader'));
     });
 
     function showSuccess(msg) {
@@ -444,7 +628,6 @@
         let tree = {};
         tree["0-0"] = rootId;
 
-        // Opslag voor generatie datumbereik
         let genYears = {};
 
         for (let g = 0; g < maxGen; g++) {
@@ -472,7 +655,6 @@
             }
         }
 
-        // Bereken datumbereik per generatie
         for (let g = 0; g <= maxGen; g++) {
             let years = [];
             let count = Math.pow(2, g);
@@ -488,7 +670,6 @@
             }
         }
 
-        // Update generatie range UI box
         updateGenerationRangeUI(genYears, maxGen);
 
         const cx = 600;
@@ -556,10 +737,16 @@
                     tooltip.style.display = 'block';
                     tooltip.style.left = (e.clientX + 15) + 'px';
                     tooltip.style.top = (e.clientY + 15) + 'px';
-                    tooltip.innerHTML = `<strong>${voornaam} ${achternaam}</strong><br>Geboren: ${birthYear} | Overleden: ${deathYear} <br><span style="font-size:0.75rem; color:#94a3b8;">Generatie ${g}</span>`;
+                    tooltip.innerHTML = `<strong>${voornaam} ${achternaam}</strong><br>Geboren: ${birthYear} | Overleden: ${deathYear} <br><span style="font-size:0.75rem; color:#94a3b8;">Klik voor levensloop & historie</span>`;
                 });
                 path.addEventListener('mouseleave', () => {
                     tooltip.style.display = 'none';
+                });
+
+                path.addEventListener('click', () => {
+                    if (pId) {
+                        openPersonModal(pId);
+                    }
                 });
 
                 svg.appendChild(path);
@@ -576,6 +763,8 @@
 
                     let gTag = document.createElementNS("http://www.w3.org/2000/svg", "g");
                     gTag.setAttribute("transform", `translate(${tx}, ${ty}) rotate(${angleDeg})`);
+                    gTag.style.cursor = "pointer";
+                    gTag.addEventListener('click', () => { openPersonModal(pId); });
 
                     let fontSize = g === 0 ? "12" : (g <= 2 ? "10" : (g <= 4 ? "7" : "6"));
 
@@ -611,6 +800,94 @@
                     svg.appendChild(gTag);
                 }
             }
+        }
+    }
+
+    function openPersonModal(pId) {
+        const person = globalPersonsMap[pId];
+        if (!person) return;
+
+        const name = parsePersonName(person);
+        const birth = extractEventYearAndPlace(person, 'BIRT');
+        const death = extractEventYearAndPlace(person, 'DEAT');
+
+        document.getElementById('modalPersonName').innerText = `${name.voornaam} ${name.achternaam}`;
+        
+        let birthStr = birth.year ? birth.year : 'Onbekend';
+        let deathStr = death.year ? death.year : 'Onbekend';
+        document.getElementById('modalPersonDetails').innerHTML = `Geboortejaar: <strong>${birthStr}</strong> | Overlijdensjaar: <strong>${deathStr}</strong>`;
+
+        const timelineContainer = document.getElementById('modalTimeline');
+        timelineContainer.innerHTML = '';
+
+        if (!birth.year) {
+            timelineContainer.innerHTML = '<p style="color:#64748b; font-style:italic;">Geen geboortejaar bekend om wereldgebeurtenissen te koppelen.</p>';
+        } else {
+            let startYear = birth.year;
+            let endYear = death.year ? death.year : new Date().getFullYear();
+
+            let relevantEvents = wereldGebeurtenissen.filter(ev => ev.jaar >= startYear && ev.jaar <= endYear);
+
+            if (relevantEvents.length === 0) {
+                timelineContainer.innerHTML = '<p style="color:#64748b; font-style:italic;">Geen grote historische ijkpunten geregistreerd tijdens deze levensjaren.</p>';
+            } else {
+                relevantEvents.forEach(ev => {
+                    let ageAtEvent = ev.jaar - startYear;
+                    let div = document.createElement('div');
+                    div.className = 'timeline-item';
+                    div.innerHTML = `<span class="timeline-year">${ev.jaar} (leeftijd ~${ageAtEvent < 0 ? 0 : ageAtEvent}):</span> ${ev.gebeurtenis}`;
+                    timelineContainer.appendChild(div);
+                });
+            }
+        }
+
+        document.getElementById('personModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('personModal').style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('personModal');
+        if (event.target === modal) {
+            closeModal();
+        }
+    }
+
+    // Functie om de modal verplaatsbaar (draggable) te maken
+    function makeElementDraggable(elmnt, header) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        if (header) {
+            header.onmousedown = dragMouseDown;
+        } else {
+            elmnt.onmousedown = dragMouseDown;
+        }
+
+        function dragMouseDown(e) {
+            e = e || window.event;
+            e.preventDefault();
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+        }
+
+        function elementDrag(e) {
+            e = e || window.event;
+            e.preventDefault();
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+            elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+            elmnt.style.transform = "none"; // Schakel de standaard transform center uit zodra er gesleept wordt
+        }
+
+        function closeDragElement() {
+            document.onmouseup = null;
+            document.onmousemove = null;
         }
     }
 
