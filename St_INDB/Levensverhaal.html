@@ -32,9 +32,14 @@
             border-bottom: 1px solid #e2e8f0;
             padding-bottom: 5px;
         }
-        .back-btn {
-            display: inline-block;
+        .btn-bar {
+            display: flex;
+            gap: 10px;
             margin-bottom: 20px;
+            align-items: center;
+        }
+        .back-btn, .option-btn {
+            display: inline-block;
             padding: 8px 16px;
             background-color: #718096;
             color: white;
@@ -42,9 +47,14 @@
             text-decoration: none;
             font-weight: bold;
             font-size: 0.85rem;
+            border: none;
+            cursor: pointer;
         }
-        .back-btn:hover {
+        .back-btn:hover, .option-btn:hover {
             background-color: #4a5568;
+        }
+        .option-btn.active {
+            background-color: #3182ce;
         }
         .info-box {
             background: #e8f4fd;
@@ -86,7 +96,11 @@
 <body>
 
 <div class="container">
-    <a href="Filter.html" class="back-btn">⬅ Terug naar Filter</a>
+    <div class="btn-bar">
+        <a href="Filter.html" class="back-btn">⬅ Terug naar Filter</a>
+        <button id="btnZonderWereld" class="option-btn active" onclick="wisselWereld(false)">Zonder Wereldgebeurtenissen</button>
+        <button id="btnMetWereld" class="option-btn" onclick="wisselWereld(true)">Met Wereldgebeurtenissen</button>
+    </div>
     
     <div id="verhaalContent">
         <p>⏳ Gegevens laden...</p>
@@ -97,6 +111,10 @@
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
     const DB_VERSION = 4;
+
+    let globalGedcomText = null;
+    let globalPersoonId = null;
+    let huidigToonWereld = false;
 
     const wereldGebeurtenissen = [
         { jaar: 1700, gebeurtenis: "Begin van de Spaanse Successieoorlog" },
@@ -156,7 +174,7 @@
         { jaar: 1930, gebeurtenis: "Herdenking van 100 jaar Belgische onafhankelijkheid & arbeidersrellen in Luik en Charleroi" },
         { jaar: 1934, gebeurtenis: "Overlijden van Koning Albert I in Marche-les-Dames & troonsbestijging Leopold III" },
         { jaar: 1935, gebeurtenis: "Wereldtentoonstelling te Brussel & economische crisis in België" },
-        { jaar: 1936, gebeurtenis: "Uitbraak van de Spaanse Burgeroorlog & invoering van de 40-urige werkweek in België" },
+        { jaar: 1936, gebeurtenis: "Uitbraak de Spaanse Burgeroorlog & invoering van de 40-urige werkweek in België" },
         { jaar: 1939, gebeurtenis: "Duitse inval in Polen en begin van de Tweede Wereldoorlog in Europa" },
         { jaar: 1940, gebeurtenis: "Duitse Blitzkrieg en Achttiendaagse Veldtocht: België bezet door nazi-Duitsland" },
         { jaar: 1942, gebeurtenis: "Begin van de systematische deportatie van Joden vanuit Mechelen (Dossinkazerne)" },
@@ -231,25 +249,31 @@
         });
     }
 
+    function wisselWereld(metWereld) {
+        huidigToonWereld = metWereld;
+        document.getElementById('btnZonderWereld').classList.toggle('active', !metWereld);
+        document.getElementById('btnMetWereld').classList.toggle('active', metWereld);
+        
+        if (globalGedcomText && globalPersoonId) {
+            parseAndGenerateChronologicalStory(globalGedcomText, globalPersoonId, huidigToonWereld);
+        }
+    }
+
     window.addEventListener('DOMContentLoaded', async () => {
-        const persoonId = sessionStorage.getItem('levensverhaalPersoonId');
-        if (!persoonId) {
+        globalPersoonId = sessionStorage.getItem('levensverhaalPersoonId');
+        if (!globalPersoonId) {
             document.getElementById('verhaalContent').innerHTML = '<p style="color: red;">Geen persoon geselecteerd. Ga terug naar de filterpagina en kies een persoon via rechtermuisklik.</p>';
             return;
         }
 
-        let toonWereld = confirm("Wilt u de wereldgebeurtenissen toevoegen aan het levensverhaal?\n\nKlik op 'OK' voor mét wereldgebeurtenissen, of op 'Annuleren' voor zonder.");
-
         try {
-            const gedcomText = await getStoredGedcomText();
-            if (!gedcomText) {
+            globalGedcomText = await getStoredGedcomText();
+            if (!globalGedcomText) {
                 document.getElementById('verhaalContent').innerHTML = '<p style="color: red;">Geen stamboomdata gevonden in de database.</p>';
                 return;
             }
 
-            setTimeout(() => {
-                parseAndGenerateChronologicalStory(gedcomText, persoonId, toonWereld);
-            }, 50);
+            parseAndGenerateChronologicalStory(globalGedcomText, globalPersoonId, huidigToonWereld);
         } catch (err) {
             console.error(err);
             document.getElementById('verhaalContent').innerHTML = '<p style="color: red;">Fout bij het laden van het levensverhaal: ' + err.message + '</p>';
@@ -258,7 +282,11 @@
 
     function parseAndGenerateChronologicalStory(gedcomText, targetId, toonWereld) {
         const lines = gedcomText.split(/\r?\n/);
-        let records = [];
+        let indiMap = {};
+        let parentFamilies = {}; 
+        let parentToChildrenMap = {}; 
+        let familyDetails = [];
+
         let currentRecord = null;
         let currentEvent = null;
 
@@ -270,14 +298,16 @@
             if (isNaN(level)) return;
 
             if (level === 0) {
-                if (currentRecord) records.push(currentRecord);
-                currentEvent = null;
+                if (currentRecord) {
+                    if (currentRecord.TAG === 'INDI') indiMap[currentRecord.id] = parsePersonFull(currentRecord);
+                    else if (currentRecord.TAG === 'FAM') familyDetails.push(currentRecord);
+                }
                 let id = '', tag = '';
-                if (parts[1].startsWith('@')) {
+                if (parts[1] && parts[1].startsWith('@')) {
                     id = parts[1].replace(/@/g, '');
                     tag = parts[2] ? parts[2].toUpperCase() : '';
                 } else {
-                    tag = parts[1].toUpperCase();
+                    tag = parts[1] ? parts[1].toUpperCase() : '';
                 }
                 currentRecord = { TAG: tag, id: id, children: [] };
             } else if (currentRecord) {
@@ -296,57 +326,45 @@
                 }
             }
         });
-        if (currentRecord) records.push(currentRecord);
+        if (currentRecord) {
+            if (currentRecord.TAG === 'INDI') indiMap[currentRecord.id] = parsePersonFull(currentRecord);
+            else if (currentRecord.TAG === 'FAM') familyDetails.push(currentRecord);
+        }
 
-        let indiMap = {};
-        records.forEach(rec => {
-            if ((rec.TAG || '').toUpperCase() === 'INDI') {
-                indiMap[rec.id] = parsePersonFull(rec);
-            }
-        });
+        let parsedFamilies = [];
+        familyDetails.forEach(rec => {
+            let husb = '', wife = '', children = [];
+            let marrDate = '', marrPlace = '', marrYear = null;
 
-        let parentFamilies = {}; 
-        let parentToChildrenMap = {}; 
-        let familyDetails = [];
-
-        records.forEach(rec => {
-            if ((rec.TAG || '').toUpperCase() === 'FAM') {
-                let husb = '', wife = '', children = [];
-                let marrDate = '', marrPlace = '', marrYear = null;
-
-                (rec.children || []).forEach(c => {
-                    if (c.tag === 'HUSB') husb = c.value;
-                    if (c.tag === 'WIFE') wife = c.value;
-                    if (c.tag === 'CHIL') children.push(c.value);
-                    if (c.tag === 'MARR') {
-                        marrDate = c.DATE || '';
-                        marrPlace = c.PLAC || '';
-                        if (!marrDate && c.children) {
-                            let d = c.children.find(s => s.tag === 'DATE');
-                            if (d) marrDate = d.value;
-                            let p = c.children.find(s => s.tag === 'PLAC');
-                            if (p) marrPlace = p.value;
-                        }
+            (rec.children || []).forEach(c => {
+                if (c.tag === 'HUSB') husb = c.value;
+                if (c.tag === 'WIFE') wife = c.value;
+                if (c.tag === 'CHIL') children.push(c.value);
+                if (c.tag === 'MARR') {
+                    marrDate = c.DATE || '';
+                    marrPlace = c.PLAC || '';
+                    if (!marrDate && c.children) {
+                        let d = c.children.find(s => s.tag === 'DATE');
+                        if (d) marrDate = d.value;
+                        let p = c.children.find(s => s.tag === 'PLAC');
+                        if (p) marrPlace = p.value;
                     }
-                });
-
-                const match = String(marrDate).match(/\b(\d{3,4})\b/);
-                if (match) marrYear = parseInt(match[1], 10);
-
-                familyDetails.push({ husb, wife, marrDate, marrPlace, marrYear });
-
-                children.forEach(chId => {
-                    parentFamilies[chId] = { husb, wife };
-                });
-
-                if (husb) {
-                    if (!parentToChildrenMap[husb]) parentToChildrenMap[husb] = [];
-                    parentToChildrenMap[husb].push(...children);
                 }
-                if (wife) {
-                    if (!parentToChildrenMap[wife]) parentToChildrenMap[wife] = [];
-                    parentToChildrenMap[wife].push(...children);
-                }
+            });
+
+            const match = String(marrDate).match(/\b(\d{3,4})\b/);
+            if (match) marrYear = parseInt(match[1], 10);
+
+            parsedFamilies.push({ husb, wife, marrDate, marrPlace, marrYear });
+
+            children.forEach(chId => { parentFamilies[chId] = { husb, wife }; });
+            if (husb) {
+                if (!parentToChildrenMap[husb]) parentToChildrenMap[husb] = [];
+                parentToChildrenMap[husb].push(...children);
+            }
+            if (wife) {
+                if (!parentToChildrenMap[wife]) parentToChildrenMap[wife] = [];
+                parentToChildrenMap[wife].push(...children);
             }
         });
 
@@ -362,7 +380,7 @@
         let familieMap = new Map();
         familieMap.set(targetId, "Hoofdpersoon");
 
-        // 1. Ouders (1e graad)
+        // 1. Ouders
         let oudersIds = [];
         let pFam = parentFamilies[targetId];
         if (pFam) {
@@ -370,7 +388,7 @@
             if (pFam.wife && indiMap[pFam.wife]) { oudersIds.push(pFam.wife); familieMap.set(pFam.wife, "Moeder"); }
         }
 
-        // 2. Grootouders (2e graad)
+        // 2. Grootouders
         let grootoudersIds = [];
         oudersIds.forEach(oId => {
             let oFam = parentFamilies[oId];
@@ -380,7 +398,7 @@
             }
         });
 
-        // 3. Nonkels/tantes & neven/nichten (tot 4e graad)
+        // 3. Nonkels/tantes & neven/nichten
         grootoudersIds.forEach(gId => {
             let oomsTantesKids = parentToChildrenMap[gId] || [];
             oomsTantesKids.forEach(otId => {
@@ -401,7 +419,7 @@
             });
         });
 
-        // Broers en zussen van hoofdpersoon
+        // Broers/zussen
         oudersIds.forEach(oId => {
             let broersZussen = parentToChildrenMap[oId] || [];
             broersZussen.forEach(bzId => {
@@ -422,14 +440,25 @@
             });
         });
 
-        // 4. Partners
-        familyDetails.forEach(fam => {
-            if ((fam.husb === targetId || fam.wife === targetId) && (familieMap.has(fam.husb) || familieMap.has(fam.wife))) {
+        // 4. Partners en Schoonouders (ouders van de partner)
+        parsedFamilies.forEach(fam => {
+            if (fam.husb === targetId || fam.wife === targetId) {
                 let partnerId = (fam.husb === targetId) ? fam.wife : fam.husb;
                 if (partnerId && indiMap[partnerId]) {
                     let p = indiMap[partnerId];
                     let rol = (p.geslacht === 'M') ? "Echtgenoot" : "Echtgenote";
                     familieMap.set(partnerId, rol);
+
+                    // Ouders van de partner opzoeken (Schoonvader / Schoonmoeder)
+                    let partnerPFam = parentFamilies[partnerId];
+                    if (partnerPFam) {
+                        if (partnerPFam.husb && indiMap[partnerPFam.husb]) {
+                            familieMap.set(partnerPFam.husb, "Schoonvader");
+                        }
+                        if (partnerPFam.wife && indiMap[partnerPFam.wife]) {
+                            familieMap.set(partnerPFam.wife, "Schoonmoeder");
+                        }
+                    }
                 }
             }
         });
@@ -470,12 +499,24 @@
             }
         }
 
+        function getLeeftijdInJaar(persoonObj, jaar) {
+            if (persoonObj && persoonObj.birthYear && jaar) {
+                let l = jaar - persoonObj.birthYear;
+                return (l >= 0) ? l : null;
+            }
+            return null;
+        }
+
         // Hoofdpersoon
         if (person.birthYear) voegGebeurtenisToe(person.birthYear, `<strong>${person.voornaam} ${person.achternaam}</strong> is geboren ${person.birthPlace ? 'te ' + person.birthPlace : ''}.`);
-        if (person.deatYear) voegGebeurtenisToe(person.deatYear, `<strong>${person.voornaam} ${person.achternaam}</strong> is overleden ${person.deatPlace ? 'te ' + person.deatPlace : ''}.`);
+        if (person.deatYear) {
+            let lOverlijden = getLeeftijdInJaar(person, person.deatYear);
+            let lTekst = (lOverlijden !== null) ? ` (op ${lOverlijden}-jarige leeftijd)` : '';
+            voegGebeurtenisToe(person.deatYear, `<strong>${person.voornaam} ${person.achternaam}</strong> is overleden${lTekst} ${person.deatPlace ? 'te ' + person.deatPlace : ''}.`);
+        }
 
-        // Huwelijken uitsluitend controleren voor bekende familieleden om vertraging te voorkomen
-        familyDetails.forEach(fam => {
+        // Huwelijken
+        parsedFamilies.forEach(fam => {
             if (familieMap.has(fam.husb) || familieMap.has(fam.wife)) {
                 let p1 = indiMap[fam.husb];
                 let p2 = indiMap[fam.wife];
@@ -483,8 +524,14 @@
                     let r1 = familieMap.get(fam.husb);
                     let r2 = familieMap.get(fam.wife);
 
-                    let omschrijvingP1 = r1 ? ` (${r1.toLowerCase()})` : '';
-                    let omschrijvingP2 = r2 ? ` (${r2.toLowerCase()})` : '';
+                    let lP1 = fam.marrYear ? getLeeftijdInJaar(p1, fam.marrYear) : null;
+                    let lP2 = fam.marrYear ? getLeeftijdInJaar(p2, fam.marrYear) : null;
+
+                    let lP1Tekst = (lP1 !== null) ? `, ${lP1} jaar` : '';
+                    let lP2Tekst = (lP2 !== null) ? `, ${lP2} jaar` : '';
+
+                    let omschrijvingP1 = r1 ? ` (${r1.toLowerCase()}${lP1Tekst})` : (lP1Tekst ? ` (${lP1Tekst.substring(2)})` : '');
+                    let omschrijvingP2 = r2 ? ` (${r2.toLowerCase()}${lP2Tekst})` : (lP2Tekst ? ` (${lP2Tekst.substring(2)})` : '');
 
                     let huwelijkTekst = `Huwelijk van <strong>${p1.voornaam} ${p1.achternaam}</strong>${omschrijvingP1} en <strong>${p2.voornaam} ${p2.achternaam}</strong>${omschrijvingP2} ${fam.marrPlace ? 'te ' + fam.marrPlace : ''}.`;
 
@@ -497,7 +544,7 @@
             }
         });
 
-        // Geboorte & Overlijden van alle familieleden
+        // Geboortes & overlijdens familie (inclusief schoonvader / schoonmoeder)
         familieMap.forEach((rol, id) => {
             if (id === targetId) return;
             let p = indiMap[id];
@@ -510,7 +557,9 @@
             }
 
             if (p.deatYear) {
-                voegGebeurtenisToe(p.deatYear, `Overlijden van ${rol.toLowerCase()}: <strong>${p.voornaam} ${p.achternaam}</strong> ${p.deatPlace ? 'te ' + p.deatPlace : ''}.`);
+                let lOverlijden = getLeeftijdInJaar(p, p.deatYear);
+                let lTekst = (lOverlijden !== null) ? ` (op ${lOverlijden}-jarige leeftijd)` : '';
+                voegGebeurtenisToe(p.deatYear, `Overlijden van ${rol.toLowerCase()}: <strong>${p.voornaam} ${p.achternaam}</strong>${lTekst} ${p.deatPlace ? 'te ' + p.deatPlace : ''}.`);
             } else if (p.deatDate) {
                 onbekendeGebeurtenissen.push(`Overlijden van ${rol.toLowerCase()}: <strong>${p.voornaam} ${p.achternaam}</strong> ${p.deatPlace ? 'te ' + p.deatPlace : ''}.`);
             }
@@ -530,7 +579,7 @@
             
             <div class="info-box">
                 <p><strong>Levensperiode:</strong> ${person.birthDate || 'Onbekend'} tot ${person.deatDate || 'Onbekend'} (Jaren ${gebJaar} t/m ${overlJaar})</p>
-                <p>Dit overzicht toont gebeurtenissen binnen het leven van deze persoon (inclusief relatieaanduiding bij huwelijken, geboortes en overlijdens van de familie tot de 4e graad).</p>
+                <p>Dit overzicht toont alle gebeurtenissen binnen het leven van deze persoon (inclusief partner, schoonouders, familie tot de 4e graad en leeftijden).</p>
             </div>
             
             <h2>⏳ Tijdlijn per Jaar</h2>
@@ -540,9 +589,12 @@
             html += `<p>Geen gedateerde gebeurtenissen gevonden binnen deze levensperiode.</p>`;
         } else {
             alleJaren.forEach(jaar => {
+                let leeftijd = person.birthYear ? (jaar - person.birthYear) : null;
+                let leeftijdTekst = (leeftijd !== null && leeftijd >= 0) ? ` (${leeftijd} jaar)` : '';
+
                 html += `
                     <div class="timeline-year-group">
-                        <div class="timeline-year-title">📅 Jaar ${jaar}</div>
+                        <div class="timeline-year-title">📅 Jaar ${jaar}${leeftijdTekst}</div>
                         <ul>
                             ${gebeurtenissen[jaar].map(item => `<li>${item}</li>`).join('')}
                         </ul>
