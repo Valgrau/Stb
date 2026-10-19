@@ -95,7 +95,16 @@
             box-shadow: 0 4px 12px rgba(3, 102, 214, 0.15);
             transform: translateY(-2px);
         }
+        .card.card-pdf {
+            border-color: #e74c3c;
+            background-color: #fffaf9;
+        }
+        .card.card-pdf:hover {
+            border-color: #c0392b;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.2);
+        }
         .card h2 { font-size: 15px; color: #0366d6; margin-bottom: 4px; word-break: break-word; }
+        .card.card-pdf h2 { color: #c0392b; }
         .card p { font-size: 12px; color: #586069; line-height: 1.4; }
         .card-meta { font-size: 11px; color: #9ca3af; margin-top: 6px; border-top: 1px solid #f3f4f6; padding-top: 4px; }
         .gedcom-info, .db-debug-info {
@@ -210,9 +219,15 @@
 		<a href="Waaier.html" class="card" target="_blank">
             <h2>Waaier</h2>
             <p>Waaier</p>
-            <div class="card-meta">Laatste update: <span class="mod-date" data-file="Filter.html">Laden...</span></div>
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="Waaier.html">Laden...</span></div>
         </a>
-		
+
+        <!-- NIEUW: Handleiding PDF -->
+        <a href="gebruikershandleiding_stamboom.pdf" class="card card-pdf" target="_blank">
+            <h2>📄 Gebruikershandleiding (PDF)</h2>
+            <p>Documentatie & Handleiding</p>
+            <div class="card-meta">Laatste update: <span class="mod-date" data-file="gebruikershandleiding_stamboom.pdf">Laden...</span></div>
+        </a>
     </div>
 </div>
 
@@ -231,8 +246,10 @@
         "Statistiek.html": "13/10/2026 23:03",
         "UitklapStamboom.html": "13/10/2026 23:18",
         "Zandloper.html": "13/10/2026 22:45",
-        "index.html": "15/10/2026 10:10",
-        "Filter.html": "14/10/2026 18:00"
+        "index.html": "19/10/2026 23:45",
+        "Filter.html": "14/10/2026 18:00",
+        "Waaier.html": "15/10/2026 10:10",
+        "gebruikershandleiding_stamboom.pdf": "19/10/2026 23:40"
     };
 
     window.addEventListener('DOMContentLoaded', () => {
