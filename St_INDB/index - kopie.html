@@ -485,7 +485,7 @@
                 }
             });
 
-            let rootId = globalGraph["I5147"] ? "I5147" : Object.keys(globalGraph)[0];
+            let rootId = globalGraph["I5146"] ? "I5146" : Object.keys(globalGraph)[0];
             let precalculatedPaths = {};
             let precalculatedSteps = {};
 
@@ -517,7 +517,7 @@
             };
         } catch (e) {
             console.error("Fout bij vooraf berekenen relaties:", e);
-            return { precalculatedPaths: {}, precalculatedSteps: {}, rootId: "I5147" };
+            return { precalculatedPaths: {}, precalculatedSteps: {}, rootId: "I5146" };
         }
     }
 
@@ -619,7 +619,7 @@
                 const st = tx.objectStore(STORE_NAME);
                 
                 st.get('rootPersonInfo').onsuccess = (e) => {
-                    const rootInfo = e.target.result || 'I5147';
+                    const rootInfo = e.target.result || 'I5146';
                     processGedcomContent(saved.data, saved.timestamp, '✅ GEDCOM succesvol geladen uit de browser <strong>IndexedDB</strong>.', rootInfo);
                 };
                 return;
@@ -636,7 +636,7 @@
                     const tx = db.transaction(STORE_NAME, 'readonly');
                     const st = tx.objectStore(STORE_NAME);
                     st.get('rootPersonInfo').onsuccess = (e) => {
-                        const rootInfo = e.target.result || 'I5147';
+                        const rootInfo = e.target.result || 'I5146';
                         processGedcomContent(text, timestampStr, '✅ GEDCOM ingeladen en opgeslagen in IndexedDB.', rootInfo);
                     };
                     return;
@@ -663,7 +663,7 @@
                 const tx = db.transaction(STORE_NAME, 'readonly');
                 const st = tx.objectStore(STORE_NAME);
                 st.get('rootPersonInfo').onsuccess = (e) => {
-                    const rootInfo = e.target.result || 'I5147';
+                    const rootInfo = e.target.result || 'I5146';
                     processGedcomContent(text, timestampStr, '✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!', rootInfo);
                 };
                 inspectIndexedDBEnvironment();
@@ -675,7 +675,7 @@
         reader.readAsText(file);
     });
 
-    function processGedcomContent(text, timestamp, successMsg, rootPersonInfo = 'I5147') {
+    function processGedcomContent(text, timestamp, successMsg, rootPersonInfo = 'I5146') {
         showSuccess(successMsg);
         let sourceProgram = 'Onbekend';
         let creationDate = 'Onbekend';

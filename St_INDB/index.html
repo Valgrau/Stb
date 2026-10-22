@@ -120,6 +120,28 @@
             width: 100%;
             border: 1px solid #d1d5db;
         }
+        /* Modal styling voor Hoofdpersoon selectie */
+        #hoofdpersoonModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            width: 450px;
+            max-width: 90%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-align: left;
+        }
+        .modal-content h3 { color: #2c3e50; margin-bottom: 8px; }
+        .modal-content input { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        .modal-content select { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 15px; height: 180px; }
     </style>
 </head>
 <body>
@@ -163,7 +185,6 @@
             <p>Geavanceerd netwerk</p>
             <div class="card-meta">Laatste update: <span class="mod-date" data-file="RelatiesRand.html">Laden...</span></div>
         </a>
-       
         <a href="DichtsBijzijndeVoorouder.html" class="card" target="_blank">
             <h2>JS Dichtst bijzijnde voorouder</h2>
             <p>Voorouder berekening</p>
@@ -209,25 +230,34 @@
             <p>RelatiesFavorietenHierarch</p>
             <div class="card-meta">Laatste update: <span class="mod-date" data-file="RelatiesFavorietenHierarch.html">Laden...</span></div>
         </a>
-		
-		<a href="Filter.html" class="card" target="_blank">
+        <a href="Filter.html" class="card" target="_blank">
             <h2>Filter</h2>
             <p>Filter</p>
             <div class="card-meta">Laatste update: <span class="mod-date" data-file="Filter.html">Laden...</span></div>
         </a>
-		
-		<a href="Waaier.html" class="card" target="_blank">
+        <a href="Waaier.html" class="card" target="_blank">
             <h2>Waaier</h2>
             <p>Waaier</p>
             <div class="card-meta">Laatste update: <span class="mod-date" data-file="Waaier.html">Laden...</span></div>
         </a>
-
-        <!-- NIEUW: Handleiding PDF -->
         <a href="gebruikershandleiding_stamboom.pdf" class="card card-pdf" target="_blank">
             <h2>📄 Gebruikershandleiding (PDF)</h2>
             <p>Documentatie & Handleiding</p>
             <div class="card-meta">Laatste update: <span class="mod-date" data-file="gebruikershandleiding_stamboom.pdf">Laden...</span></div>
         </a>
+    </div>
+</div>
+
+<!-- Modal voor Hoofdpersoon selectie -->
+<div id="hoofdpersoonModal">
+    <div class="modal-content">
+        <h3>Selecteer Hoofdpersoon</h3>
+        <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Typ om te filteren of kies de gewenste hoofdpersoon:</p>
+        <input type="text" id="hpSearchInput" placeholder="Zoek op naam of ID...">
+        <select id="hpSelect" size="8"></select>
+        <div style="text-align: right;">
+            <button id="hpConfirmBtn">Bevestig Hoofdpersoon</button>
+        </div>
     </div>
 </div>
 
@@ -246,7 +276,7 @@
         "Statistiek.html": "13/10/2026 23:03",
         "UitklapStamboom.html": "13/10/2026 23:18",
         "Zandloper.html": "13/10/2026 22:45",
-        "index.html": "19/10/2026 23:45",
+        "index.html": "22/10/2026 18:00",
         "Filter.html": "14/10/2026 18:00",
         "Waaier.html": "15/10/2026 10:10",
         "gebruikershandleiding_stamboom.pdf": "19/10/2026 23:40"
@@ -275,7 +305,7 @@
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
     const FAV_STORE_NAME = 'favoritesStore';
-    const DB_VERSION = 4;
+    const DB_VERSION = 5;
 
     function updateStatus(text) {
         console.log("STATUS:", text);
@@ -389,7 +419,6 @@
 
     function openGedcomDB() {
         return new Promise((resolve, reject) => {
-            updateStatus('⏳ IndexedDB openen (v' + DB_VERSION + ')...');
             const request = indexedDB.open(DB_NAME, DB_VERSION);
             request.onerror = () => reject(request.error);
             request.onsuccess = () => resolve(request.result);
@@ -425,7 +454,130 @@
         return { voornaam, achternaam };
     }
 
-    async function precalculateAndStoreRelations(textData) {
+    function parseAllIndividuals(textData) {
+        const lines = textData.split(/\r?\n/);
+        let records = [];
+        let currentRecord = null;
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+            const parts = trimmed.split(' ');
+            const level = parseInt(parts[0], 10);
+            if (isNaN(level)) return;
+
+            if (level === 0) {
+                if (currentRecord) records.push(currentRecord);
+                let id = '', tag = '';
+                if (parts[1].startsWith('@')) {
+                    id = parts[1].replace(/@/g, '');
+                    tag = parts[2] ? parts[2].toUpperCase() : '';
+                } else {
+                    tag = parts[1].toUpperCase();
+                }
+                currentRecord = { TAG: tag, id: id, children: [] };
+            } else if (currentRecord) {
+                let tag = parts[1] ? parts[1].toUpperCase() : '';
+                let value = parts.slice(2).join(' ').replace(/@/g, '');
+                const node = { tag: tag, value: value, children: [] };
+                if (level === 1) {
+                    currentRecord[tag] = value;
+                    currentRecord.children.push(node);
+                } else if (level === 2 && currentRecord.children.length > 0) {
+                    currentRecord.children[currentRecord.children.length - 1].children.push(node);
+                }
+            }
+        });
+        if (currentRecord) records.push(currentRecord);
+
+        let individuals = [];
+        records.forEach(rec => {
+            if ((rec.TAG || '').toUpperCase() === 'INDI') {
+                let nameInfo = extractPersonName(rec);
+                let birthYear = '';
+                (rec.children || []).forEach(c => {
+                    if (c.tag === 'BIRT' && c.children) {
+                        c.children.forEach(sub => {
+                            if (sub.tag === 'DATE') {
+                                let match = sub.value.match(/\b(1[6-9]\d{2}|20\d{2})\b/);
+                                if (match) birthYear = match[1];
+                            }
+                        });
+                    }
+                });
+                individuals.push({
+                    id: rec.id,
+                    voornaam: nameInfo.voornaam,
+                    achternaam: nameInfo.achternaam,
+                    geboortejaar: birthYear || 'Onbekend'
+                });
+            }
+        });
+        return individuals;
+    }
+
+    function selectHoofdpersoonInteractive(textData) {
+        return new Promise((resolve) => {
+            const individuals = parseAllIndividuals(textData);
+            const modal = document.getElementById('hoofdpersoonModal');
+            const select = document.getElementById('hpSelect');
+            const searchInput = document.getElementById('hpSearchInput');
+            const confirmBtn = document.getElementById('hpConfirmBtn');
+
+            function populateList(filter = '') {
+                select.innerHTML = '';
+                const filtered = individuals.filter(p => {
+                    const fullName = `${p.voornaam} ${p.achternaam} ${p.id}`.toLowerCase();
+                    return fullName.includes(filter.toLowerCase());
+                });
+
+                filtered.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = `${p.id}: ${p.voornaam} ${p.achternaam} (${p.geboortejaar})`;
+                    if (p.id === 'I5146') opt.selected = true;
+                    select.appendChild(opt);
+                });
+                if (select.options.length > 0 && select.selectedIndex === -1) {
+                    select.options[0].selected = true;
+                }
+            }
+
+            populateList();
+            modal.style.display = 'flex';
+
+            searchInput.oninput = (e) => {
+                populateList(e.target.value);
+            };
+
+            const newConfirmBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+            newConfirmBtn.onclick = () => {
+                const selectedId = select.value;
+                const selectedPerson = individuals.find(p => p.id === selectedId) || individuals[0] || { id: 'I5146', voornaam: 'Onbekend', achternaam: '', geboortejaar: 'Onbekend' };
+                modal.style.display = 'none';
+                resolve(selectedPerson);
+            };
+        });
+    }
+
+    async function promptChangeHoofdpersoon() {
+        const saved = await getGedcomFromIDB();
+        if (!saved || !saved.data) {
+            alert('Geen GEDCOM data gevonden in IndexedDB.');
+            return;
+        }
+        let hp = await selectHoofdpersoonInteractive(saved.data);
+        const db = await openGedcomDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const st = tx.objectStore(STORE_NAME);
+        st.put(hp, 'HOOFDPERSOON');
+        
+        await saveGedcomToIDB(saved.data, hp.id);
+        processGedcomContent(saved.data, saved.timestamp, '✅ Hoofdpersoon gewijzigd en opgeslagen in IndexedDB.', hp);
+    }
+
+    async function precalculateAndStoreRelations(textData, rootIdOverride = null) {
         try {
             const lines = textData.split(/\r?\n/);
             let records = [];
@@ -456,6 +608,8 @@
                     if (level === 1) {
                         currentRecord[tag] = value;
                         currentRecord.children.push(node);
+                    } else if (level === 2 && currentRecord.children.length > 0) {
+                        currentRecord.children[currentRecord.children.length - 1].children.push(node);
                     }
                 }
             });
@@ -502,7 +656,7 @@
                 }
             });
 
-            let rootId = globalGraph["I5147"] ? "I5147" : Object.keys(globalGraph)[0];
+            let rootId = rootIdOverride && globalGraph[rootIdOverride] ? rootIdOverride : (globalGraph["I5146"] ? "I5146" : Object.keys(globalGraph)[0]);
             let precalculatedPaths = {};
             let precalculatedSteps = {};
 
@@ -534,7 +688,7 @@
             };
         } catch (e) {
             console.error("Fout bij vooraf berekenen relaties:", e);
-            return { precalculatedPaths: {}, precalculatedSteps: {}, rootId: "I5147" };
+            return { precalculatedPaths: {}, precalculatedSteps: {}, rootId: "I5146" };
         }
     }
 
@@ -551,10 +705,10 @@
         return formatted.join('');
     }
 
-    async function saveGedcomToIDB(textData) {
+    async function saveGedcomToIDB(textData, rootIdOverride = null) {
         updateStatus('⏳ Gegevens, relatiepaden en stappen opslaan in IndexedDB...');
         const db = await openGedcomDB();
-        const resultData = await precalculateAndStoreRelations(textData);
+        const resultData = await precalculateAndStoreRelations(textData, rootIdOverride);
 
         const now = new Date();
         const timestampStr = now.toLocaleDateString('nl-BE', { 
@@ -588,15 +742,17 @@
             const store = transaction.objectStore(STORE_NAME);
             const reqData = store.get('gedcomData');
             const reqTime = store.get('gedcomTimestamp');
+            const reqHp = store.get('HOOFDPERSOON');
 
             let result = {};
             let resolved = false;
 
             reqData.onsuccess = () => { result.data = reqData.result; checkDone(); };
             reqTime.onsuccess = () => { result.timestamp = reqTime.result || 'Onbekend'; checkDone(); };
+            reqHp.onsuccess = () => { result.hoofdpersoon = reqHp.result || null; checkDone(); };
 
             function checkDone() {
-                if (!resolved && result.data !== undefined && result.timestamp !== undefined) {
+                if (!resolved && result.data !== undefined && result.timestamp !== undefined && result.hoofdpersoon !== undefined) {
                     resolved = true;
                     resolve(result.data ? result : null);
                 }
@@ -631,14 +787,15 @@
             const saved = await Promise.race([dbPromise, timeoutPromise]);
             
             if (saved && saved.data) {
-                const db = await openGedcomDB();
-                const tx = db.transaction(STORE_NAME, 'readonly');
-                const st = tx.objectStore(STORE_NAME);
-                
-                st.get('rootPersonInfo').onsuccess = (e) => {
-                    const rootInfo = e.target.result || 'I5147';
-                    processGedcomContent(saved.data, saved.timestamp, '✅ GEDCOM succesvol geladen uit de browser <strong>IndexedDB</strong>.', rootInfo);
-                };
+                let hp = saved.hoofdpersoon;
+                if (!hp) {
+                    hp = await selectHoofdpersoonInteractive(saved.data);
+                    const db = await openGedcomDB();
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    tx.objectStore(STORE_NAME).put(hp, 'HOOFDPERSOON');
+                    await saveGedcomToIDB(saved.data, hp.id);
+                }
+                processGedcomContent(saved.data, saved.timestamp, '✅ GEDCOM succesvol geladen uit de browser <strong>IndexedDB</strong>.', hp);
                 return;
             }
             throw new Error('Geen data in IndexedDB');
@@ -648,14 +805,12 @@
                 const res = await fetch(DEFAULT_FILE);
                 if (res.ok) {
                     const text = await res.text();
-                    const timestampStr = await saveGedcomToIDB(text);
+                    let hp = await selectHoofdpersoonInteractive(text);
+                    const timestampStr = await saveGedcomToIDB(text, hp.id);
                     const db = await openGedcomDB();
-                    const tx = db.transaction(STORE_NAME, 'readonly');
-                    const st = tx.objectStore(STORE_NAME);
-                    st.get('rootPersonInfo').onsuccess = (e) => {
-                        const rootInfo = e.target.result || 'I5147';
-                        processGedcomContent(text, timestampStr, '✅ GEDCOM ingeladen en opgeslagen in IndexedDB.', rootInfo);
-                    };
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    tx.objectStore(STORE_NAME).put(hp, 'HOOFDPERSOON');
+                    processGedcomContent(text, timestampStr, '✅ GEDCOM ingeladen en opgeslagen in IndexedDB.', hp);
                     return;
                 }
                 throw new Error('Fetch mislukt');
@@ -674,15 +829,14 @@
         reader.onload = async function(evt) {
             try {
                 const text = evt.target.result;
-                const timestampStr = await saveGedcomToIDB(text);
+                let hp = await selectHoofdpersoonInteractive(text);
+                const timestampStr = await saveGedcomToIDB(text, hp.id);
                 
                 const db = await openGedcomDB();
-                const tx = db.transaction(STORE_NAME, 'readonly');
-                const st = tx.objectStore(STORE_NAME);
-                st.get('rootPersonInfo').onsuccess = (e) => {
-                    const rootInfo = e.target.result || 'I5147';
-                    processGedcomContent(text, timestampStr, '✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!', rootInfo);
-                };
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(hp, 'HOOFDPERSOON');
+                
+                processGedcomContent(text, timestampStr, '✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!', hp);
                 inspectIndexedDBEnvironment();
             } catch (err) {
                 alert('Fout bij het opslaan in IndexedDB! Controleer of Incognito uit staat.');
@@ -692,7 +846,7 @@
         reader.readAsText(file);
     });
 
-    function processGedcomContent(text, timestamp, successMsg, rootPersonInfo = 'I5147') {
+    function processGedcomContent(text, timestamp, successMsg, hp) {
         showSuccess(successMsg);
         let sourceProgram = 'Onbekend';
         let creationDate = 'Onbekend';
@@ -718,11 +872,12 @@
         metaDiv.style.display = 'block';
         metaDiv.innerHTML = `
             <div class="gedcom-info">
-                ⭐ <strong>Hoofdpersoon:</strong> ${rootPersonInfo}<br>
+                ⭐ <strong>Hoofdpersoon:</strong> ${hp ? `${hp.voornaam} ${hp.achternaam} (${hp.id}) — Geboortejaar: ${hp.geboortejaar}` : 'Niet ingesteld'}<br>
                 💾 <strong>Laatste update in IndexedDB:</strong> ${timestamp || 'Onbekend'}<br>
                 📅 <strong>Creatiedatum (GEDCOM-bestand):</strong> ${creationDate}<br>
                 💻 <strong>Oorsprong (Programma):</strong> ${sourceProgram}<br>
-                👥 <strong>Aantal personen:</strong> ${personCount}
+                👥 <strong>Aantal personen:</strong> ${personCount}<br>
+                <button onclick="promptChangeHoofdpersoon()">⚙️ Wijzig Hoofdpersoon</button>
             </div>
         `;
     }

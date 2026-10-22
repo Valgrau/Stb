@@ -105,7 +105,7 @@
 
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
-    const DB_VERSION = 4;
+    const DB_VERSION = 5;
 
     function setStatus(msg, isError) {
         console.log("LOG:", msg);
@@ -138,30 +138,52 @@
     }
 
     async function getGedcomFromIDB() {
-        setStatus("⏳ Stap 2/3: Ophalen van 'gedcomData' uit IndexedDB...", false);
+        setStatus("⏳ Stap 2/3: Ophalen van data uit IndexedDB...", false);
         const db = await openGedcomDB();
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(STORE_NAME, 'readonly');
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.get('gedcomData');
-            request.onsuccess = () => {
-                if (request.result) {
-                    setStatus("✅ Stap 2/3 voltooid: Data opgehaald uit IndexedDB.", false);
-                    resolve(request.result);
-                } else {
-                    setStatus("⚠️ Geen 'gedcomData' gevonden in IndexedDB.", true);
-                    resolve(null);
+            const reqData = store.get('gedcomData');
+            const reqHp = store.get('HOOFDPERSOON');
+
+            let result = {};
+            let resolved = false;
+
+            reqData.onsuccess = () => { result.gedcomData = reqData.result; checkDone(); };
+            reqHp.onsuccess = () => { result.hoofdpersoon = reqHp.result; checkDone(); };
+
+            function checkDone() {
+                if (!resolved && result.gedcomData !== undefined && result.hoofdpersoon !== undefined) {
+                    resolved = true;
+                    if (result.gedcomData) {
+                        setStatus("✅ Stap 2/3 voltooid: Data en Hoofdpersoon opgehaald.", false);
+                        resolve(result);
+                    } else {
+                        setStatus("⚠️ Geen 'gedcomData' gevonden in IndexedDB.", true);
+                        resolve(null);
+                    }
+                }
+            }
+
+            transaction.oncomplete = () => {
+                if (!resolved) {
+                    resolved = true;
+                    resolve(result.gedcomData ? result : null);
                 }
             };
-            request.onerror = () => {
-                setStatus("❌ Fout bij ophalen transactie: " + request.error, true);
-                reject(request.error);
+            transaction.onerror = () => {
+                if (!resolved) {
+                    resolved = true;
+                    setStatus("❌ Fout bij ophalen transactie: " + transaction.error, true);
+                    reject(transaction.error);
+                }
             };
         });
     }
 
     var personsDB = {};
     var mainPersonId = "";
+    var defaultHoofdpersoonId = "";
 
     var historyStack = [];
     var redoStack = [];
@@ -333,15 +355,15 @@
     }
 
     async function initTreeFromIndexedDB() {
-        var savedData = await getGedcomFromIDB();
-        if (!savedData) {
+        var idbResult = await getGedcomFromIDB();
+        if (!idbResult || !idbResult.gedcomData) {
             setStatus("⚠️ Geen stamboom gevonden in IndexedDB.", true);
             return;
         }
 
         try {
             setStatus("⏳ Stap 3/3: Parsen van GEDCOM data...", false);
-            parseGedcomText(savedData);
+            parseGedcomText(idbResult.gedcomData);
             var pIds = Object.keys(personsDB);
             if (pIds.length === 0) {
                 setStatus("⚠️ Geen geldige personen gevonden in de opgeslagen data.", true);
@@ -357,13 +379,20 @@
                 datalist.appendChild(option);
             });
 
+            // Hoofdpersoon ID bepalen uit IndexedDB object 'HOOFDPERSOON'
+            if (idbResult.hoofdpersoon && idbResult.hoofdpersoon.id && personsDB[idbResult.hoofdpersoon.id]) {
+                defaultHoofdpersoonId = idbResult.hoofdpersoon.id;
+            } else {
+                defaultHoofdpersoonId = pIds[0];
+            }
+
             // Gekozen persoon ophalen uit sessionStorage (meegegeven vanuit het filterscherm)
             var requestedId = sessionStorage.getItem('selectedPersonId');
             if (requestedId && personsDB[requestedId]) {
                 mainPersonId = requestedId;
-                sessionStorage.removeItem('selectedPersonId'); // Direct wissen zodat het niet blijft hangen
+                sessionStorage.removeItem('selectedPersonId');
             } else {
-                mainPersonId = personsDB["I5147"] ? "I5147" : pIds[0];
+                mainPersonId = defaultHoofdpersoonId;
             }
 
             historyStack = [];
@@ -643,7 +672,7 @@
     }
 
     function resetToStart() {
-        var startId = personsDB["I5147"] ? "I5147" : Object.keys(personsDB)[0];
+        var startId = defaultHoofdpersoonId || Object.keys(personsDB)[0];
         if (startId) {
             historyStack = [];
             redoStack = [];

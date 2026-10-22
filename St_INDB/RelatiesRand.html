@@ -181,7 +181,6 @@
             border: 1px solid #e1e8ed;
         }
 
-        /* Sleepbare, Schaalbare én Maximize Popup */
         #relationTooltip {
             display: none;
             position: fixed;
@@ -325,9 +324,9 @@
 
     <div class="input-group" style="background: #e8f5e9; padding: 6px 10px; border-radius: 4px; border: 1px solid #c8e6c9;">
         <label style="color: #2e7d32; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-            <input type="checkbox" id="enableRightClickTree" checked style="cursor: pointer;"> Stamboom Popup bij Rechtermuisklik
+            <input type="checkbox" id="enableClickTree" checked style="cursor: pointer;"> Stamboom Popup bij Klik
         </label>
-        <span style="font-size: 10px; color: #555;">(Selecteer eerst 1 persoon)</span>
+        <span style="font-size: 10px; color: #555;">(Klik op een 2e persoon om pad-popup te tonen)</span>
     </div>
 </div>
 
@@ -386,7 +385,7 @@
     const DB_NAME = 'GedcomDatabase';
     const STORE_NAME = 'gedcomStore';
     const FAV_STORE_NAME = 'favoritesStore';
-    const DB_VERSION = 4;
+    const DB_VERSION = 5;
 
     var currentMousePos = { x: 0, y: 0 };
     var isHoveringTooltip = false;
@@ -396,7 +395,6 @@
         currentMousePos.y = e.clientY;
     });
 
-    // SLEEPBARE POPUP LOGICA
     let isDraggingTooltip = false;
     let tooltipOffsetX = 0;
     let tooltipOffsetY = 0;
@@ -422,7 +420,6 @@
         isDraggingTooltip = false;
     });
 
-    // MAXIMIZE / FULLSCREEN TOGGLE
     function toggleMaximizePopup() {
         relationTooltip.classList.toggle('maximized');
         var maxBtn = document.getElementById('maxBtn');
@@ -441,7 +438,6 @@
         }, 50);
     }
 
-    // SCHAALBARE (RESIZABLE) POPUP LOGICA
     const resizerHandle = document.getElementById('resizerHandle');
     let isResizing = false;
     let startW, startH, startX, startY;
@@ -501,9 +497,24 @@
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(STORE_NAME, 'readonly');
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.get('gedcomData');
-            request.onsuccess = () => resolve(request.result || null);
-            request.onerror = () => reject(request.error);
+            const reqData = store.get('gedcomData');
+            const reqHp = store.get('HOOFDPERSOON');
+
+            let result = {};
+            let resolved = false;
+
+            reqData.onsuccess = () => { result.gedcomData = reqData.result; checkDone(); };
+            reqHp.onsuccess = () => { result.hoofdpersoon = reqHp.result; checkDone(); };
+
+            function checkDone() {
+                if (!resolved && result.gedcomData !== undefined && result.hoofdpersoon !== undefined) {
+                    resolved = true;
+                    resolve(result.gedcomData ? result : null);
+                }
+            }
+
+            transaction.oncomplete = () => { if (!resolved) { resolved = true; resolve(result.gedcomData ? result : null); } };
+            transaction.onerror = () => { if (!resolved) { resolved = true; reject(transaction.error); } };
         });
     }
 
@@ -517,7 +528,6 @@
     var changeIndices = [];
     var currentTargetSet = new Set();
 
-    // Hoofdraster
     var nodesDataSet = new vis.DataSet();
     var edgesDataSet = new vis.DataSet();
     var container = document.getElementById('mynetwork');
@@ -538,12 +548,6 @@
     };
     var network = new vis.Network(container, data, options);
 
-    // Voorkom standaard rechtermuisklik (contextmenu) binnen het netwerk om onze eigen popup te triggeren
-    container.addEventListener('contextmenu', function (e) {
-        e.preventDefault();
-    });
-
-    // Mini-netwerk voor de popup: GEEN tekstlabels op lijnen, compacte en krachtige weergave
     var miniNodesDataSet = new vis.DataSet();
     var miniEdgesDataSet = new vis.DataSet();
     var miniContainer = document.getElementById('miniPopupNetwork');
@@ -555,7 +559,7 @@
             widthConstraint: { min: 200, max: 280 }
         },
         edges: { 
-            font: { enabled: false }, // Geen vervelende tekstlabels op de lijnen zelf!
+            font: { enabled: false },
             smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.3 },
             width: 3
         },
@@ -566,35 +570,11 @@
 
     const pathColors = ["#9C27B0", "#E91E63", "#00BCD4", "#FF9800", "#3F51B5", "#8BC34A"];
 
-    // RECHTERMUISKLIK (oncontext) event in plaats van hoverNode
-    network.on("oncontext", function (params) {
-        params.event.preventDefault();
-        var clickedNodeId = network.getNodeAt(params.pointer.DOM);
-        
-        if (!clickedNodeId) return;
-
-        var selectedNodes = network.getSelectedNodes();
-        var rightClickCheckbox = document.getElementById('enableRightClickTree');
-
-        if (rightClickCheckbox && rightClickCheckbox.checked && selectedNodes.length === 1) {
-            var selectedId = selectedNodes[0];
-            if (selectedId !== clickedNodeId) {
-                showMountainPopup(selectedId, clickedNodeId);
-                return;
-            }
-        }
-    });
-
-    // Hover behouden voor het highlighten van paden tussen targets indien gewenst
     network.on("hoverNode", function (params) {
         var hoveredId = params.node;
         if (currentTargetSet.has(hoveredId)) {
             highlightAllPathsBetweenTargetsWithUniqueColors(hoveredId);
         }
-    });
-
-    network.on("blurNode", function () {
-        // Eventueel blur gedrag indien nodig
     });
 
     function showMountainPopup(startId, endId) {
@@ -632,7 +612,7 @@
             var nextId = path[i + 1];
             var currP = personsDB[currId];
 
-            currentX += 260; // Compacter gezet zodat icoontjes dichterbij en groter kunnen
+            currentX += 260;
 
             if (currP && currP.parents.includes(nextId)) {
                 currentY -= 150;
@@ -788,10 +768,20 @@
     });
 
     network.on("select", function (params) {
+        var clickCheckbox = document.getElementById('enableClickTree');
+
         if (params.nodes.length === 2) {
             highlightPathBetween(params.nodes[0], params.nodes[1]);
+            if (clickCheckbox && clickCheckbox.checked) {
+                showMountainPopup(params.nodes[0], params.nodes[1]);
+            }
+        } else if (params.nodes.length === 1) {
+            if (!clickCheckbox || !clickCheckbox.checked) {
+                relationTooltip.style.display = 'none';
+            }
         } else if (params.nodes.length === 0) {
             resetHighlighting();
+            relationTooltip.style.display = 'none';
         }
     });
 
@@ -996,10 +986,10 @@
         closeAllLists(e.target);
     });
 
-    function initTree(fileContent) {
+    function initTree(idbResult) {
         try {
             setStatus("⏳ Parsen van GEDCOM data...", false);
-            parseGedcomText(fileContent);
+            parseGedcomText(idbResult.gedcomData);
             var pIds = Object.keys(personsDB);
             if (pIds.length === 0) {
                 setStatus("⚠️ Geen geldige personen gevonden in de data.", true);
@@ -1007,12 +997,17 @@
             }
             setStatus("✅ Data geladen (" + pIds.length + " personen).", false);
 
-            if (personsDB["I5147"]) {
-                document.getElementById("targetId1").value = "I5147";
-                document.getElementById("target1").value = personsDB["I5147"].name;
-            } else if (pIds.length > 0) {
-                document.getElementById("targetId1").value = pIds[0];
-                document.getElementById("target1").value = personsDB[pIds[0]].name;
+            // Hoofdpersoon dynamisch instellen vanuit IndexedDB object 'HOOFDPERSOON'
+            var hoofdpersoonId = "";
+            if (idbResult.hoofdpersoon && idbResult.hoofdpersoon.id && personsDB[idbResult.hoofdpersoon.id]) {
+                hoofdpersoonId = idbResult.hoofdpersoon.id;
+            } else {
+                hoofdpersoonId = pIds[0];
+            }
+
+            if (personsDB[hoofdpersoonId]) {
+                document.getElementById("targetId1").value = hoofdpersoonId;
+                document.getElementById("target1").value = personsDB[hoofdpersoonId].name;
             }
 
             var storedP2 = sessionStorage.getItem('persoon2Id');
@@ -1031,7 +1026,7 @@
     async function initTreeFromIndexedDB() {
         try {
             var savedData = await getGedcomFromIDB();
-            if (savedData) {
+            if (savedData && savedData.gedcomData) {
                 initTree(savedData);
             } else {
                 setStatus("⚠️ Geen stamboom gevonden in IndexedDB. Ga terug naar de startpagina.", true);
