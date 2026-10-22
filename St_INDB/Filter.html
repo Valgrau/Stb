@@ -152,7 +152,7 @@
 
 <div class="container">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <span id="currentRootInfo" style="font-size: 0.9rem; font-weight: 600; color: #2c3e50;">📍 Huidige hoofdpersoon: <strong>I5147</strong></span>
+        <span id="currentRootInfo" style="font-size: 0.9rem; font-weight: 600; color: #2c3e50;">📍 Huidige hoofdpersoon: <strong>Bezig met laden...</strong></span>
         <a href="UitklapStamboom.html" class="file-select-btn" style="background-color: #38a169;">🌳 Naar Stamboom</a>
     </div>
 
@@ -225,7 +225,7 @@
         </div>
         <div class="action-bar">
             <button class="file-select-btn" style="background-color: #718096;" onclick="resetFilters()">Reset filters</button>
-            <span id="searchStats" style="font-size: 0.85rem; color: #4a5568; font-weight: 600;">0 personen gevonden (Toont max. eerste 20)</span>
+            <span id="searchStats" style="font-size: 0.85rem; color: #4a5568; font-weight: 600;">0 personen gevonden (Toont max. eerste 200)</span>
         </div>
     </div>
 
@@ -281,7 +281,7 @@
     let precalculatedSteps = {};
     let precalculatedSosa = {};
     let precalculatedBloedv = {};
-    let currentMainPersonId = "I5146";
+    let currentMainPersonId = null; 
     let contextMenuTargetId = null;
 
     let currentSortColumn = null;
@@ -317,12 +317,58 @@
         });
     }
 
+    // Ophalen van de hoofdpersoon met ondersteuning voor samengestelde tekst zoals "I5141 (Josée Strauven)"
+    async function getStoredHoofdpersoon() {
+        try {
+            const db = await openGedcomDB();
+            return new Promise((resolve) => {
+                const transaction = db.transaction(STORE_NAME, 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                
+                // 1. Probeer 'rootPersonInfo' op te halen
+                const reqRoot = store.get('rootPersonInfo');
+                reqRoot.onsuccess = () => {
+                    if (reqRoot.result) {
+                        resolve(reqRoot.result);
+                    } else {
+                        // 2. Fallback naar 'HOOFDPERSOON'
+                        const reqHP = store.get('HOOFDPERSOON');
+                        reqHP.onsuccess = () => resolve(reqHP.result);
+                        reqHP.onerror = () => resolve(null);
+                    }
+                };
+                reqRoot.onerror = () => resolve(null);
+            });
+        } catch (e) {
+            console.error("Fout bij ophalen hoofdpersoon uit IndexedDB:", e);
+            return null;
+        }
+    }
+
+    function extractCleanId(value) {
+        if (!value) return null;
+        if (typeof value === 'string') {
+            const match = value.match(/(I\d+)/i);
+            return match ? match[1].toUpperCase() : value.trim();
+        } else if (value.id) {
+            return extractCleanId(value.id);
+        }
+        return null;
+    }
+
     window.addEventListener('DOMContentLoaded', async () => {
         const lm = document.getElementById('lastMod');
         if (lm) lm.innerText = document.lastModified;
 
         try {
             updateStatusStep('⏳ Bezig met inlezen van IndexedDB...');
+            
+            // Haal hoofdpersoon op en verwerk de tekst "I5141 (Josée Strauven)"
+            const storedHP = await getStoredHoofdpersoon();
+            if (storedHP) {
+                currentMainPersonId = extractCleanId(storedHP);
+            }
+
             const gedcomText = await getStoredGedcomText();
 
             if (gedcomText) {
@@ -541,16 +587,21 @@
             }
         });
 
-        if (!allPersonsData.some(p => p.id === currentMainPersonId) && allPersonsData.length > 0) {
-            currentMainPersonId = allPersonsData[0].id;
+        // Als er geen gekozen hoofdpersoon is, neem de eerste persoon uit het bestand
+        if (!currentMainPersonId || !allPersonsData.some(p => p.id === currentMainPersonId)) {
+            if (allPersonsData.length > 0) currentMainPersonId = allPersonsData[0].id;
         }
-        document.getElementById('currentRootInfo').innerHTML = `📍 Huidige hoofdpersoon: <strong>${currentMainPersonId}</strong>`;
+        
+        let mainPersonObj = indiMap[currentMainPersonId];
+        let nameDisplay = mainPersonObj ? `${currentMainPersonId} (${mainPersonObj.voornaam} ${mainPersonObj.achternaam})` : currentMainPersonId;
+        
+        document.getElementById('currentRootInfo').innerHTML = `📍 Huidige hoofdpersoon: <strong>${nameDisplay}</strong>`;
     }
 
     function recalculateAllPaths() {
         precalculatedPaths = {};
         precalculatedSteps = {};
-        if (!globalGraph[currentMainPersonId]) return;
+        if (!currentMainPersonId || !globalGraph[currentMainPersonId]) return;
 
         let queue = [[currentMainPersonId, []]];
         let visited = new Set([currentMainPersonId]);
@@ -818,7 +869,10 @@
     function setAsMainPerson() {
         if (contextMenuTargetId) {
             currentMainPersonId = contextMenuTargetId;
-            document.getElementById('currentRootInfo').innerHTML = `📍 Huidige hoofdpersoon: <strong>${currentMainPersonId}</strong>`;
+            let targetPerson = allPersonsData.find(p => p.id === currentMainPersonId);
+            let nameStr = targetPerson ? `${currentMainPersonId} (${targetPerson.voornaam} ${targetPerson.achternaam})` : currentMainPersonId;
+            
+            document.getElementById('currentRootInfo').innerHTML = `📍 Huidige hoofdpersoon: <strong>${nameStr}</strong>`;
             recalculateAllPaths();
             recalculateSosaNumbers();
             generateBloedvInfo();
