@@ -13,7 +13,7 @@
             color: #333;
         }
         .container {
-            max-width: 1500px;
+            max-width: 1600px;
             margin: 0 auto;
             background: #ffffff;
             padding: 25px;
@@ -125,6 +125,17 @@
         .indi-link:hover {
             color: #2b6cb0;
         }
+        .tag-status {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .tag-basis { background-color: #e2e8f0; color: #2d3748; }
+        .tag-aanvulling { background-color: #c6f6d5; color: #22543d; }
+        .tag-aanpassing { background-color: #feebc8; color: #744210; }
+        
         #contextMenu {
             display: none;
             position: absolute;
@@ -187,6 +198,15 @@
                 </select>
             </div>
             <div class="filter-group">
+                <label>Commentaar</label>
+                <select id="filterCommentaar">
+                    <option value="">Alle</option>
+                    <option value="BASIS">BASIS</option>
+                    <option value="AANVULLING">AANVULLING</option>
+                    <option value="AANPASSING">AANPASSING</option>
+                </select>
+            </div>
+            <div class="filter-group">
                 <label>Vrn. Echtg.</label>
                 <input type="text" id="filterEchtgenoteVoornaam" placeholder="Begint met...">
             </div>
@@ -239,6 +259,7 @@
                     <th onclick="sortTable('voornaam')">Voornaam ↕</th>
                     <th onclick="sortTable('achternaam')">Naam ↕</th>
                     <th onclick="sortTable('geslacht')">Geslacht ↕</th>
+                    <th onclick="sortTable('commentaar')">Commentaar ↕</th>
                     <th onclick="sortTable('echtgenoteVoornaam')">Vrn. Echtg. ↕</th>
                     <th onclick="sortTable('echtgenoteAchternaam')">Nm. Echtg. ↕</th>
                     <th onclick="sortTable('relatiepad')">Relatiepad ↕</th>
@@ -252,7 +273,7 @@
                 </tr>
             </thead>
             <tbody id="resultsTableBody">
-                <tr><td colspan="15" style="text-align: center; color: #a0aec0;">Gegevens laden...</td></tr>
+                <tr><td colspan="16" style="text-align: center; color: #a0aec0;">Gegevens laden...</td></tr>
             </tbody>
         </table>
     </div>
@@ -317,7 +338,6 @@
         });
     }
 
-    // Ophalen van de hoofdpersoon met ondersteuning voor samengestelde tekst zoals "I5141 (Josée Strauven)"
     async function getStoredHoofdpersoon() {
         try {
             const db = await openGedcomDB();
@@ -325,13 +345,11 @@
                 const transaction = db.transaction(STORE_NAME, 'readonly');
                 const store = transaction.objectStore(STORE_NAME);
                 
-                // 1. Probeer 'rootPersonInfo' op te halen
                 const reqRoot = store.get('rootPersonInfo');
                 reqRoot.onsuccess = () => {
                     if (reqRoot.result) {
                         resolve(reqRoot.result);
                     } else {
-                        // 2. Fallback naar 'HOOFDPERSOON'
                         const reqHP = store.get('HOOFDPERSOON');
                         reqHP.onsuccess = () => resolve(reqHP.result);
                         reqHP.onerror = () => resolve(null);
@@ -363,7 +381,6 @@
         try {
             updateStatusStep('⏳ Bezig met inlezen van IndexedDB...');
             
-            // Haal hoofdpersoon op en verwerk de tekst "I5141 (Josée Strauven)"
             const storedHP = await getStoredHoofdpersoon();
             if (storedHP) {
                 currentMainPersonId = extractCleanId(storedHP);
@@ -420,10 +437,21 @@
         let voornaam = '';
         let achternaam = '';
         let geslacht = '-';
+        let commentaar = '-';
+
+        let notes = [];
 
         (rec.children || []).forEach(c => {
             if (c.tag === 'SEX') {
                 geslacht = c.value ? c.value.trim().toUpperCase() : '-';
+            }
+            if (c.tag === 'NOTE') {
+                notes.push(c.value || '');
+                if (c.children) {
+                    c.children.forEach(sub => {
+                        if (sub.value) notes.push(sub.value);
+                    });
+                }
             }
             if (c.tag === 'NAME') {
                 let rawName = c.value || '';
@@ -438,11 +466,22 @@
                     c.children.forEach(sub => {
                         if (sub.tag === 'GIVN') voornaam = sub.value.trim();
                         if (sub.tag === 'SURN') achternaam = sub.value.trim();
+                        if (sub.tag === 'NOTE') notes.push(sub.value || '');
                     });
                 }
             }
         });
-        return { voornaam, achternaam, geslacht };
+
+        const fullNoteText = notes.join(' ').toUpperCase();
+        if (fullNoteText.includes('AANVULLING')) {
+            commentaar = 'AANVULLING';
+        } else if (fullNoteText.includes('AANPASSING')) {
+            commentaar = 'AANPASSING';
+        } else if (fullNoteText.includes('BASIS')) {
+            commentaar = 'BASIS';
+        }
+
+        return { voornaam, achternaam, geslacht, commentaar };
     }
 
     function parseGedcomData(gedcomText) {
@@ -576,6 +615,7 @@
                     voornaam: details.voornaam,
                     achternaam: details.achternaam,
                     geslacht: details.geslacht,
+                    commentaar: details.commentaar,
                     echtgenoteVoornaam: partnerVoornaam,
                     echtgenoteAchternaam: partnerAchternaam,
                     geboorteplaats: birth.place,
@@ -587,7 +627,6 @@
             }
         });
 
-        // Als er geen gekozen hoofdpersoon is, neem de eerste persoon uit het bestand
         if (!currentMainPersonId || !allPersonsData.some(p => p.id === currentMainPersonId)) {
             if (allPersonsData.length > 0) currentMainPersonId = allPersonsData[0].id;
         }
@@ -714,6 +753,7 @@
         const fVoornaam = document.getElementById('filterVoornaam').value.toLowerCase().trim();
         const fNaam = document.getElementById('filterNaam').value.toLowerCase().trim();
         const fGeslacht = document.getElementById('filterGeslacht').value;
+        const fCommentaar = document.getElementById('filterCommentaar').value;
         const fEchtVrn = document.getElementById('filterEchtgenoteVoornaam').value.toLowerCase().trim();
         const fEchtNm = document.getElementById('filterEchtgenoteNaam').value.toLowerCase().trim();
         const fRelatiepad = document.getElementById('filterRelatiepad').value.toLowerCase().trim();
@@ -733,6 +773,7 @@
             if (fVoornaam && !p.voornaam.toLowerCase().startsWith(fVoornaam)) return false;
             if (fNaam && !p.achternaam.toLowerCase().startsWith(fNaam)) return false;
             if (fGeslacht && p.geslacht !== fGeslacht) return false;
+            if (fCommentaar && p.commentaar !== fCommentaar) return false;
             if (fEchtVrn && !p.echtgenoteVoornaam.toLowerCase().startsWith(fEchtVrn)) return false;
             if (fEchtNm && !p.echtgenoteAchternaam.toLowerCase().startsWith(fEchtNm)) return false;
             if (fRelatiepad && !relPath.startsWith(fRelatiepad)) return false;
@@ -798,6 +839,7 @@
         document.getElementById('filterVoornaam').value = '';
         document.getElementById('filterNaam').value = '';
         document.getElementById('filterGeslacht').value = '';
+        document.getElementById('filterCommentaar').value = '';
         document.getElementById('filterEchtgenoteVoornaam').value = '';
         document.getElementById('filterEchtgenoteNaam').value = '';
         document.getElementById('filterRelatiepad').value = '';
@@ -820,7 +862,7 @@
         document.getElementById('searchStats').innerText = `${persons.length} personen gevonden (Toont max. eerste ${limitedPersons.length})`;
 
         if (limitedPersons.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="15" style="text-align: center; color: #a0aec0;">Geen personen gevonden met deze filters.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="16" style="text-align: center; color: #a0aec0;">Geen personen gevonden met deze filters.</td></tr>';
             return;
         }
 
@@ -834,6 +876,15 @@
             
             let bloedvColor = isBloed ? '#38a169' : (isGeen ? '#a0aec0' : '#d69e2e');
 
+            let commentaarBadge = '-';
+            if (p.commentaar === 'BASIS') {
+                commentaarBadge = '<span class="tag-status tag-basis">BASIS</span>';
+            } else if (p.commentaar === 'AANVULLING') {
+                commentaarBadge = '<span class="tag-status tag-aanvulling">AANVULLING</span>';
+            } else if (p.commentaar === 'AANPASSING') {
+                commentaarBadge = '<span class="tag-status tag-aanpassing">AANPASSING</span>';
+            }
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong style="color: #c05621;">${sosaDisplay}</strong></td>
@@ -841,6 +892,7 @@
                 <td>${p.voornaam || '-'}</td>
                 <td>${p.achternaam || '-'}</td>
                 <td><strong>${p.geslacht}</strong></td>
+                <td>${commentaarBadge}</td>
                 <td>${p.echtgenoteVoornaam || '-'}</td>
                 <td>${p.echtgenoteAchternaam || '-'}</td>
                 <td><code>${relPath}</code></td>
