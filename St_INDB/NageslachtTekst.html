@@ -7,20 +7,20 @@
     <style type="text/css">
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 15px;
+            margin: 10px;
             background-color: #FFFFFF;
             color: #333;
         }
         .toolbar {
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
             flex-wrap: wrap;
         }
         .btn {
-            padding: 8px 14px;
-            font-size: 13px;
+            padding: 6px 12px;
+            font-size: 12px;
             font-weight: bold;
             border: none;
             border-radius: 4px;
@@ -35,63 +35,68 @@
         .btn:disabled { background-color: #CCCCCC; cursor: not-allowed; }
         
         .search-box {
-            padding: 8px;
-            font-size: 14px;
-            width: 280px;
+            padding: 6px;
+            font-size: 13px;
+            width: 250px;
             border: 1px solid #CCC;
             border-radius: 4px;
         }
         .num-box {
-            padding: 8px;
-            font-size: 14px;
-            width: 55px;
+            padding: 6px;
+            font-size: 13px;
+            width: 50px;
             border: 1px solid #CCC;
             border-radius: 4px;
         }
         .info-panel {
             background: #E3F2FD;
-            border-left: 5px solid #2196F3;
-            padding: 10px 14px;
-            margin-bottom: 12px;
-            font-size: 13px;
+            border-left: 4px solid #2196F3;
+            padding: 5px 10px;
+            margin-bottom: 8px;
+            font-size: 12px;
             border-radius: 4px;
         }
         #status {
             font-weight: bold;
             color: #1565C0;
         }
-        #outputText {
-            width: 100%;
-            height: 65vh;
+        #outputBox {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 13px;
-            font-weight: bold;
-            color: #0D47A1;
-            padding: 12px;
-            border: 1px solid #BDBDBD;
-            border-radius: 4px;
-            background-color: #F8F9FA;
-            box-sizing: border-box;
+            font-size: 12px;
+            padding: 0;
+            background-color: transparent;
             white-space: pre;
-            overflow-x: auto;
             text-align: left;
+        }
+        #outputBox div {
+            line-height: 1.0;
+            margin: 0;
+            padding: 0;
+        }
+        .line-basis {
+            color: #0D47A1;
+            font-weight: bold;
+        }
+        .line-other {
+            color: #D32F2F;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
-<h2>🌳 Afstammelingen - Gestructureerde Tekst</h2>
+<h2 style="margin: 0 0 6px 0; font-size: 1.2em;">🌳 Afstammelingen - Gestructureerde Tekst</h2>
 
 <div class="toolbar">
     <label for="personInput"><b>Selecteer / Zoek persoon:</b></label>
     <input type="text" id="personInput" list="personList" class="search-box" placeholder="Typ een naam of ID..." onchange="onPersonSelected()">
     <datalist id="personList"></datalist>
 
-    <label for="maxGenerations"><b>Max Generaties:</b></label>
+    <label for="maxGenerations"><b>Max Gen:</b></label>
     <input type="number" id="maxGenerations" value="10" min="1" max="25" class="num-box" onchange="if(mainPersonId) generateDescendantsText()">
 
     <button class="btn btn-action" onclick="copyToClipboard()">📋 Kopiëren</button>
-    <button class="btn btn-download" onclick="downloadTextFile()">💾 Download als TXT</button>
+    <button class="btn btn-download" onclick="downloadTextFile()">💾 Download TXT</button>
     
     <a href="GenealogieFilterScherm.html" class="btn btn-file">🔍 Naar Filterscherm</a>
 </div>
@@ -100,9 +105,9 @@
     <span id="status">⏳ Initialiseren...</span>
 </div>
 
-<textarea id="outputText" readonly placeholder="De gestructureerde tekst verschijnt hier..."></textarea>
+<div id="outputBox">De gestructureerde tekst verschijnt hier...</div>
 
-<footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
+<footer style="text-align: center; font-size: 10px; color: #7f8c8d; margin-top: 10px;">
     Laatste update van deze pagina: <span id="lastMod"></span>
 </footer>
 
@@ -116,6 +121,7 @@
     var personsDB = {};
     var mainPersonId = "";
     var defaultHoofdpersoonId = "";
+    var plainTextOutput = "";
 
     function setStatus(msg, isError) {
         console.log("LOG:", msg);
@@ -383,9 +389,31 @@
                 maxLineLength = personString.length;
             }
 
+            // Notitie inkorten tot maximaal 40 posities
+            var formattedNote = "";
+            var isBasis = true;
+            if (p.note) {
+                var cleaned = p.note.trim();
+                // Controleer of het woord "BASIS" in de notitie voorkomt (ongevoelig voor hoofdletters)
+                if (cleaned.toUpperCase().includes("BASIS")) {
+                    isBasis = true;
+                } else {
+                    isBasis = false;
+                }
+
+                if (cleaned.length > 40) {
+                    formattedNote = cleaned.substring(0, 37) + "...";
+                } else {
+                    formattedNote = cleaned;
+                }
+            } else {
+                isBasis = true; // Geen notitie wordt standaard als basis beschouwd
+            }
+
             rawEntries.push({
                 personStr: personString,
-                note: p.note || ""
+                note: formattedNote,
+                isBasis: isBasis
             });
 
             var childIndex = 1;
@@ -401,29 +429,49 @@
 
         collectBranch(mainPersonId, 0, "1");
 
-        var lines = [];
-        lines.push("================================================================================");
-        lines.push("OVERZICHT AFSTAMMELINGEN VAN: " + startP.name.toUpperCase() + " " + (startP.years || ""));
-        lines.push("================================================================================");
-        lines.push("");
+        var plainLines = [];
+        plainLines.push("================================================================================");
+        plainLines.push("OVERZICHT AFSTAMMELINGEN VAN: " + startP.name.toUpperCase() + " " + (startP.years || ""));
+        plainLines.push("================================================================================");
+        plainLines.push("");
 
         var targetColumn = maxLineLength + 4;
+        var htmlContent = "";
+
+        htmlContent += `<div class="line-basis">================================================================================</div>\n`;
+        htmlContent += `<div class="line-basis">OVERZICHT AFSTAMMELINGEN VAN: ${startP.name.toUpperCase()} ${startP.years || ""}</div>\n`;
+        htmlContent += `<div class="line-basis">================================================================================</div>\n\n`;
 
         rawEntries.forEach(function(entry) {
             var paddedLine = entry.personStr.padEnd(targetColumn, " ");
+            var fullLineText = "";
+
             if (entry.note) {
-                lines.push(paddedLine + " | Notitie: " + entry.note);
+                fullLineText = paddedLine + " | Notitie: " + entry.note;
             } else {
-                lines.push(entry.personStr);
+                fullLineText = entry.personStr;
             }
+
+            plainLines.push(fullLineText);
+
+            var cssClass = entry.isBasis ? "line-basis" : "line-other";
+            htmlContent += `<div class="${cssClass}">${fullLineText}</div>\n`;
         });
 
-        lines.push("");
-        lines.push("--------------------------------------------------------------------------------");
-        lines.push("Totaal aantal afstammelingen getoond: " + totalCount);
-        lines.push("--------------------------------------------------------------------------------");
+        var footerText1 = "\n--------------------------------------------------------------------------------";
+        var footerText2 = "Totaal aantal afstammelingen getoond: " + totalCount;
+        var footerText3 = "--------------------------------------------------------------------------------";
 
-        document.getElementById('outputText').value = lines.join("\n");
+        plainLines.push(footerText1);
+        plainLines.push(footerText2);
+        plainLines.push(footerText3);
+
+        htmlContent += `<div class="line-basis">${footerText1}</div>\n`;
+        htmlContent += `<div class="line-basis">${footerText2}</div>\n`;
+        htmlContent += `<div class="line-basis">${footerText3}</div>\n`;
+
+        plainTextOutput = plainLines.join("\n");
+        document.getElementById('outputBox').innerHTML = htmlContent;
     }
 
     function onPersonSelected() {
@@ -436,9 +484,12 @@
     }
 
     function copyToClipboard() {
-        var textarea = document.getElementById('outputText');
-        textarea.select();
+        var tempTa = document.createElement('textarea');
+        tempTa.value = plainTextOutput;
+        document.body.appendChild(tempTa);
+        tempTa.select();
         document.execCommand('copy');
+        document.body.removeChild(tempTa);
         alert("📋 Gestructureerde tekst is gekopieerd naar het klembord!");
     }
 
@@ -447,9 +498,7 @@
         var nameStr = p ? p.name.replace(/[^a-zA-Z0-9]/g, "_") : "afstammelingen";
         var filename = "Afstammelingen_" + nameStr + ".txt";
 
-        var text = document.getElementById('outputText').value;
-        var blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-
+        var blob = new Blob([plainTextOutput], { type: "text/plain;charset=utf-8" });
         var link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
         link.download = filename;

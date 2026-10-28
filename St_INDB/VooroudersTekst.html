@@ -232,6 +232,7 @@
                         name: 'Onbekend',
                         gender: 'U',
                         birt: '',
+                        birtPlace: '',
                         deat: '',
                         years: '',
                         note: '',
@@ -274,12 +275,16 @@
                 }
             } else if (level === 2 || level === 3) {
                 if (currentRecordType === 'INDI' && currentIndi) {
-                    if ((currentSubTag === 'BIRT' || currentSubTag === 'DEAT') && tag === 'DATE') {
-                        var match = String(val).match(/\b(1\d{3}|20\d{2})\b/);
-                        if (match) {
-                            if (currentSubTag === 'BIRT') currentIndi.birt = match[1];
-                            if (currentSubTag === 'DEAT') currentIndi.deat = match[1];
+                    if (currentSubTag === 'BIRT') {
+                        if (tag === 'DATE') {
+                            var match = String(val).match(/\b(1\d{3}|20\d{2})\b/);
+                            if (match) currentIndi.birt = match[1];
+                        } else if (tag === 'PLAC') {
+                            currentIndi.birtPlace = val.trim();
                         }
+                    } else if (currentSubTag === 'DEAT' && tag === 'DATE') {
+                        var match = String(val).match(/\b(1\d{3}|20\d{2})\b/);
+                        if (match) currentIndi.deat = match[1];
                     } else if (currentSubTag === 'NOTE' && level === 2) {
                         currentIndi.note += " " + trimmed;
                     }
@@ -386,29 +391,41 @@
                 maxLineLength = personString.length;
             }
 
-            var formattedNote = "";
-            var isBasis = true;
-            if (p.note) {
-                var cleaned = p.note.trim();
-                // Controleer of het woord "BASIS" in de notitie voorkomt (ongevoelig voor hoofdletters)
-                if (cleaned.toUpperCase().includes("BASIS")) {
-                    isBasis = true;
-                } else {
-                    isBasis = false;
-                }
+            var commentParts = [];
+            var isBasis = false;
 
-                if (cleaned.length > 40) {
-                    formattedNote = cleaned.substring(0, 37) + "...";
-                } else {
-                    formattedNote = cleaned;
+            // Notitie verwerken (max 40 posities)
+            if (p.note) {
+                var cleanedNote = p.note.trim();
+                if (cleanedNote.length > 40) {
+                    cleanedNote = cleanedNote.substring(0, 37) + "...";
                 }
-            } else {
-                isBasis = true; // Geen notitie wordt standaard als basis beschouwd
+                commentParts.push("Notitie: " + cleanedNote);
+
+                if (cleanedNote.toUpperCase().includes("BASIS")) {
+                    isBasis = true;
+                }
             }
+
+            // Geboorteplaats toevoegen aan commentaar kolom
+            if (p.birtPlace) {
+                var cleanedPlace = p.birtPlace.trim();
+                if (cleanedPlace.length > 30) {
+                    cleanedPlace = cleanedPlace.substring(0, 27) + "...";
+                }
+                commentParts.push("Geboren te: " + cleanedPlace);
+            }
+
+            // Als er helemaal geen notitie is, beschouwen we het standaard als basis (blauw)
+            if (!p.note) {
+                isBasis = true;
+            }
+
+            var combinedComment = commentParts.join(" | ");
 
             rawEntries.push({
                 personStr: personString,
-                note: formattedNote,
+                comment: combinedComment,
                 isBasis: isBasis
             });
 
@@ -458,8 +475,8 @@
             var paddedLine = entry.personStr.padEnd(targetColumn, " ");
             var fullLineText = "";
             
-            if (entry.note) {
-                fullLineText = paddedLine + " | Notitie: " + entry.note;
+            if (entry.comment) {
+                fullLineText = paddedLine + " | " + entry.comment;
             } else {
                 fullLineText = entry.personStr;
             }

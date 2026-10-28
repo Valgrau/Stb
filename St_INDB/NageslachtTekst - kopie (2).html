@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afstammelingen - Gestructureerde Tekst</title>
+    <style type="text/css">
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 15px;
+            background-color: #FFFFFF;
+            color: #333;
+        }
+        .toolbar {
+            margin-bottom: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-action { background-color: #2196F3; color: white; }
+        .btn-download { background-color: #4CAF50; color: white; }
+        .btn-file { background-color: #607D8B; color: white; }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { background-color: #CCCCCC; cursor: not-allowed; }
+        
+        .search-box {
+            padding: 8px;
+            font-size: 14px;
+            width: 280px;
+            border: 1px solid #CCC;
+            border-radius: 4px;
+        }
+        .num-box {
+            padding: 8px;
+            font-size: 14px;
+            width: 55px;
+            border: 1px solid #CCC;
+            border-radius: 4px;
+        }
+        .info-panel {
+            background: #E3F2FD;
+            border-left: 5px solid #2196F3;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            border-radius: 4px;
+        }
+        #status {
+            font-weight: bold;
+            color: #1565C0;
+        }
+        #outputText {
+            width: 100%;
+            height: 65vh;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            font-weight: bold;
+            color: #0D47A1;
+            padding: 12px;
+            border: 1px solid #BDBDBD;
+            border-radius: 4px;
+            background-color: #F8F9FA;
+            box-sizing: border-box;
+            white-space: pre;
+            overflow-x: auto;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+<h2>🌳 Afstammelingen - Gestructureerde Tekst</h2>
+
+<div class="toolbar">
+    <label for="personInput"><b>Selecteer / Zoek persoon:</b></label>
+    <input type="text" id="personInput" list="personList" class="search-box" placeholder="Typ een naam of ID..." onchange="onPersonSelected()">
+    <datalist id="personList"></datalist>
+
+    <label for="maxGenerations"><b>Max Generaties:</b></label>
+    <input type="number" id="maxGenerations" value="10" min="1" max="25" class="num-box" onchange="if(mainPersonId) generateDescendantsText()">
+
+    <button class="btn btn-action" onclick="copyToClipboard()">📋 Kopiëren</button>
+    <button class="btn btn-download" onclick="downloadTextFile()">💾 Download als TXT</button>
+    
+    <a href="GenealogieFilterScherm.html" class="btn btn-file">🔍 Naar Filterscherm</a>
+</div>
+
+<div class="info-panel" id="infoPanel">
+    <span id="status">⏳ Initialiseren...</span>
+</div>
+
+<textarea id="outputText" readonly placeholder="De gestructureerde tekst verschijnt hier..."></textarea>
+
+<footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
+    Laatste update van deze pagina: <span id="lastMod"></span>
+</footer>
+
+<script>
+    document.getElementById('lastMod').innerText = document.lastModified;
+
+    const DB_NAME = 'GedcomDatabase';
+    const STORE_NAME = 'gedcomStore';
+    const DB_VERSION = 5;
+
+    var personsDB = {};
+    var mainPersonId = "";
+    var defaultHoofdpersoonId = "";
+
+    function setStatus(msg, isError) {
+        console.log("LOG:", msg);
+        var statusEl = document.getElementById('status');
+        if (statusEl) {
+            statusEl.innerText = msg;
+            statusEl.style.color = isError ? '#D32F2F' : '#1565C0';
+        }
+    }
+
+    function openGedcomDB() {
+        return new Promise((resolve, reject) => {
+            setStatus("⏳ Stap 1/3: Openen van IndexedDB...", false);
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+        });
+    }
+
+    async function getGedcomFromIDB() {
+        setStatus("⏳ Stap 2/3: Data ophalen uit IndexedDB...", false);
+        const db = await openGedcomDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const reqData = store.get('gedcomData');
+            const reqHp = store.get('HOOFDPERSOON');
+
+            let result = {};
+            let resolved = false;
+
+            reqData.onsuccess = () => { result.gedcomData = reqData.result; checkDone(); };
+            reqHp.onsuccess = () => { result.hoofdpersoon = reqHp.result; checkDone(); };
+
+            function checkDone() {
+                if (!resolved && result.gedcomData !== undefined && result.hoofdpersoon !== undefined) {
+                    resolved = true;
+                    resolve(result.gedcomData ? result : null);
+                }
+            }
+
+            transaction.oncomplete = () => {
+                if (!resolved) {
+                    resolved = true;
+                    resolve(result.gedcomData ? result : null);
+                }
+            };
+            transaction.onerror = () => {
+                if (!resolved) {
+                    resolved = true;
+                    reject(transaction.error);
+                }
+            };
+        });
+    }
+
+    function cleanId(idStr) {
+        if (!idStr) return null;
+        return String(idStr).replace(/@/g, "").trim();
+    }
+
+    function parseGedcomText(gedcomText) {
+        personsDB = {};
+        var rawFams = {};
+        
+        var lines = gedcomText.split(/\r?\n/);
+        var currentRecordType = null;
+        var currentIndi = null;
+        var currentFam = null;
+        var currentSubTag = null;
+
+        lines.forEach(function(line) {
+            var trimmed = line.trim();
+            if (!trimmed) return;
+
+            var parts = trimmed.split(' ');
+            var level = parseInt(parts[0], 10);
+            var tag = '';
+            var val = '';
+            var id = '';
+
+            if (isNaN(level)) return;
+
+            if (parts[1] && parts[1].startsWith('@') && parts[1].endsWith('@')) {
+                id = parts[1].replace(/@/g, '');
+                tag = parts[2] ? parts[2].toUpperCase() : '';
+                val = parts.slice(3).join(' ');
+            } else {
+                tag = parts[1] ? parts[1].toUpperCase() : '';
+                val = parts.slice(2).join(' ');
+            }
+
+            if (level === 0) {
+                currentIndi = null;
+                currentFam = null;
+                currentRecordType = null;
+
+                if (tag === 'INDI') {
+                    currentRecordType = 'INDI';
+                    currentIndi = {
+                        id: id,
+                        name: 'Onbekend',
+                        gender: 'U',
+                        birt: '',
+                        deat: '',
+                        years: '',
+                        note: '',
+                        parents: [],
+                        children: [],
+                        spouses: []
+                    };
+                    personsDB[id] = currentIndi;
+                } else if (tag === 'FAM') {
+                    currentRecordType = 'FAM';
+                    currentFam = {
+                        id: id,
+                        husb: [],
+                        wife: [],
+                        children: []
+                    };
+                    rawFams[id] = currentFam;
+                }
+            } else if (level === 1) {
+                currentSubTag = tag;
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if (tag === 'SEX') {
+                        currentIndi.gender = val.trim().toUpperCase();
+                    } else if (tag === 'NAME') {
+                        currentIndi.name = val.replace(/\//g, '').trim();
+                    } else if (tag === 'NOTE') {
+                        currentIndi.note = val.trim();
+                    }
+                } else if (currentRecordType === 'FAM' && currentFam) {
+                    if (tag === 'HUSB') {
+                        var hId = cleanId(val);
+                        if (hId) currentFam.husb.push(hId);
+                    } else if (tag === 'WIFE') {
+                        var wId = cleanId(val);
+                        if (wId) currentFam.wife.push(wId);
+                    } else if (tag === 'CHIL') {
+                        var cId = cleanId(val);
+                        if (cId) currentFam.children.push(cId);
+                    }
+                }
+            } else if (level === 2 || level === 3) {
+                if (currentRecordType === 'INDI' && currentIndi) {
+                    if ((currentSubTag === 'BIRT' || currentSubTag === 'DEAT') && tag === 'DATE') {
+                        var match = String(val).match(/\b(1\d{3}|20\d{2})\b/);
+                        if (match) {
+                            if (currentSubTag === 'BIRT') currentIndi.birt = match[1];
+                            if (currentSubTag === 'DEAT') currentIndi.deat = match[1];
+                        }
+                    } else if (currentSubTag === 'NOTE' && level === 2) {
+                        currentIndi.note += " " + trimmed;
+                    }
+                }
+            }
+        });
+
+        Object.values(personsDB).forEach(function(p) {
+            if (p.birt || p.deat) {
+                p.years = "(" + p.birt + " - " + p.deat + ")";
+            }
+        });
+
+        Object.values(rawFams).forEach(function(fam) {
+            fam.husb.forEach(function(hId) {
+                fam.wife.forEach(function(wId) {
+                    if (personsDB[hId] && !personsDB[hId].spouses.includes(wId)) personsDB[hId].spouses.push(wId);
+                    if (personsDB[wId] && !personsDB[wId].spouses.includes(hId)) personsDB[wId].spouses.push(hId);
+                });
+            });
+            fam.children.forEach(function(childId) {
+                if (personsDB[childId]) {
+                    var parents = [].concat(fam.husb, fam.wife);
+                    parents.forEach(function(pId) {
+                        if (personsDB[pId]) {
+                            if (!personsDB[childId].parents.includes(pId)) personsDB[childId].parents.push(pId);
+                            if (!personsDB[pId].children.includes(childId)) personsDB[pId].children.push(childId);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    async function initFromIndexedDB() {
+        var idbResult = await getGedcomFromIDB();
+        if (!idbResult || !idbResult.gedcomData) {
+            setStatus("⚠️ Geen stamboom gevonden in IndexedDB.", true);
+            return;
+        }
+
+        try {
+            setStatus("⏳ Stap 3/3: Parsen van GEDCOM data...", false);
+            parseGedcomText(idbResult.gedcomData);
+            var pIds = Object.keys(personsDB);
+            if (pIds.length === 0) {
+                setStatus("⚠️ Geen personen gevonden in de data.", true);
+                return;
+            }
+
+            var datalist = document.getElementById('personList');
+            datalist.innerHTML = "";
+            pIds.forEach(function(id) {
+                var p = personsDB[id];
+                var option = document.createElement('option');
+                option.value = p.name + " " + p.years + " (" + id + ")";
+                datalist.appendChild(option);
+            });
+
+            if (idbResult.hoofdpersoon && idbResult.hoofdpersoon.id && personsDB[idbResult.hoofdpersoon.id]) {
+                defaultHoofdpersoonId = idbResult.hoofdpersoon.id;
+            } else {
+                defaultHoofdpersoonId = pIds[0];
+            }
+
+            var requestedId = sessionStorage.getItem('selectedPersonId');
+            if (requestedId && personsDB[requestedId]) {
+                mainPersonId = requestedId;
+                sessionStorage.removeItem('selectedPersonId');
+            } else {
+                mainPersonId = defaultHoofdpersoonId;
+            }
+
+            setStatus("✅ GEDCOM geladen. Gestructureerde afstammelingen gegenereerd.", false);
+            generateDescendantsText();
+        } catch (err) {
+            setStatus("⚠️ Fout bij verwerken data: " + err.message, true);
+        }
+    }
+
+    function generateDescendantsText() {
+        var startP = personsDB[mainPersonId];
+        if (!startP) return;
+
+        document.getElementById('personInput').value = startP.name + " " + startP.years + " (" + startP.id + ")";
+
+        var maxGen = parseInt(document.getElementById('maxGenerations').value, 10);
+        if (isNaN(maxGen) || maxGen < 1) maxGen = 10;
+
+        var rawEntries = [];
+        var totalCount = 0;
+        var maxLineLength = 0;
+
+        function collectBranch(personId, genLevel, prefixNum) {
+            if (genLevel > maxGen) return;
+
+            var p = personsDB[personId];
+            if (!p) return;
+
+            var indent = "    ".repeat(genLevel);
+            var spouseNames = p.spouses.map(sId => personsDB[sId] ? personsDB[sId].name + " " + (personsDB[sId].years || "") : "Onbekend").join(", ");
+            var spouseInfo = spouseNames ? "  [x partner(s): " + spouseNames + "]" : "";
+
+            var personString = `${indent}${prefixNum} ${p.name} ${p.years}${spouseInfo} (ID: ${p.id})`;
+            
+            if (personString.length > maxLineLength) {
+                maxLineLength = personString.length;
+            }
+
+            rawEntries.push({
+                personStr: personString,
+                note: p.note || ""
+            });
+
+            var childIndex = 1;
+            p.children.forEach(function(childId) {
+                if (personsDB[childId]) {
+                    var nextPrefix = prefixNum + "." + childIndex;
+                    totalCount++;
+                    collectBranch(childId, genLevel + 1, nextPrefix);
+                    childIndex++;
+                }
+            });
+        }
+
+        collectBranch(mainPersonId, 0, "1");
+
+        var lines = [];
+        lines.push("================================================================================");
+        lines.push("OVERZICHT AFSTAMMELINGEN VAN: " + startP.name.toUpperCase() + " " + (startP.years || ""));
+        lines.push("================================================================================");
+        lines.push("");
+
+        var targetColumn = maxLineLength + 4;
+
+        rawEntries.forEach(function(entry) {
+            var paddedLine = entry.personStr.padEnd(targetColumn, " ");
+            if (entry.note) {
+                lines.push(paddedLine + " | Notitie: " + entry.note);
+            } else {
+                lines.push(entry.personStr);
+            }
+        });
+
+        lines.push("");
+        lines.push("--------------------------------------------------------------------------------");
+        lines.push("Totaal aantal afstammelingen getoond: " + totalCount);
+        lines.push("--------------------------------------------------------------------------------");
+
+        document.getElementById('outputText').value = lines.join("\n");
+    }
+
+    function onPersonSelected() {
+        var val = document.getElementById('personInput').value;
+        var match = val.match(/\((I\d+)\)/);
+        if (match && match[1] && personsDB[match[1]]) {
+            mainPersonId = match[1];
+            generateDescendantsText();
+        }
+    }
+
+    function copyToClipboard() {
+        var textarea = document.getElementById('outputText');
+        textarea.select();
+        document.execCommand('copy');
+        alert("📋 Gestructureerde tekst is gekopieerd naar het klembord!");
+    }
+
+    function downloadTextFile() {
+        var p = personsDB[mainPersonId];
+        var nameStr = p ? p.name.replace(/[^a-zA-Z0-9]/g, "_") : "afstammelingen";
+        var filename = "Afstammelingen_" + nameStr + ".txt";
+
+        var text = document.getElementById('outputText').value;
+        var blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+
+        var link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    window.addEventListener('load', function() {
+        initFromIndexedDB();
+    });
+</script>
+
+</body>
+</html>
