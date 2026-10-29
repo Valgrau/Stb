@@ -46,6 +46,23 @@
             margin-top: 10px;
         }
         .file-select-btn:hover, .action-btn:hover { background-color: #2980b9; }
+        .sort-btn {
+            padding: 6px 14px;
+            background-color: #e2e8f0;
+            color: #2d3748;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-right: 8px;
+            margin-bottom: 10px;
+        }
+        .sort-btn.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -118,12 +135,16 @@
             margin-top: 5px;
             margin-bottom: 10px;
         }
+        select#personSelect {
+            height: auto;
+            min-height: 160px;
+        }
         .text-list-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             padding: 15px;
             border-radius: 6px;
-            max-height: 400px;
+            max-height: 2000px;
             overflow-y: auto;
             font-family: monospace;
             font-size: 0.85rem;
@@ -222,7 +243,7 @@
         <button class="action-btn" onclick="filterPersons()" style="margin-top:0; padding:8px 14px;">Zoek</button><br>
 
         <label for="personSelect" style="margin-top:10px; display:inline-block;"><strong>Selecteer uit zoekresultaten (alfabetisch gesorteerd):</strong></label><br>
-        <select id="personSelect"><option value="">-- Zoek eerst een persoon hierboven --</option></select><br>
+        <select id="personSelect" size="8"><option value="">-- Zoek eerst een persoon hierboven --</option></select><br>
 
         <button class="action-btn" onclick="calculateAncestorTypes()">Bereken Voorgeslacht Analyse</button>
         
@@ -257,6 +278,10 @@
 
             <!-- TEKSTUEEL GEDETAILLEERD VOORGESLACHT (ALLEEN AANVULLING & AANPASSING) -->
             <h3 class="section-title" style="margin-top: 30px;">📄 Gedetailleerd Tekstueel Voorgeslacht (Alleen AANVULLING & AANPASSING)</h3>
+            <div style="margin-bottom: 10px;">
+                <button class="sort-btn active" id="btnSortSosa" onclick="setSortMode('sosa')">🔢 Sorteer op SOSA-nummer (Standaard)</button>
+                <button class="sort-btn" id="btnSortRel" onclick="setSortMode('rel')">🔀 Sorteer op Relatiepad</button>
+            </div>
             <p style="font-size: 0.9rem; color: #666;">Volledig doorlopend overzicht (volledig uitgediept zonder afbreking):</p>
             <div class="text-list-box" id="textAncestorList">
                 Geen data geladen...
@@ -272,6 +297,9 @@
     const DB_VERSION = 5;
 
     let gedcomCache = {};
+    let allPersonsList = [];
+    let currentFilteredAncestors = [];
+    let currentSortMode = 'sosa'; // 'sosa' of 'rel'
 
     function openGedcomDB() {
         return new Promise((resolve, reject) => {
@@ -409,8 +437,6 @@
         return 'OVERIG';
     }
 
-    let allPersonsList = [];
-
     function processGedcomData(data) {
         let personsMap = {}, familiesMap = {};
         let countB = 0, countAanv = 0, countAanp = 0, totalP = 0;
@@ -444,7 +470,7 @@
                 } else if (type === 'AANPASSING') {
                     countAanp++;
                     surnames.AANPASSING[nameObj.achternaam] = (surnames.AANPASSING[nameObj.achternaam] || 0) + 1;
-                    if (birth.place) places.AANPASSING[birth.place] = (birth.place) + 1;
+                    if (birth.place) places.AANPASSING[birth.place] = (places.AANPASSING[birth.place] || 0) + 1;
                 }
             }
 
@@ -475,7 +501,7 @@
             return;
         }
 
-        const matches = allPersonsList.filter(p => p.rawName.includes(query)).slice(0, 100);
+        const matches = allPersonsList.filter(p => p.rawName.includes(query));
 
         if (matches.length === 0) {
             selectElem.innerHTML = '<option value="">-- Geen personen gevonden --</option>';
@@ -567,10 +593,9 @@
         let bCount = 0, aanvCount = 0, aanpCount = 0;
         let ancSurnames = { AANVULLING: {}, AANPASSING: {} };
         let ancPlaces = { AANVULLING: {}, AANPASSING: {} };
-        let textOutputHTML = "";
-        let counterText = 1;
 
         let sortedAncestors = Array.from(ancestorsMap.values()).sort((a, b) => a.qnr - b.qnr);
+        currentFilteredAncestors = [];
 
         sortedAncestors.forEach(item => {
             if (item.type === 'BASIS') {
@@ -593,17 +618,9 @@
                     if (item.birthPlace) ancPlaces.AANPASSING[item.birthPlace] = (ancPlaces.AANPASSING[item.birthPlace] || 0) + 1;
                 }
 
-                let dateStr = item.birthDate ? ` (° ${item.birthDate})` : '';
-                let typeBadge = `<span style="color: ${item.type === 'AANVULLING' ? '#27ae60' : '#d35400'}; font-weight: bold;">[${item.type}]</span>`;
-                let relStr = item.relation ? ` [Relatie: ${item.relation}]` : '';
-                textOutputHTML += `<strong>${counterText}. (Kwartier ${item.qnr})</strong> ${item.name}${dateStr} - Plaats: <em>${item.birthPlace}</em> ${relStr} ${typeBadge}<br>`;
-                counterText++;
+                currentFilteredAncestors.push(item);
             }
         });
-
-        if (textOutputHTML === "") {
-            textOutputHTML = "Geen voorouders gevonden met type AANVULLING of AANPASSING.";
-        }
 
         const mainPerson = personsMap[personId];
         const nameObj = parsePersonName(mainPerson);
@@ -619,8 +636,45 @@
         fillTable('ancPlacesAanpassingBody', ancPlaces.AANPASSING);
         fillTable('ancSurnamesAanpassingBody', ancSurnames.AANPASSING);
 
-        document.getElementById('textAncestorList').innerHTML = textOutputHTML;
+        renderTextAncestorList();
         document.getElementById('ancestorResult').style.display = 'block';
+    }
+
+    function setSortMode(mode) {
+        currentSortMode = mode;
+        document.getElementById('btnSortSosa').classList.toggle('active', mode === 'sosa');
+        document.getElementById('btnSortRel').classList.toggle('active', mode === 'rel');
+        renderTextAncestorList();
+    }
+
+    function renderTextAncestorList() {
+        if (!currentFilteredAncestors || currentFilteredAncestors.length === 0) {
+            document.getElementById('textAncestorList').innerHTML = "Geen voorouders gevonden met type AANVULLING of AANPASSING.";
+            return;
+        }
+
+        let listToRender = [...currentFilteredAncestors];
+
+        if (currentSortMode === 'sosa') {
+            listToRender.sort((a, b) => a.qnr - b.qnr);
+        } else if (currentSortMode === 'rel') {
+            listToRender.sort((a, b) => {
+                let relA = a.relation || '';
+                let relB = b.relation || '';
+                return relA.localeCompare(relB);
+            });
+        }
+
+        let textOutputHTML = "";
+        listToRender.forEach((item, index) => {
+            let counterText = index + 1;
+            let dateStr = item.birthDate ? ` (° ${item.birthDate})` : '';
+            let typeBadge = `<span style="color: ${item.type === 'AANVULLING' ? '#27ae60' : '#d35400'}; font-weight: bold;">[${item.type}]</span>`;
+            let relStr = item.relation ? ` [Relatie: ${item.relation}]` : '';
+            textOutputHTML += `<strong>${counterText}. (Kwartier ${item.qnr})</strong> ${item.name}${dateStr} - Plaats: <em>${item.birthPlace}</em> ${relStr} ${typeBadge}<br>`;
+        });
+
+        document.getElementById('textAncestorList').innerHTML = textOutputHTML;
     }
 </script>
 
