@@ -59,6 +59,14 @@
         .file-select-btn:hover {
             background-color: #2980b9;
         }
+        .load-section-box {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #fdfefe;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+        }
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -245,149 +253,169 @@
         </tbody>
     </table>
 
-    <!-- TOEGEVOEGDE TOP 20 SECTIES -->
-    <h2 class="section-title">🌳 Top 20 Stamboom Omvang & Generaties</h2>
+    <!-- ================= DEEL 1: TOP 10 LIJSTEN ================= -->
+    <div class="load-section-box" id="boxPart1">
+        <h3 style="color: #2c3e50; margin-top: 0;">📊 Deel 1: Top 10 Overzichten (Namen, Eilanden, Jaren, Leeftijden)</h3>
+        <p style="color: #666; font-size: 0.9rem;">Laat de top 10 zien van familienamen, voornamen, geboortejaren, e.d.</p>
+        <button class="file-select-btn" onclick="loadPart1()">Laad Top 10 Overzichten</button>
+        <div id="loaderPart1" style="display: none; color: #2980b9; font-weight: bold; margin-top: 10px;">⏳ Bezig met laden...</div>
+    </div>
 
-    <div class="grid-2">
+    <div id="sectionPart1" style="display: none;">
+        <h2 class="section-title">🏆 Top 10 Overzichten</h2>
+        <div class="grid-2">
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🏝️ Top 10 Eilanden (Familie-eilanden)</h3>
+                <table class="data-table">
+                    <thead><tr><th>Eiland / Component</th><th style="text-align: right;">Aantal personen</th></tr></thead>
+                    <tbody id="topIslandsBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+                </table>
+            </div>
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">📜 Top 10 Familienamen</h3>
+                <table class="data-table">
+                    <thead><tr><th>Familienaam</th><th style="text-align: right;">Aantal</th></tr></thead>
+                    <tbody id="topSurnamesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="grid-2">
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🏷️ Top 10 Voornamen</h3>
+                <table class="data-table">
+                    <thead><tr><th>Voornaam</th><th style="text-align: right;">Aantal</th></tr></thead>
+                    <tbody id="topGivenNamesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+                </table>
+            </div>
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">📅 Top 10 Geboortejaren</h3>
+                <table class="data-table">
+                    <thead><tr><th>Geboortejaar</th><th style="text-align: right;">Aantal</th></tr></thead>
+                    <tbody id="topBirthYearsBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="grid-2">
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">💍 Top 10 Huwelijksleeftijden</h3>
+                <table class="data-table">
+                    <thead><tr><th>Leeftijd bij Huwelijk</th><th style="text-align: right;">Aantal personen</th></tr></thead>
+                    <tbody id="topMarriageAgesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+                </table>
+            </div>
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🕊️ Top 10 Ouderdom bij Overlijden</h3>
+                <table class="data-table">
+                    <thead><tr><th>Leeftijd bij Overlijden</th><th style="text-align: right;">Aantal personen</th></tr></thead>
+                    <tbody id="topDeathAgesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="grid-2">
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">👶 Top 10 Leeftijd ouders bij Eerste Kind</h3>
+                <table class="data-table">
+                    <thead><tr><th>Leeftijd ouder</th><th style="text-align: right;">Aantal</th></tr></thead>
+                    <tbody id="topFirstChildAgeBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+                </table>
+            </div>
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🍼 Top 10 Leeftijd ouders bij Laatste Kind</h3>
+                <table class="data-table">
+                    <thead><tr><th>Leeftijd ouder</th><th style="text-align: right;">Aantal</th></tr></thead>
+                    <tbody id="topLastChildAgeBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= DEEL 2: TOP 20 STAMBOOM OMVANG ================= -->
+    <div class="load-section-box" id="boxPart2">
+        <h3 style="color: #2c3e50; margin-top: 0;">🌳 Deel 2: Top 20 Stamboom Omvang & Generaties (Voorouders & Afstammelingen)</h3>
+        <p style="color: #666; font-size: 0.9rem;">Berekent wie de meeste voorouders, volledige generaties en afstammelingen heeft.</p>
+        <button class="file-select-btn" onclick="loadPart2()">Laad Top 20 Omvang & Generaties</button>
+        <div id="loaderPart2" style="display: none; color: #2980b9; font-weight: bold; margin-top: 10px;">⏳ Bezig met doorzoeken stamboom...</div>
+    </div>
+
+    <div id="sectionPart2" style="display: none;">
+        <h2 class="section-title">🌳 Top 20 Stamboom Omvang & Generaties</h2>
+        <div class="grid-2">
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">Top 20 Personen met de MEESTE voorouders</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Rang</th><th>Persoon</th><th style="text-align: right;">Voorouders</th></tr>
+                    </thead>
+                    <tbody id="topAncestorsBody">
+                        <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">Top 20 Meest VOLLEDIG OPGEVULDE generaties</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Rang</th><th>Persoon</th><th style="text-align: right;">Volledige gen.</th></tr>
+                    </thead>
+                    <tbody id="topCompleteGenerationsBody">
+                        <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
         <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">Top 20 Personen met de MEESTE voorouders</h3>
+            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">Top 20 Personen met de meeste afstammelingen</h3>
             <table class="data-table">
                 <thead>
-                    <tr><th>Rang</th><th>Persoon</th><th style="text-align: right;">Voorouders</th></tr>
+                    <tr><th>Rang</th><th>Persoon</th><th style="text-align: right;">Afstammelingen</th></tr>
                 </thead>
-                <tbody id="topAncestorsBody">
+                <tbody id="topDescendantsBody">
                     <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
                 </tbody>
             </table>
         </div>
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">Top 20 Meest VOLLEDIG OPGEVULDE generaties</h3>
-            <table class="data-table">
-                <thead>
-                    <tr><th>Rang</th><th>Persoon</th><th style="text-align: right;">Volledige gen.</th></tr>
-                </thead>
-                <tbody id="topCompleteGenerationsBody">
-                    <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
-                </tbody>
-            </table>
-        </div>
     </div>
 
-    <div>
-        <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">Top 20 Personen met de meeste afstammelingen</h3>
-        <table class="data-table">
-            <thead>
-                <tr><th>Rang</th><th>Persoon</th><th style="text-align: right;">Afstammelingen</th></tr>
-            </thead>
-            <tbody id="topDescendantsBody">
-                <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
-            </tbody>
-        </table>
+    <!-- ================= DEEL 3: NETWERK & SENSATIONEEL (ZWAARSTE) ================= -->
+    <div class="load-section-box" id="boxPart3">
+        <h3 style="color: #2c3e50; margin-top: 0;">🌐 Deel 3: Top 10 Relatiepaden & Sensationele Feiten</h3>
+        <p style="color: #666; font-size: 0.9rem;">Dit is het allerzwaarste onderdeel (zoekt naar de langste paden in het netwerk).</p>
+        <button class="file-select-btn" onclick="loadPart3()">Laad Relatiepaden & Feiten</button>
+        <div id="loaderPart3" style="display: none; color: #2980b9; font-weight: bold; margin-top: 10px;">⏳ Bezig met netwerkanalyse...</div>
     </div>
 
-    <!-- TOP 10 SECTIE -->
-    <h2 class="section-title">🏆 Top 10 Overzichten</h2>
-    
-    <div class="grid-2">
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🏝️ Top 10 Eilanden (Familie-eilanden)</h3>
-            <table class="data-table">
-                <thead><tr><th>Eiland / Component</th><th style="text-align: right;">Aantal personen</th></tr></thead>
-                <tbody id="topIslandsBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
-            </table>
-        </div>
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">📜 Top 10 Familienamen</h3>
-            <table class="data-table">
-                <thead><tr><th>Familienaam</th><th style="text-align: right;">Aantal</th></tr></thead>
-                <tbody id="topSurnamesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="grid-2">
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🏷️ Top 10 Voornamen</h3>
-            <table class="data-table">
-                <thead><tr><th>Voornaam</th><th style="text-align: right;">Aantal</th></tr></thead>
-                <tbody id="topGivenNamesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
-            </table>
-        </div>
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">📅 Top 10 Geboortejaren</h3>
-            <table class="data-table">
-                <thead><tr><th>Geboortejaar</th><th style="text-align: right;">Aantal</th></tr></thead>
-                <tbody id="topBirthYearsBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="grid-2">
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">💍 Top 10 Huwelijksleeftijden</h3>
-            <table class="data-table">
-                <thead><tr><th>Leeftijd bij Huwelijk</th><th style="text-align: right;">Aantal personen</th></tr></thead>
-                <tbody id="topMarriageAgesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
-            </table>
-        </div>
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🕊️ Top 10 Ouderdom bij Overlijden</h3>
-            <table class="data-table">
-                <thead><tr><th>Leeftijd bij Overlijden</th><th style="text-align: right;">Aantal personen</th></tr></thead>
-                <tbody id="topDeathAgesBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="grid-2">
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">👶 Top 10 Leeftijd ouders bij Eerste Kind</h3>
-            <table class="data-table">
-                <thead><tr><th>Leeftijd ouder</th><th style="text-align: right;">Aantal</th></tr></thead>
-                <tbody id="topFirstChildAgeBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
-            </table>
-        </div>
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🍼 Top 10 Leeftijd ouders bij Laatste Kind</h3>
-            <table class="data-table">
-                <thead><tr><th>Leeftijd ouder</th><th style="text-align: right;">Aantal</th></tr></thead>
-                <tbody id="topLastChildAgeBody"><tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- TOP 100 LANGSTE RELATIEPADEN & SENSATIONEEL GEGEVEN -->
-    <h2 class="section-title">🌐 Netwerk & Sensationele Feiten</h2>
-    
-    <div class="grid-2">
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🛤️ Top 100 Relatiepaden (Vanaf 20 stappen, oplopend)</h3>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Stappen</th>
-                        <th>Van (Vertrek)</th>
-                        <th>Naar (Eindpunt)</th>
-                    </tr>
-                </thead>
-                <tbody id="topLongestPathsBody">
-                    <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
-                </tbody>
-            </table>
-        </div>
-        <div>
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🔥 Sensationeel: Grootste Leeftijdsverschil bij Huwelijk</h3>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Verschil</th>
-                        <th>Echtpaar & Details</th>
-                    </tr>
-                </thead>
-                <tbody id="topAgeGapBody">
-                    <tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
-                </tbody>
-            </table>
+    <div id="sectionPart3" style="display: none;">
+        <h2 class="section-title">🌐 Netwerk & Sensationele Feiten</h2>
+        <div class="grid-2">
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🛤️ Top 10 Relatiepaden (Vanaf 20 stappen, aflopend)</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Stappen</th>
+                            <th>Van (Vertrek)</th>
+                            <th>Naar (Eindpunt)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topLongestPathsBody">
+                        <tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen paden gevonden...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div>
+                <h3 style="font-size: 1rem; color: #2c3e50; margin-bottom: 8px;">🔥 Sensationeel: Grootste Leeftijdsverschil bij Huwelijk</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Verschil</th>
+                            <th>Echtpaar & Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topAgeGapBody">
+                        <tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -398,6 +426,8 @@
     const STORE_NAME = 'gedcomStore';
     const FAV_STORE_NAME = 'favoritesStore';
     const DB_VERSION = 5;
+
+    let gedcomCache = {};
 
     function openGedcomDB() {
         return new Promise((resolve, reject) => {
@@ -413,17 +443,6 @@
                     db.createObjectStore(FAV_STORE_NAME, { keyPath: 'id' });
                 }
             };
-        });
-    }
-
-    async function saveGedcomToIDB(textData) {
-        const db = await openGedcomDB();
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(STORE_NAME, 'readwrite');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.put(textData, 'gedcomData');
-            request.onsuccess = () => resolve(true);
-            request.onerror = () => reject(request.error);
         });
     }
 
@@ -462,8 +481,11 @@
         reader.onload = async function(evt) {
             try {
                 const text = evt.target.result;
-                await saveGedcomToIDB(text);
-                showSuccess('✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen in IndexedDB!');
+                const db = await openGedcomDB();
+                const transaction = db.transaction(STORE_NAME, 'readwrite');
+                transaction.objectStore(STORE_NAME).put(text, 'gedcomData');
+                
+                showSuccess('✅ Bestand <strong>' + file.name + '</strong> ingelezen en opgeslagen!');
                 const parsedData = parseGedcom(text);
                 processGedcomData(parsedData);
             } catch (err) {
@@ -503,7 +525,6 @@
 
             const parts = trimmed.split(' ');
             const level = parseInt(parts[0], 10);
-            
             if (isNaN(level)) return;
 
             if (level === 0) {
@@ -545,19 +566,9 @@
         return records;
     }
 
-    function extractItems(data) {
-        if (Array.isArray(data)) return data;
-        return [];
-    }
-
-    function cleanId(idStr) {
-        if (!idStr) return '';
-        return String(idStr).replace(/@/g, '').trim();
-    }
-
-    function extractId(item) {
-        return cleanId(item.id || '');
-    }
+    function extractItems(data) { return Array.isArray(data) ? data : []; }
+    function cleanId(idStr) { return idStr ? String(idStr).replace(/@/g, '').trim() : ''; }
+    function extractId(item) { return cleanId(item.id || ''); }
 
     function extractSex(item) {
         if (item.SEX) return String(item.SEX);
@@ -567,14 +578,11 @@
     }
 
     function extractEventYearAndPlace(item, eventTag) {
-        let dateStr = '';
-        let placeStr = '';
-
+        let dateStr = '', placeStr = '';
         const evObj = item.children ? item.children.find(c => c.tag === eventTag) : null;
         if (evObj) {
             dateStr = evObj.DATE || '';
             placeStr = evObj.PLAC || '';
-            
             if (!dateStr || !placeStr) {
                 (evObj.children || []).forEach(sub => {
                     if (sub.tag === 'DATE' && !dateStr) dateStr = sub.value;
@@ -582,7 +590,6 @@
                 });
             }
         }
-
         let year = null;
         if (dateStr) {
             const match = String(dateStr).match(/\b(\d{3,4})\b/);
@@ -591,26 +598,18 @@
                 if (y >= 500 && y <= 2100) year = y;
             }
         }
-
         return { year: year, place: String(placeStr).trim() };
     }
 
     function extractFamMembers(famItem) {
-        let husb = cleanId(famItem.HUSB || '');
-        let wife = cleanId(famItem.WIFE || '');
+        let husb = cleanId(famItem.HUSB || ''), wife = cleanId(famItem.WIFE || '');
         let childrenIds = [];
-
         (famItem.children || []).forEach(c => {
             if (c.tag === 'HUSB' && !husb) husb = cleanId(c.value);
             if (c.tag === 'WIFE' && !wife) wife = cleanId(c.value);
             if (c.tag === 'CHIL' && c.value) childrenIds.push(cleanId(c.value));
         });
-
-        return {
-            husb: husb,
-            wife: wife,
-            children: [...new Set(childrenIds)].filter(Boolean)
-        };
+        return { husb, wife, children: [...new Set(childrenIds)].filter(Boolean) };
     }
 
     function parsePersonName(item) {
@@ -619,10 +618,7 @@
             const nameNode = item.children.find(c => c.tag === 'NAME');
             if (nameNode) fullName = nameNode.value || '';
         }
-
-        let voornaam = '';
-        let achternaam = '';
-
+        let voornaam = '', achternaam = '';
         if (fullName.includes('/')) {
             let parts = fullName.split('/');
             voornaam = parts[0].trim();
@@ -630,7 +626,6 @@
         } else {
             voornaam = fullName.trim();
         }
-
         if (item.children) {
             item.children.forEach(c => {
                 if (c.tag === 'NAME' && c.children) {
@@ -641,65 +636,33 @@
                 }
             });
         }
-
-        return {
-            voornaam: voornaam || 'Onbekend',
-            achternaam: achternaam || 'Onbekend'
-        };
+        return { voornaam: voornaam || 'Onbekend', achternaam: achternaam || 'Onbekend' };
     }
 
     function processGedcomData(data) {
         const items = extractItems(data);
+        let totalPersons = 0, totalFamilies = 0, withBirthCount = 0, withDeathCount = 0;
+        let centuryCounts = {}, birthPlaces = {};
+        let agesMen = [], agesWomen = [], marriageAgesMen = [], marriageAgesWomen = [];
+        let familySizes = [], marriedFamiliesCount = 0;
+        let surnamesCount = {}, givenNamesCount = {}, birthYearsCount = {};
+        let marriageAgesCount = {}, deathAgesCount = {}, firstChildAgesCount = {}, lastChildAgesCount = {};
 
-        let totalPersons = 0;
-        let totalMen = 0;
-        let totalWomen = 0;
-        let totalFamilies = 0;
-
-        let withBirthCount = 0;
-        let withDeathCount = 0;
-
-        let centuryCounts = {};
-        let birthPlaces = {};
-
-        let agesMen = [];
-        let agesWomen = [];
-        let marriageAgesMen = [];
-        let marriageAgesWomen = [];
-
-        let familySizes = [];
-        let marriedFamiliesCount = 0;
-
-        let surnamesCount = {};
-        let givenNamesCount = {};
-        let birthYearsCount = {};
-        let marriageAgesCount = {};
-        let deathAgesCount = {};
-        let firstChildAgesCount = {};
-        let lastChildAgesCount = {};
-
-        const personsMap = {};
-        const familiesMap = {};
-        const graph = {};
+        const personsMap = {}, familiesMap = {}, graph = {};
 
         items.forEach(item => {
             const tag = (item.TAG || '').toUpperCase();
             const id = extractId(item);
             if (id) {
-                if (tag === 'INDI') {
-                    personsMap[id] = item;
-                    graph[id] = [];
-                }
+                if (tag === 'INDI') { personsMap[id] = item; graph[id] = []; }
                 if (tag === 'FAM') familiesMap[id] = item;
             }
         });
 
         items.forEach(item => {
-            const tag = (item.TAG || '').toUpperCase();
-            if (tag === 'FAM') {
+            if ((item.TAG || '').toUpperCase() === 'FAM') {
                 const members = extractFamMembers(item);
                 const parents = [members.husb, members.wife].filter(Boolean);
-
                 parents.forEach(pId => {
                     members.children.forEach(cId => {
                         if (graph[pId] && graph[cId]) {
@@ -708,7 +671,6 @@
                         }
                     });
                 });
-
                 parents.forEach(p1 => {
                     parents.forEach(p2 => {
                         if (p1 !== p2 && graph[p1] && graph[p2]) {
@@ -723,17 +685,13 @@
         let islands = [];
         Object.keys(graph).forEach(id => {
             if (!visited.has(id)) {
-                let islandSize = 0;
-                let queue = [id];
+                let islandSize = 0, queue = [id];
                 visited.add(id);
                 while (queue.length > 0) {
                     let curr = queue.shift();
                     islandSize++;
                     (graph[curr] || []).forEach(neighbor => {
-                        if (!visited.has(neighbor)) {
-                            visited.add(neighbor);
-                            queue.push(neighbor);
-                        }
+                        if (!visited.has(neighbor)) { visited.add(neighbor); queue.push(neighbor); }
                     });
                 }
                 islands.push(islandSize);
@@ -743,16 +701,11 @@
 
         items.forEach(item => {
             const tag = (item.TAG || '').toUpperCase();
-
             if (tag === 'INDI') {
                 totalPersons++;
-
                 const sexVal = extractSex(item).trim().toUpperCase();
                 const isMale = ['M', 'MALE', 'MAN'].includes(sexVal);
                 const isFemale = ['F', 'FEMALE', 'VROUW'].includes(sexVal);
-
-                if (isMale) totalMen++;
-                else if (isFemale) totalWomen++;
 
                 const nameObj = parsePersonName(item);
                 surnamesCount[nameObj.achternaam] = (surnamesCount[nameObj.achternaam] || 0) + 1;
@@ -764,23 +717,14 @@
                 if (birth.year !== null) {
                     withBirthCount++;
                     birthYearsCount[birth.year] = (birthYearsCount[birth.year] || 0) + 1;
-
                     const century = Math.floor(birth.year / 100) + 1;
                     const startYear = (century - 1) * 100;
                     const centuryKey = `${century}e eeuw (${startYear} - ${startYear + 99})`;
-                    if (!centuryCounts[centuryKey]) {
-                        centuryCounts[centuryKey] = { centuryNum: century, label: centuryKey, count: 0 };
-                    }
+                    if (!centuryCounts[centuryKey]) centuryCounts[centuryKey] = { centuryNum: century, label: centuryKey, count: 0 };
                     centuryCounts[centuryKey].count++;
-
-                    if (birth.place) {
-                        birthPlaces[birth.place] = (birthPlaces[birth.place] || 0) + 1;
-                    }
+                    if (birth.place) birthPlaces[birth.place] = (birthPlaces[birth.place] || 0) + 1;
                 }
-
-                if (death.year !== null) {
-                    withDeathCount++;
-                }
+                if (death.year !== null) withDeathCount++;
 
                 if (birth.year !== null && death.year !== null) {
                     const age = death.year - birth.year;
@@ -790,39 +734,23 @@
                         deathAgesCount[age] = (deathAgesCount[age] || 0) + 1;
                     }
                 }
-
             } else if (tag === 'FAM') {
                 totalFamilies++;
                 const members = extractFamMembers(item);
                 const marriage = extractEventYearAndPlace(item, 'MARR');
-                const famChildrenCount = members.children.length;
-
-                familySizes.push(famChildrenCount);
+                familySizes.push(members.children.length);
 
                 if (members.children.length > 0) {
-                    let childBirthYears = members.children.map(cId => {
-                        if (personsMap[cId]) {
-                            return extractEventYearAndPlace(personsMap[cId], 'BIRT').year;
-                        }
-                        return null;
-                    }).filter(y => y !== null).sort((a, b) => a - b);
-
+                    let childBirthYears = members.children.map(cId => personsMap[cId] ? extractEventYearAndPlace(personsMap[cId], 'BIRT').year : null).filter(y => y !== null).sort((a, b) => a - b);
                     if (childBirthYears.length > 0) {
-                        let firstChildYear = childBirthYears[0];
-                        let lastChildYear = childBirthYears[childBirthYears.length - 1];
-
+                        let firstY = childBirthYears[0], lastY = childBirthYears[childBirthYears.length - 1];
                         [members.husb, members.wife].forEach(parentID => {
                             if (parentID && personsMap[parentID]) {
                                 let pBirth = extractEventYearAndPlace(personsMap[parentID], 'BIRT').year;
                                 if (pBirth !== null) {
-                                    let ageFirst = firstChildYear - pBirth;
-                                    let ageLast = lastChildYear - pBirth;
-                                    if (ageFirst >= 12 && ageFirst <= 80) {
-                                        firstChildAgesCount[ageFirst] = (firstChildAgesCount[ageFirst] || 0) + 1;
-                                    }
-                                    if (ageLast >= 12 && ageLast <= 90) {
-                                        lastChildAgesCount[ageLast] = (lastChildAgesCount[ageLast] || 0) + 1;
-                                    }
+                                    let ageFirst = firstY - pBirth, ageLast = lastY - pBirth;
+                                    if (ageFirst >= 12 && ageFirst <= 80) firstChildAgesCount[ageFirst] = (firstChildAgesCount[ageFirst] || 0) + 1;
+                                    if (ageLast >= 12 && ageLast <= 90) lastChildAgesCount[ageLast] = (lastChildAgesCount[ageLast] || 0) + 1;
                                 }
                             }
                         });
@@ -832,7 +760,6 @@
                 if (marriage.year !== null) {
                     marriedFamiliesCount++;
                     const mYear = marriage.year;
-
                     [members.husb, members.wife].forEach(pId => {
                         if (pId && personsMap[pId]) {
                             const pBirth = extractEventYearAndPlace(personsMap[pId], 'BIRT');
@@ -857,79 +784,91 @@
         document.getElementById('totalFamilies').innerText = totalFamilies;
 
         const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
-        const avgM = avg(agesMen);
-        const avgW = avg(agesWomen);
-        const allAges = [...agesMen, ...agesWomen];
-        const avgT = avg(allAges);
+        const avgT = avg([...agesMen, ...agesWomen]);
+        const avgMarT = avg([...marriageAgesMen, ...marriageAgesWomen]);
 
-        const avgMarM = avg(marriageAgesMen);
-        const avgMarW = avg(marriageAgesWomen);
-        const allMarAges = [...marriageAgesMen, ...marriageAgesWomen];
-        const avgMarT = avg(allMarAges);
-
-        const avgFamSize = familySizes.length ? (familySizes.reduce((a, b) => a + b, 0) / familySizes.length).toFixed(1) : '0';
-
-        document.getElementById('avgAgeMen').innerText = avgM !== null ? avgM + ' jaar' : 'Onvoldoende data';
-        document.getElementById('avgAgeWomen').innerText = avgW !== null ? avgW + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgAgeMen').innerText = avg(agesMen) !== null ? avg(agesMen) + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgAgeWomen').innerText = avg(agesWomen) !== null ? avg(agesWomen) + ' jaar' : 'Onvoldoende data';
         document.getElementById('avgAgeTotal').innerText = avgT !== null ? avgT + ' jaar' : 'Onvoldoende data';
         document.getElementById('avgAgeOverall').innerText = avgT !== null ? avgT + ' jr' : '-';
 
-        document.getElementById('avgMarriageMen').innerText = avgMarM !== null ? avgMarM + ' jaar' : 'Onvoldoende data';
-        document.getElementById('avgMarriageWomen').innerText = avgMarW !== null ? avgMarW + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgMarriageMen').innerText = avg(marriageAgesMen) !== null ? avg(marriageAgesMen) + ' jaar' : 'Onvoldoende data';
+        document.getElementById('avgMarriageWomen').innerText = avg(marriageAgesWomen) !== null ? avg(marriageAgesWomen) + ' jaar' : 'Onvoldoende data';
         document.getElementById('avgMarriageAgeOverall').innerText = avgMarT !== null ? avgMarT + ' jr' : '-';
 
-        document.getElementById('valAvgChildren').innerText = avgFamSize;
+        document.getElementById('valAvgChildren').innerText = familySizes.length ? (familySizes.reduce((a, b) => a + b, 0) / familySizes.length).toFixed(1) : '0';
         document.getElementById('valTotalMarrFamilies').innerText = marriedFamiliesCount;
         document.getElementById('maxGenerations').innerText = maxGenerations > 0 ? maxGenerations : 'Onbekend';
 
-        const pctBirthVal = totalPersons ? Math.round((withBirthCount / totalPersons) * 100) : 0;
-        const missingDeathVal = totalPersons ? Math.round(((totalPersons - withDeathCount) / totalPersons) * 100) : 0;
-        
-        document.getElementById('pctBirth').innerText = pctBirthVal + '%';
-        document.getElementById('pctMissingDeath').innerText = missingDeathVal + '%';
+        document.getElementById('pctBirth').innerText = totalPersons ? Math.round((withBirthCount / totalPersons) * 100) + '%' : '0%';
+        document.getElementById('pctMissingDeath').innerText = totalPersons ? Math.round(((totalPersons - withDeathCount) / totalPersons) * 100) + '%' : '0%';
         document.getElementById('pctMissingMarriage').innerText = totalFamilies ? Math.round(((totalFamilies - marriedFamiliesCount) / totalFamilies) * 100) + '%' : '0%';
 
         renderTopTable('placesTableBody', birthPlaces, 5);
         renderCenturyTable(centuryCounts);
 
-        // Render de 3 toegevoegde tabellen
-        renderTopAncestorsTable(personsMap, familiesMap);
-        renderTopCompleteGenerationsTable(personsMap, familiesMap);
-        renderTopDescendantsTable(personsMap, items);
+        gedcomCache = {
+            items, personsMap, familiesMap, graph, islands,
+            surnamesCount, givenNamesCount, birthYearsCount,
+            marriageAgesCount, deathAgesCount, firstChildAgesCount, lastChildAgesCount
+        };
+    }
 
-        renderTopTableObject('topIslandsBody', islands.map((size, idx) => [`Eiland #${idx + 1}`, size]));
-        renderTopTable('topSurnamesBody', surnamesCount, 10);
-        renderTopTable('topGivenNamesBody', givenNamesCount, 10);
-        renderTopTable('topBirthYearsBody', birthYearsCount, 10);
-        renderTopTable('topMarriageAgesBody', marriageAgesCount, 10);
-        renderTopTable('topDeathAgesBody', deathAgesCount, 10);
-        renderTopTable('topFirstChildAgeBody', firstChildAgesCount, 10);
-        renderTopTable('topLastChildAgeBody', lastChildAgesCount, 10);
+    // --- KNOP FUNCTIES VOOR DEEL 1, 2 en 3 ---
 
-        let longestPaths = calculateLongestPaths(personsMap, graph);
-        renderLongestPathsTable(longestPaths, personsMap);
+    function loadPart1() {
+        document.getElementById('boxPart1').style.display = 'none';
+        document.getElementById('loaderPart1').style.display = 'block';
+        setTimeout(() => {
+            const { islands, surnamesCount, givenNamesCount, birthYearsCount, marriageAgesCount, deathAgesCount, firstChildAgesCount, lastChildAgesCount } = gedcomCache;
+            renderTopTableObject('topIslandsBody', islands.map((size, idx) => [`Eiland #${idx + 1}`, size]));
+            renderTopTable('topSurnamesBody', surnamesCount, 10);
+            renderTopTable('topGivenNamesBody', givenNamesCount, 10);
+            renderTopTable('topBirthYearsBody', birthYearsCount, 10);
+            renderTopTable('topMarriageAgesBody', marriageAgesCount, 10);
+            renderTopTable('topDeathAgesBody', deathAgesCount, 10);
+            renderTopTable('topFirstChildAgeBody', firstChildAgesCount, 10);
+            renderTopTable('topLastChildAgeBody', lastChildAgesCount, 10);
+            document.getElementById('sectionPart1').style.display = 'block';
+        }, 30);
+    }
 
-        let sensationalGaps = processSensationalData(items, personsMap, familiesMap);
-        renderSensationalTable(sensationalGaps);
+    function loadPart2() {
+        document.getElementById('boxPart2').style.display = 'none';
+        document.getElementById('loaderPart2').style.display = 'block';
+        setTimeout(() => {
+            const { items, personsMap, familiesMap } = gedcomCache;
+            renderTopAncestorsTable(personsMap, familiesMap);
+            renderTopCompleteGenerationsTable(personsMap, familiesMap);
+            renderTopDescendantsTable(personsMap, items);
+            document.getElementById('sectionPart2').style.display = 'block';
+        }, 30);
+    }
+
+    function loadPart3() {
+        document.getElementById('boxPart3').style.display = 'none';
+        document.getElementById('loaderPart3').style.display = 'block';
+        setTimeout(() => {
+            const { items, personsMap, familiesMap, graph } = gedcomCache;
+            let longestPaths = calculateLongestPaths(personsMap, graph);
+            renderLongestPathsTable(longestPaths, personsMap);
+            let sensationalGaps = processSensationalData(items, personsMap, familiesMap);
+            renderSensationalTable(sensationalGaps);
+            document.getElementById('sectionPart3').style.display = 'block';
+        }, 30);
     }
 
     function estimateTreeDepth(personsMap, familiesMap) {
         let maxDepth = 0;
         const personDepths = {};
-
         function getDepth(personId, visited = new Set()) {
             if (visited.has(personId)) return 0;
             if (personDepths[personId] !== undefined) return personDepths[personId];
             visited.add(personId);
-
             const person = personsMap[personId];
             if (!person) return 1;
-
             let parentFamIds = [];
-            (person.children || []).forEach(c => {
-                if (c.tag === 'FAMC' && c.value) parentFamIds.push(cleanId(c.value));
-            });
-
+            (person.children || []).forEach(c => { if (c.tag === 'FAMC' && c.value) parentFamIds.push(cleanId(c.value)); });
             let maxParentDepth = 0;
             parentFamIds.forEach(famId => {
                 const fam = familiesMap[famId];
@@ -939,285 +878,171 @@
                     if (members.wife) maxParentDepth = Math.max(maxParentDepth, getDepth(members.wife, visited));
                 }
             });
-
             const depth = 1 + maxParentDepth;
             personDepths[personId] = depth;
             return depth;
         }
-
-        Object.keys(personsMap).forEach(id => {
-            const d = getDepth(id);
-            if (d > maxDepth) maxDepth = d;
-        });
-
+        Object.keys(personsMap).forEach(id => { maxDepth = Math.max(maxDepth, getDepth(id)); });
         return maxDepth;
     }
 
-    // 1. Top 20 personen met de MEESTE voorouders
     function renderTopAncestorsTable(personsMap, familiesMap) {
         const tbody = document.getElementById('topAncestorsBody');
         tbody.innerHTML = '';
         let list = [];
-
         function countAncestors(personId, visited = new Set()) {
             const person = personsMap[personId];
             if (!person) return;
             let parentFamIds = [];
-            (person.children || []).forEach(c => {
-                if (c.tag === 'FAMC' && c.value) parentFamIds.push(cleanId(c.value));
-            });
+            (person.children || []).forEach(c => { if (c.tag === 'FAMC' && c.value) parentFamIds.push(cleanId(c.value)); });
             parentFamIds.forEach(famId => {
                 const fam = familiesMap[famId];
                 if (fam) {
                     const members = extractFamMembers(fam);
                     [members.husb, members.wife].forEach(pId => {
-                        if (pId && personsMap[pId] && !visited.has(pId)) {
-                            visited.add(pId);
-                            countAncestors(pId, visited);
-                        }
+                        if (pId && personsMap[pId] && !visited.has(pId)) { visited.add(pId); countAncestors(pId, visited); }
                     });
                 }
             });
             return visited.size;
         }
-
         Object.keys(personsMap).forEach(id => {
             let count = countAncestors(id, new Set());
             if (count > 0) list.push({ id: id, count: count });
         });
-
         list.sort((a, b) => b.count - a.count);
         let top20 = list.slice(0, 20);
-
-        if (top20.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>';
-            return;
-        }
-
+        if (top20.length === 0) { tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen data...</td></tr>'; return; }
         top20.forEach((item, index) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="text-align: center; font-weight: bold; color: #3498db;">#${index + 1}</td>
-                <td>${getPersonDisplayInfo(personsMap[item.id])}</td>
-                <td style="text-align: right;"><span class="badge-count">${item.count}</span></td>
-            `;
-            tbody.appendChild(tr);
+            tbody.innerHTML += `<tr><td style="text-align: center; font-weight: bold; color: #3498db;">#${index + 1}</td><td>${getPersonDisplayInfo(personsMap[item.id])}</td><td style="text-align: right;"><span class="badge-count">${item.count}</span></td></tr>`;
         });
     }
 
-    // 2. Top 20 personen met meest VOLLEDIG OPGEVULDE GENERATIES VOOROUDERS
     function renderTopCompleteGenerationsTable(personsMap, familiesMap) {
         const tbody = document.getElementById('topCompleteGenerationsBody');
         tbody.innerHTML = '';
         let list = [];
-
         function getCompleteGenerations(personId) {
-            let currentGenIds = [personId];
-            let gen = 0;
-
+            let currentGenIds = [personId], gen = 0;
             while (true) {
-                let nextGenIds = [];
-                let expectedCount = Math.pow(2, gen + 1);
-                let missing = false;
-
+                let nextGenIds = [], expectedCount = Math.pow(2, gen + 1), missing = false;
                 for (let pId of currentGenIds) {
                     const person = personsMap[pId];
                     if (!person) { missing = true; break; }
-
                     let famcId = null;
-                    (person.children || []).forEach(c => {
-                        if (c.tag === 'FAMC' && c.value) famcId = cleanId(c.value);
-                    });
-
+                    (person.children || []).forEach(c => { if (c.tag === 'FAMC' && c.value) famcId = cleanId(c.value); });
                     if (!famcId) { missing = true; break; }
                     const fam = familiesMap[famcId];
                     if (!fam) { missing = true; break; }
-
                     const members = extractFamMembers(fam);
-                    if (!members.husb || !members.wife || !personsMap[members.husb] || !personsMap[members.wife]) {
-                        missing = true; break;
-                    }
-
+                    if (!members.husb || !members.wife || !personsMap[members.husb] || !personsMap[members.wife]) { missing = true; break; }
                     nextGenIds.push(members.husb, members.wife);
                 }
-
-                if (missing || nextGenIds.length < expectedCount) {
-                    break;
-                }
-
+                if (missing || nextGenIds.length < expectedCount) break;
                 gen++;
                 currentGenIds = nextGenIds;
             }
             return gen;
         }
-
         Object.keys(personsMap).forEach(id => {
             let genCount = getCompleteGenerations(id);
             if (genCount > 0) list.push({ id: id, gen: genCount });
         });
-
         list.sort((a, b) => b.gen - a.gen);
         let top20 = list.slice(0, 20);
-
-        if (top20.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen volledige generaties gevonden</td></tr>';
-            return;
-        }
-
+        if (top20.length === 0) { tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen volledige generaties gevonden</td></tr>'; return; }
         top20.forEach((item, index) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="text-align: center; font-weight: bold; color: #3498db;">#${index + 1}</td>
-                <td>${getPersonDisplayInfo(personsMap[item.id])}</td>
-                <td style="text-align: right;"><span class="badge-count">${item.gen} gen. compleet</span></td>
-            `;
-            tbody.appendChild(tr);
+            tbody.innerHTML += `<tr><td style="text-align: center; font-weight: bold; color: #3498db;">#${index + 1}</td><td>${getPersonDisplayInfo(personsMap[item.id])}</td><td style="text-align: right;"><span class="badge-count">${item.gen} gen. compleet</span></td></tr>`;
         });
     }
 
-    // 3. Top 20 personen met de meeste afstammelingen
     function renderTopDescendantsTable(personsMap, items) {
         const tbody = document.getElementById('topDescendantsBody');
         tbody.innerHTML = '';
-        let list = [];
-
-        let parentToChildren = {};
+        let list = [], parentToChildren = {};
         items.forEach(item => {
             if ((item.TAG || '').toUpperCase() === 'FAM') {
                 const members = extractFamMembers(item);
-                const parents = [members.husb, members.wife].filter(Boolean);
-                parents.forEach(pId => {
+                [members.husb, members.wife].filter(Boolean).forEach(pId => {
                     if (!parentToChildren[pId]) parentToChildren[pId] = new Set();
                     members.children.forEach(cId => parentToChildren[pId].add(cId));
                 });
             }
         });
-
         function countDescendants(personId, visited = new Set()) {
-            const children = parentToChildren[personId] || [];
-            children.forEach(cId => {
-                if (!visited.has(cId)) {
-                    visited.add(cId);
-                    countDescendants(cId, visited);
-                }
+            (parentToChildren[personId] || []).forEach(cId => {
+                if (!visited.has(cId)) { visited.add(cId); countDescendants(cId, visited); }
             });
             return visited.size;
         }
-
         Object.keys(personsMap).forEach(id => {
             let count = countDescendants(id, new Set());
             if (count > 0) list.push({ id: id, count: count });
         });
-
         list.sort((a, b) => b.count - a.count);
         let top20 = list.slice(0, 20);
-
-        if (top20.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen afstammelingen gevonden</td></tr>';
-            return;
-        }
-
+        if (top20.length === 0) { tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen afstammelingen gevonden</td></tr>'; return; }
         top20.forEach((item, index) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="text-align: center; font-weight: bold; color: #3498db;">#${index + 1}</td>
-                <td>${getPersonDisplayInfo(personsMap[item.id])}</td>
-                <td style="text-align: right;"><span class="badge-count">${item.count}</span></td>
-            `;
-            tbody.appendChild(tr);
+            tbody.innerHTML += `<tr><td style="text-align: center; font-weight: bold; color: #3498db;">#${index + 1}</td><td>${getPersonDisplayInfo(personsMap[item.id])}</td><td style="text-align: right;"><span class="badge-count">${item.count}</span></td></tr>`;
         });
     }
 
     function calculateLongestPaths(personsMap, graph) {
         const personIds = Object.keys(graph);
         if (personIds.length === 0) return [];
-
-        let paths = [];
-        let sampleSize = Math.min(personIds.length, 250);
+        let paths = [], sampleSize = Math.min(personIds.length, 250);
         let sampleKeys = [...personIds].sort(() => 0.5 - Math.random()).slice(0, sampleSize);
-
         sampleKeys.forEach(startId => {
-            let queue = [[startId]];
-            let visited = new Set([startId]);
-            let farthestNode = startId;
-            let farthestPath = [startId];
-
+            let queue = [[startId]], visited = new Set([startId]), farthestPath = [startId];
             while (queue.length > 0) {
-                let path = queue.shift();
-                let curr = path[path.length - 1];
-                
-                if (path.length > farthestPath.length) {
-                    farthestPath = path;
-                    farthestNode = curr;
-                }
-
+                let path = queue.shift(), curr = path[path.length - 1];
+                if (path.length > farthestPath.length) farthestPath = path;
                 (graph[curr] || []).forEach(neighbor => {
-                    if (!visited.has(neighbor)) {
-                        visited.add(neighbor);
-                        queue.push([...path, neighbor]);
-                    }
+                    if (!visited.has(neighbor)) { visited.add(neighbor); queue.push([...path, neighbor]); }
                 });
             }
-
             if (farthestPath.length >= 20) {
-                paths.push({
-                    from: farthestPath[0],
-                    to: farthestPath[farthestPath.length - 1],
-                    steps: farthestPath.length - 1
-                });
+                paths.push({ from: farthestPath[0], to: farthestPath[farthestPath.length - 1], steps: farthestPath.length - 1 });
             }
         });
-
-        paths = paths.filter(p => p.steps >= 20);
-        paths.sort((a, b) => a.steps - b.steps);
+        // Sorteer van lang naar kort (aflopend, dus de langste bovenaan)
+        paths.sort((a, b) => b.steps - a.steps);
         
         let uniquePaths = [];
         let seenPairs = new Set();
         for (let p of paths) {
             let pairKey = [p.from, p.to].sort().join('-');
-            if (!seenPairs.has(pairKey)) {
-                seenPairs.add(pairKey);
-                uniquePaths.push(p);
+            if (!seenPairs.has(pairKey)) { 
+                seenPairs.add(pairKey); 
+                uniquePaths.push(p); 
             }
-            if (uniquePaths.length >= 100) break;
+            if (uniquePaths.length >= 10) break; // Beperkt tot Top 10
         }
-
         return uniquePaths;
     }
 
     function getPersonDisplayInfo(personItem) {
-        if (!personItem) return "Onbekend (Onbekend) - Geboren: Onbekend";
+        if (!personItem) return "Onbekend - Geboren: Onbekend";
         const name = parsePersonName(personItem);
         const birth = extractEventYearAndPlace(personItem, 'BIRT');
-        let birthStr = birth.year ? birth.year : 'Onbekend';
-        return `<strong>${name.achternaam}</strong>, ${name.voornaam} <br><span style="font-size: 0.8rem; color: #7f8c8d;">Geboren: ${birthStr}</span>`;
+        return `<strong>${name.achternaam}</strong>, ${name.voornaam} <br><span style="font-size: 0.8rem; color: #7f8c8d;">Geboren: ${birth.year || 'Onbekend'}</span>`;
     }
 
     function processSensationalData(items, personsMap, familiesMap) {
         let ageGaps = [];
-
         items.forEach(item => {
             if ((item.TAG || '').toUpperCase() === 'FAM') {
                 const members = extractFamMembers(item);
                 const marriage = extractEventYearAndPlace(item, 'MARR');
-
                 if (members.husb && members.wife && personsMap[members.husb] && personsMap[members.wife]) {
                     const hBirth = extractEventYearAndPlace(personsMap[members.husb], 'BIRT').year;
                     const wBirth = extractEventYearAndPlace(personsMap[members.wife], 'BIRT').year;
-
                     if (hBirth !== null && wBirth !== null) {
-                        let gap = Math.abs(hBirth - wBirth);
-                        ageGaps.push({
-                            gap: gap,
-                            husband: personsMap[members.husb],
-                            wife: personsMap[members.wife],
-                            marrYear: marriage.year ? `Huwelijk in ${marriage.year}` : 'Huwelijksjaar onbekend'
-                        });
+                        ageGaps.push({ gap: Math.abs(hBirth - wBirth), husband: personsMap[members.husb], wife: personsMap[members.wife], marrYear: marriage.year ? `Huwelijk in ${marriage.year}` : 'Huwelijksjaar onbekend' });
                     }
                 }
             }
         });
-
         ageGaps.sort((a, b) => b.gap - a.gap);
         return ageGaps.slice(0, 5);
     }
@@ -1225,52 +1050,19 @@
     function renderLongestPathsTable(paths, personsMap) {
         const tbody = document.getElementById('topLongestPathsBody');
         tbody.innerHTML = '';
-
-        if (paths.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen paden vanaf 20 stappen gevonden</td></tr>';
-            return;
-        }
-
+        if (paths.length === 0) { tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #a0aec0;">Geen paden vanaf 20 stappen gevonden</td></tr>'; return; }
         paths.forEach(p => {
-            let fromInfo = getPersonDisplayInfo(personsMap[p.from]);
-            let toInfo = getPersonDisplayInfo(personsMap[p.to]);
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="text-align: center;"><span class="badge-count">${p.steps} stappen</span></td>
-                <td>${fromInfo}</td>
-                <td>${toInfo}</td>
-            `;
-            tbody.appendChild(tr);
+            tbody.innerHTML += `<tr><td style="text-align: center;"><span class="badge-count">${p.steps} stappen</span></td><td>${getPersonDisplayInfo(personsMap[p.from])}</td><td>${getPersonDisplayInfo(personsMap[p.to])}</td></tr>`;
         });
     }
 
     function renderSensationalTable(gaps) {
         const tbody = document.getElementById('topAgeGapBody');
         tbody.innerHTML = '';
-
-        if (gaps.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen huwelijksdatums met geboortejaren gevonden</td></tr>';
-            return;
-        }
-
+        if (gaps.length === 0) { tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data gevonden</td></tr>'; return; }
         gaps.forEach(item => {
-            const hName = parsePersonName(item.husband);
-            const wName = parsePersonName(item.wife);
-            const hBirth = extractEventYearAndPlace(item.husband, 'BIRT').year || '?';
-            const wBirth = extractEventYearAndPlace(item.wife, 'BIRT').year || '?';
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="text-align: center;"><span class="badge-count" style="background: #fff5f5; color: #c53030;">${item.gap} jaarverschil</span></td>
-                <td>
-                    <strong>${hName.achternaam}</strong>, ${hName.voornaam} (${hBirth})<br>
-                    &amp; 
-                    <strong>${wName.achternaam}</strong>, ${wName.voornaam} (${wBirth})<br>
-                    <span style="font-size: 0.75rem; color: #a0aec0;">${item.marrYear}</span>
-                </td>
-            `;
-            tbody.appendChild(tr);
+            const h = parsePersonName(item.husband), w = parsePersonName(item.wife);
+            tbody.innerHTML += `<tr><td style="text-align: center;"><span class="badge-count" style="background: #fff5f5; color: #c53030;">${item.gap} jaarverschil</span></td><td><strong>${h.achternaam}</strong>, ${h.voornaam} (${extractEventYearAndPlace(item.husband, 'BIRT').year || '?'})<br>&amp;<br><strong>${w.achternaam}</strong>, ${w.voornaam} (${extractEventYearAndPlace(item.wife, 'BIRT').year || '?'})<br><span style="font-size: 0.75rem; color: #a0aec0;">${item.marrYear}</span></td></tr>`;
         });
     }
 
@@ -1278,16 +1070,9 @@
         const tbody = document.getElementById(elementId);
         tbody.innerHTML = '';
         const sorted = Object.entries(dataObj).sort((a, b) => b[1] - a[1]).slice(0, limit);
-
-        if (sorted.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data beschikbaar</td></tr>';
-            return;
-        }
-
+        if (sorted.length === 0) { tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data beschikbaar</td></tr>'; return; }
         sorted.forEach(([key, val]) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td><strong>${key}</strong></td><td style="text-align: right;"><span class="badge-count">${val}</span></td>`;
-            tbody.appendChild(tr);
+            tbody.innerHTML += `<tr><td><strong>${key}</strong></td><td style="text-align: right;"><span class="badge-count">${val}</span></td></tr>`;
         });
     }
 
@@ -1295,16 +1080,9 @@
         const tbody = document.getElementById(elementId);
         tbody.innerHTML = '';
         const sorted = entriesArray.slice(0, 10);
-
-        if (sorted.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data beschikbaar</td></tr>';
-            return;
-        }
-
+        if (sorted.length === 0) { tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen data beschikbaar</td></tr>'; return; }
         sorted.forEach(([key, val]) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td><strong>${key}</strong></td><td style="text-align: right;"><span class="badge-count">${val}</span></td>`;
-            tbody.appendChild(tr);
+            tbody.innerHTML += `<tr><td><strong>${key}</strong></td><td style="text-align: right;"><span class="badge-count">${val}</span></td></tr>`;
         });
     }
 
@@ -1312,16 +1090,9 @@
         const tbody = document.getElementById('centuryTableBody');
         tbody.innerHTML = '';
         const sortedCenturies = Object.values(centuryCounts).sort((a, b) => a.centuryNum - b.centuryNum);
-
-        if (sortedCenturies.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen geboortedatums gevonden.</td></tr>';
-            return;
-        }
-
+        if (sortedCenturies.length === 0) { tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #a0aec0;">Geen geboortedatums gevonden.</td></tr>'; return; }
         sortedCenturies.forEach(item => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td><strong>${item.label}</strong></td><td style="text-align: right;"><span class="badge-count">${item.count}</span></td>`;
-            tbody.appendChild(tr);
+            tbody.innerHTML += `<tr><td><strong>${item.label}</strong></td><td style="text-align: right;"><span class="badge-count">${item.count}</span></td></tr>`;
         });
     }
 </script>

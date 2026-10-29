@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gedcom Persoonskaart</title>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 30px;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        h1 { text-align: center; margin-bottom: 20px; }
+        .status-banner {
+            text-align: center;
+            padding: 15px;
+            background: #e8f4fd;
+            border: 2px dashed #3498db;
+            color: #2980b9;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+        .action-btn {
+            padding: 10px 18px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .action-btn:hover { background-color: #2980b9; }
+        .control-box {
+            background: #fdfefe;
+            border: 2px solid #3498db;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        select, input[type="text"] {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 100%;
+            max-width: 400px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+        .card-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .data-grid {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+        .data-label {
+            font-weight: bold;
+            color: #4a5568;
+        }
+        ul { margin: 5px 0; padding-left: 20px; }
+        li { margin-bottom: 6px; }
+        .date-place {
+            color: #4a5568;
+            font-style: italic;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📇 Gedcom Persoonskaart & Details</h1>
+
+    <div class="status-banner" id="statusBanner">
+        <span id="statusText">⏳ Gegevens ophalen uit IndexedDB...</span>
+    </div>
+
+    <!-- ZOEK & SELECTEER HOOFDPERSOON -->
+    <div class="control-box">
+        <h3>Zoek en Selecteer Persoon</h3>
+        <p style="font-size: 0.9rem; color: #666;">Typ (een deel van) de achternaam of beginletters:</p>
+        
+        <label for="searchPersonInput"><strong>Zoekterm:</strong></label><br>
+        <input type="text" id="searchPersonInput" placeholder="Bijv. Gijbels of J..."><br>
+
+        <label for="personSelect"><strong>Selecteer persoon:</strong></label><br>
+        <select id="personSelect"><option value="">-- Zoek eerst een persoon hierboven --</option></select><br>
+
+        <button class="action-btn" onclick="showPersonCard()">Toon Persoonskaart</button>
+    </div>
+
+    <!-- PERSOONSKAART WEERGAVE -->
+    <div id="personCardContainer" style="display: none;">
+        <div class="card-section">
+            <h2 id="cardTitle" style="margin-top: 0; border-bottom: 2px solid #cbd5e0; padding-bottom: 10px;"></h2>
+            
+            <div class="data-grid">
+                <div class="data-label">Individu ID:</div>
+                <div id="cardId"></div>
+            </div>
+            <div class="data-grid">
+                <div class="data-label">Geslacht:</div>
+                <div id="cardSex"></div>
+            </div>
+            <div class="data-grid">
+                <div class="data-label">Geboorte:</div>
+                <div id="cardBirth"></div>
+            </div>
+            <div class="data-grid">
+                <div class="data-label">Overlijden:</div>
+                <div id="cardDeath"></div>
+            </div>
+
+            <div class="data-grid" style="margin-top: 15px;">
+                <div class="data-label">Ouders:</div>
+                <div id="cardParents"></div>
+            </div>
+
+            <div class="data-grid" style="margin-top: 10px;">
+                <div class="data-label">Partners / Gezinnen:</div>
+                <div id="cardFamilies"></div>
+            </div>
+
+            <div class="data-grid" style="margin-top: 10px;">
+                <div class="data-label">Kinderen:</div>
+                <div id="cardChildren"></div>
+            </div>
+
+            <div class="data-grid" style="margin-top: 15px;">
+                <div class="data-label">Notities / Extra:</div>
+                <div id="cardNotes"></div>
+            </div>
+
+            <div class="data-grid" style="margin-top: 15px;">
+                <div class="data-label">Alle GEDCOM Tags:</div>
+                <div id="cardRawTags" style="font-family: monospace; font-size: 0.85rem; background: #fff; padding: 10px; border: 1px solid #cbd5e0; border-radius: 5px; max-height: 200px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const DB_NAME = 'GedcomDatabase';
+    const STORE_NAME = 'gedcomStore';
+    const DB_VERSION = 5;
+
+    let gedcomCache = {};
+    let allPersonsList = [];
+
+    function openGedcomDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+            };
+        });
+    }
+
+    async function getGedcomFromIDB() {
+        const db = await openGedcomDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get('gedcomData');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const savedData = await getGedcomFromIDB();
+            if (savedData) {
+                document.getElementById('statusText').innerHTML = '✅ Data geladen en klaar voor gebruik!';
+                document.getElementById('statusBanner').style.backgroundColor = '#e6fffa';
+                const parsedData = parseGedcom(savedData);
+                processGedcomData(parsedData);
+            } else {
+                document.getElementById('statusText').innerHTML = '⚠️ Geen stamboom gevonden in IndexedDB. Open eerst de statistiekenpagina om data te laden.';
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById('statusText').innerHTML = '❌ Fout bij laden van IndexedDB.';
+        }
+    });
+
+    document.getElementById('searchPersonInput').addEventListener('input', filterPersons);
+
+    function parseGedcom(gedcomText) {
+        const lines = gedcomText.split(/\r?\n/);
+        let records = [], currentRecord = null, currentEvent = null;
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+            const parts = trimmed.split(' ');
+            const level = parseInt(parts[0], 10);
+            if (isNaN(level)) return;
+
+            if (level === 0) {
+                if (currentRecord) records.push(currentRecord);
+                currentEvent = null;
+                let id = parts[1].startsWith('@') ? parts[1].replace(/@/g, '') : '';
+                let tag = parts[1].startsWith('@') ? (parts[2] ? parts[2].toUpperCase() : '') : parts[1].toUpperCase();
+                currentRecord = { TAG: tag, id: id, children: [], notes: [] };
+            } else if (currentRecord) {
+                let tag = parts[1] ? parts[1].toUpperCase() : '';
+                let value = parts.slice(2).join(' ');
+                if (value.startsWith('@') && value.endsWith('@')) value = value.replace(/@/g, '');
+
+                const node = { tag: tag, value: value, children: [] };
+                currentRecord.children.push(node);
+
+                if (level === 1) {
+                    currentRecord[tag] = value;
+                    currentEvent = node;
+                    if (tag === 'NOTE' || tag === 'COMM' || tag === 'TEXT') {
+                        currentRecord.notes.push(value);
+                    }
+                } else if (level >= 2) {
+                    if (currentEvent) currentEvent.children.push(node);
+                    if (tag === 'NOTE' || tag === 'CONT' || tag === 'CONC' || tag === 'TEXT') {
+                        currentRecord.notes.push(value);
+                    }
+                }
+            }
+        });
+        if (currentRecord) records.push(currentRecord);
+        return records;
+    }
+
+    function cleanId(id) { return id ? String(id).replace(/@/g, '').trim() : ''; }
+
+    function parsePersonName(item) {
+        let fullName = item.NAME || '';
+        if (!fullName && item.children) {
+            const n = item.children.find(c => c.tag === 'NAME');
+            if (n) fullName = n.value || '';
+        }
+        let voornaam = '', achternaam = '';
+        if (fullName.includes('/')) {
+            let parts = fullName.split('/');
+            voornaam = parts[0].trim();
+            achternaam = parts[1] ? parts[1].trim() : 'Onbekend';
+        } else {
+            voornaam = fullName.trim();
+        }
+        return { voornaam: voornaam || 'Onbekend', achternaam: achternaam || 'Onbekend', full: `${achternaam}, ${voornaam}` };
+    }
+
+    function extractBirthDetails(item) {
+        if (!item) return { date: '', place: '', formatted: '' };
+        const b = item.children ? item.children.find(c => c.tag === 'BIRT') : null;
+        let plac = '', date = '';
+        if (b) {
+            (b.children || []).forEach(sub => {
+                if (sub.tag === 'PLAC') plac = sub.value;
+                if (sub.tag === 'DATE') date = sub.value;
+            });
+        }
+        let str = `${date ? '° ' + date : ''} ${plac ? 'te ' + plac : ''}`.trim();
+        return { date: date ? date.trim() : '', place: plac ? plac.trim() : '', formatted: str };
+    }
+
+    function extractDeathDetails(item) {
+        if (!item) return { date: '', place: '', formatted: '' };
+        const d = item.children ? item.children.find(c => c.tag === 'DEAT') : null;
+        let plac = '', date = '';
+        if (d) {
+            (d.children || []).forEach(sub => {
+                if (sub.tag === 'PLAC') plac = sub.value;
+                if (sub.tag === 'DATE') date = sub.value;
+            });
+        }
+        let str = `${date ? '† ' + date : ''} ${plac ? 'te ' + plac : ''}`.trim();
+        return { date: date ? date.trim() : '', place: plac ? plac.trim() : '', formatted: str };
+    }
+
+    function processGedcomData(data) {
+        let personsMap = {}, familiesMap = {};
+
+        data.forEach(item => {
+            const tag = (item.TAG || '').toUpperCase();
+            const id = cleanId(item.id);
+            if (!id) return;
+            if (tag === 'INDI') personsMap[id] = item;
+            if (tag === 'FAM') familiesMap[id] = item;
+        });
+
+        Object.keys(personsMap).forEach(id => {
+            const p = personsMap[id];
+            const nameObj = parsePersonName(p);
+            allPersonsList.push({ id: id, name: `${nameObj.full} (${id})`, rawName: nameObj.full.toLowerCase() });
+        });
+
+        allPersonsList.sort((a, b) => a.name.localeCompare(b.name));
+        gedcomCache = { personsMap, familiesMap };
+    }
+
+    function filterPersons() {
+        const query = document.getElementById('searchPersonInput').value.toLowerCase().trim();
+        const selectElem = document.getElementById('personSelect');
+        selectElem.innerHTML = '';
+
+        if (!query || query.length < 1) {
+            selectElem.innerHTML = '<option value="">-- Typ minimaal 1 teken om te zoeken --</option>';
+            return;
+        }
+
+        const matches = allPersonsList.filter(p => p.rawName.includes(query)).slice(0, 100);
+
+        if (matches.length === 0) {
+            selectElem.innerHTML = '<option value="">-- Geen personen gevonden --</option>';
+            return;
+        }
+
+        selectElem.innerHTML = matches.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+    }
+
+    function showPersonCard() {
+        const personId = document.getElementById('personSelect').value;
+        if (!personId) {
+            alert('Selecteer eerst een persoon.');
+            return;
+        }
+
+        const { personsMap, familiesMap } = gedcomCache;
+        const person = personsMap[personId];
+        if (!person) return;
+
+        const nameObj = parsePersonName(person);
+        let sex = person.SEX || 'Onbekend';
+
+        // Geboorte & Overlijden details
+        let birthObj = extractBirthDetails(person);
+        let deathObj = extractDeathDetails(person);
+
+        let birthStr = birthObj.formatted || 'Jaartal/Plaats onbekend';
+        let deathStr = deathObj.formatted || 'Jaartal/Plaats onbekend';
+
+        // Ouders opzoeken via FAMC (met geboorteplaats en -datum)
+        let parentsHTML = 'Geen ouders bekend';
+        let famcId = '';
+        (person.children || []).forEach(c => { if (c.tag === 'FAMC') famcId = cleanId(c.value); });
+        if (famcId && familiesMap[famcId]) {
+            let fam = familiesMap[famcId];
+            let husb = '', wife = '';
+            (fam.children || []).forEach(c => {
+                if (c.tag === 'HUSB') husb = cleanId(c.value);
+                if (c.tag === 'WIFE') wife = cleanId(c.value);
+            });
+            let pNames = [];
+            if (husb && personsMap[husb]) {
+                let pPerson = personsMap[husb];
+                let pBirth = extractBirthDetails(pPerson);
+                let birthInfo = pBirth.formatted ? ` <span class="date-place">(${pBirth.formatted})</span>` : '';
+                pNames.push(`<strong>Vader:</strong> ${parsePersonName(pPerson).full} (${husb})${birthInfo}`);
+            }
+            if (wife && personsMap[wife]) {
+                let mPerson = personsMap[wife];
+                let mBirth = extractBirthDetails(mPerson);
+                let birthInfo = mBirth.formatted ? ` <span class="date-place">(${mBirth.formatted})</span>` : '';
+                pNames.push(`<strong>Moeder:</strong> ${parsePersonName(mPerson).full} (${wife})${birthInfo}`);
+            }
+            if (pNames.length > 0) parentsHTML = `<ul><li>` + pNames.join('</li><li>') + `</li></ul>`;
+        }
+
+        // Partners & Kinderen opzoeken via FAMS (met geboorteplaats en -datum)
+        let familiesHTML = 'Geen partners bekend';
+        let childrenHTML = 'Geen kinderen bekend';
+        let famsIds = [];
+        (person.children || []).forEach(c => { if (c.tag === 'FAMS') famsIds.push(cleanId(c.value)); });
+
+        if (famsIds.length > 0) {
+            let famList = [];
+            let childList = [];
+            famsIds.forEach(fId => {
+                let fam = familiesMap[fId];
+                if (!fam) return;
+                let husb = '', wife = '';
+                let kids = [];
+                (fam.children || []).forEach(c => {
+                    if (c.tag === 'HUSB') husb = cleanId(c.value);
+                    if (c.tag === 'WIFE') wife = cleanId(c.value);
+                    if (c.tag === 'CHIL') kids.push(cleanId(c.value));
+                });
+
+                let partnerId = (husb === personId) ? wife : husb;
+                if (partnerId && personsMap[partnerId]) {
+                    let partnerPerson = personsMap[partnerId];
+                    let partnerBirth = extractBirthDetails(partnerPerson);
+                    let birthInfo = partnerBirth.formatted ? ` <span class="date-place">(${partnerBirth.formatted})</span>` : '';
+                    famList.push(`${parsePersonName(partnerPerson).full} (${partnerId})${birthInfo}`);
+                }
+
+                kids.forEach(kId => {
+                    if (personsMap[kId]) {
+                        let kPerson = personsMap[kId];
+                        let kBirth = extractBirthDetails(kPerson);
+                        let birthInfo = kBirth.formatted ? ` <span class="date-place">(${kBirth.formatted})</span>` : '';
+                        childList.push(`${parsePersonName(kPerson).full} (${kId})${birthInfo}`);
+                    }
+                });
+            });
+
+            if (famList.length > 0) familiesHTML = `<ul><li>` + famList.join('</li><li>') + `</li></ul>`;
+            if (childList.length > 0) childrenHTML = `<ul><li>` + childList.join('</li><li>') + `</li></ul>`;
+        }
+
+        // Notities
+        let notesHTML = person.notes.length > 0 ? `<ul><li>` + person.notes.join('</li><li>') + `</li></ul>` : 'Geen notities';
+
+        // Alle tags als ruwe tekstweergave voor volledige inzage
+        let rawTagsText = (person.children || []).map(c => `${c.tag}: ${c.value}`).join('\n');
+
+        // Invullen op de pagina
+        document.getElementById('cardTitle').innerText = `${nameObj.full}`;
+        document.getElementById('cardId').innerText = personId;
+        document.getElementById('cardSex').innerText = sex;
+        document.getElementById('cardBirth').innerText = birthStr;
+        document.getElementById('cardDeath').innerText = deathStr;
+        document.getElementById('cardParents').innerHTML = parentsHTML;
+        document.getElementById('cardFamilies').innerHTML = familiesHTML;
+        document.getElementById('cardChildren').innerHTML = childrenHTML;
+        document.getElementById('cardNotes').innerHTML = notesHTML;
+        document.getElementById('cardRawTags').innerText = rawTagsText;
+
+        document.getElementById('personCardContainer').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
