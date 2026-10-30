@@ -157,6 +157,61 @@
             background-color: #edf2f7;
             color: #3182ce;
         }
+
+        /* Hover Detail Popup Styling */
+        .hover-achternaam {
+            position: relative;
+            cursor: help;
+            color: #2b6cb0;
+            font-weight: bold;
+            text-decoration: underline dotted;
+        }
+        #detailPopup {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            width: 450px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: #ffffff;
+            border: 1px solid #cbd5e0;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 0.85rem;
+            color: #333;
+            pointer-events: none; /* Voorkomt dat muis over popup crasht */
+        }
+        #detailPopup h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 1rem;
+            border-bottom: 2px solid #cbd5e0;
+            padding-bottom: 5px;
+        }
+        .popup-grid {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        .popup-label {
+            font-weight: bold;
+            color: #4a5568;
+        }
+        .popup-grid ul {
+            margin: 0;
+            padding-left: 15px;
+        }
+        .popup-grid li {
+            margin-bottom: 3px;
+        }
+        .popup-date-place {
+            color: #4a5568;
+            font-style: italic;
+            font-size: 0.85em;
+        }
     </style>
 </head>
 <body>
@@ -286,6 +341,19 @@
     <div class="context-menu-item" onclick="openLevensverhaal()" style="font-weight: bold; color: #2b6cb0;">📖 Toon Levensverhaal</div>
 </div>
 
+<!-- Hover Detail Popup -->
+<div id="detailPopup">
+    <h3 id="popTitle">Naam</h3>
+    <div class="popup-grid"><div class="popup-label">ID:</div><div id="popId"></div></div>
+    <div class="popup-grid"><div class="popup-label">Geslacht:</div><div id="popSex"></div></div>
+    <div class="popup-grid"><div class="popup-label">Geboorte:</div><div id="popBirth"></div></div>
+    <div class="popup-grid"><div class="popup-label">Overlijden:</div><div id="popDeath"></div></div>
+    <div class="popup-grid" style="margin-top: 6px;"><div class="popup-label">Ouders:</div><div id="popParents"></div></div>
+    <div class="popup-grid"><div class="popup-label">Partners:</div><div id="popFamilies"></div></div>
+    <div class="popup-grid"><div class="popup-label">Kinderen:</div><div id="popChildren"></div></div>
+    <div class="popup-grid" style="margin-top: 6px;"><div class="popup-label">Notities:</div><div id="popNotes"></div></div>
+</div>
+
 <footer style="text-align: center; font-size: 11px; color: #7f8c8d; margin-top: 20px;">
     Laatste update van deze pagina: <span id="lastMod"></span>
 </footer>
@@ -307,6 +375,8 @@
 
     let currentSortColumn = null;
     let sortDirection = 1;
+    let parsedPersonsMap = {};
+    let parsedFamiliesMap = {};
 
     function updateStatusStep(msg) {
         const el = document.getElementById('statusText');
@@ -484,6 +554,51 @@
         return { voornaam, achternaam, geslacht, commentaar };
     }
 
+    function parsePersonName(item) {
+        let fullName = item.NAME || '';
+        if (!fullName && item.children) {
+            const n = item.children.find(c => c.tag === 'NAME');
+            if (n) fullName = n.value || '';
+        }
+        let voornaam = '', achternaam = '';
+        if (fullName.includes('/')) {
+            let parts = fullName.split('/');
+            voornaam = parts[0].trim();
+            achternaam = parts[1] ? parts[1].trim() : 'Onbekend';
+        } else {
+            voornaam = fullName.trim();
+        }
+        return { voornaam: voornaam || 'Onbekend', achternaam: achternaam || 'Onbekend', full: `${achternaam}, ${voornaam}` };
+    }
+
+    function extractBirthDetails(item) {
+        if (!item) return { date: '', place: '', formatted: '' };
+        const b = item.children ? item.children.find(c => c.tag === 'BIRT') : null;
+        let plac = '', date = '';
+        if (b) {
+            (b.children || []).forEach(sub => {
+                if (sub.tag === 'PLAC') plac = sub.value;
+                if (sub.tag === 'DATE') date = sub.value;
+            });
+        }
+        let str = `${date ? '° ' + date : ''} ${plac ? 'te ' + plac : ''}`.trim();
+        return { date: date ? date.trim() : '', place: plac ? plac.trim() : '', formatted: str };
+    }
+
+    function extractDeathDetails(item) {
+        if (!item) return { date: '', place: '', formatted: '' };
+        const d = item.children ? item.children.find(c => c.tag === 'DEAT') : null;
+        let plac = '', date = '';
+        if (d) {
+            (d.children || []).forEach(sub => {
+                if (sub.tag === 'PLAC') plac = sub.value;
+                if (sub.tag === 'DATE') date = sub.value;
+            });
+        }
+        let str = `${date ? '† ' + date : ''} ${plac ? 'te ' + plac : ''}`.trim();
+        return { date: date ? date.trim() : '', place: plac ? plac.trim() : '', formatted: str };
+    }
+
     function parseGedcomData(gedcomText) {
         const lines = gedcomText.split(/\r?\n/);
         let records = [];
@@ -509,7 +624,7 @@
                 } else {
                     tag = parts[1].toUpperCase();
                 }
-                currentRecord = { TAG: tag, id: id, children: [] };
+                currentRecord = { TAG: tag, id: id, children: [], notes: [] };
             } else if (currentRecord) {
                 let tag = parts[1] ? parts[1].toUpperCase() : '';
                 let value = parts.slice(2).join(' ').replace(/@/g, '');
@@ -519,112 +634,119 @@
                     currentRecord[tag] = value;
                     currentRecord.children.push(node);
                     currentEvent = node;
-                } else if (level === 2 && currentEvent) {
-                    currentEvent.children.push(node);
+                    if (tag === 'NOTE' || tag === 'COMM' || tag === 'TEXT') {
+                        currentRecord.notes.push(value);
+                    }
+                } else if (level >= 2) {
+                    if (currentEvent) currentEvent.children.push(node);
                     if (tag === 'DATE') currentEvent.DATE = value;
                     if (tag === 'PLAC') currentEvent.PLAC = value;
+                    if (tag === 'NOTE' || tag === 'CONT' || tag === 'CONC' || tag === 'TEXT') {
+                        currentRecord.notes.push(value);
+                    }
                 }
             }
         });
         if (currentRecord) records.push(currentRecord);
 
-        let indiMap = {};
+        parsedPersonsMap = {};
+        parsedFamiliesMap = {};
         records.forEach(rec => {
-            if ((rec.TAG || '').toUpperCase() === 'INDI') {
-                indiMap[rec.id] = extractPersonDetails(rec);
-            }
+            const tag = (rec.TAG || '').toUpperCase();
+            if (tag === 'INDI') parsedPersonsMap[rec.id] = rec;
+            if (tag === 'FAM') parsedFamiliesMap[rec.id] = rec;
+        });
+
+        let indiMap = {};
+        Object.keys(parsedPersonsMap).forEach(id => {
+            indiMap[id] = extractPersonDetails(parsedPersonsMap[id]);
         });
 
         globalGraph = {};
-        records.forEach(rec => {
-            if ((rec.TAG || '').toUpperCase() === 'INDI') {
-                if (!globalGraph[rec.id]) globalGraph[rec.id] = [];
-            }
+        Object.keys(parsedPersonsMap).forEach(id => {
+            if (!globalGraph[id]) globalGraph[id] = [];
         });
 
         let families = {};
-        records.forEach(rec => {
-            if ((rec.TAG || '').toUpperCase() === 'FAM') {
-                let marrYear = null;
-                let childrenCount = 0;
-                let husbId = '';
-                let wifeId = '';
-                let childrenIds = [];
+        Object.keys(parsedFamiliesMap).forEach(fId => {
+            let rec = parsedFamiliesMap[fId];
+            let marrYear = null;
+            let childrenCount = 0;
+            let husbId = '';
+            let wifeId = '';
+            let childrenIds = [];
 
-                (rec.children || []).forEach(c => {
-                    if (c.tag === 'MARR') {
-                        let dateStr = c.DATE || '';
-                        if (!dateStr && c.children) {
-                            let dSub = c.children.find(s => s.tag === 'DATE');
-                            if (dSub) dateStr = dSub.value;
-                        }
-                        const match = String(dateStr).match(/\b(\d{3,4})\b/);
-                        if (match) marrYear = parseInt(match[1], 10);
+            (rec.children || []).forEach(c => {
+                if (c.tag === 'MARR') {
+                    let dateStr = c.DATE || '';
+                    if (!dateStr && c.children) {
+                        let dSub = c.children.find(s => s.tag === 'DATE');
+                        if (dSub) dateStr = dSub.value;
                     }
-                    if (c.tag === 'CHIL') {
-                        childrenCount++;
-                        childrenIds.push(c.value);
-                    }
-                    if (c.tag === 'HUSB') husbId = c.value;
-                    if (c.tag === 'WIFE') wifeId = c.value;
-                });
-
-                if (husbId) families[husbId] = { marrYear, childrenCount, partnerId: wifeId, familyId: rec.id };
-                if (wifeId) families[wifeId] = { marrYear, childrenCount, partnerId: husbId, familyId: rec.id };
-
-                if (husbId && wifeId && globalGraph[husbId] && globalGraph[wifeId]) {
-                    globalGraph[husbId].push({ target: wifeId, type: 'P' });
-                    globalGraph[wifeId].push({ target: husbId, type: 'P' });
+                    const match = String(dateStr).match(/\b(\d{3,4})\b/);
+                    if (match) marrYear = parseInt(match[1], 10);
                 }
+                if (c.tag === 'CHIL') {
+                    childrenCount++;
+                    childrenIds.push(c.value);
+                }
+                if (c.tag === 'HUSB') husbId = c.value;
+                if (c.tag === 'WIFE') wifeId = c.value;
+            });
 
-                childrenIds.forEach(childId => {
-                    if (globalGraph[childId]) {
-                        if (husbId && globalGraph[husbId]) {
-                            globalGraph[husbId].push({ target: childId, type: 'K', fam: rec.id, parent: husbId });
-                            globalGraph[childId].push({ target: husbId, type: 'V', fam: rec.id });
-                        }
-                        if (wifeId && globalGraph[wifeId]) {
-                            globalGraph[wifeId].push({ target: childId, type: 'K', fam: rec.id, parent: wifeId });
-                            globalGraph[childId].push({ target: wifeId, type: 'M', fam: rec.id });
-                        }
-                    }
-                });
+            if (husbId) families[husbId] = { marrYear, childrenCount, partnerId: wifeId, familyId: rec.id };
+            if (wifeId) families[wifeId] = { marrYear, childrenCount, partnerId: husbId, familyId: rec.id };
+
+            if (husbId && wifeId && globalGraph[husbId] && globalGraph[wifeId]) {
+                globalGraph[husbId].push({ target: wifeId, type: 'P' });
+                globalGraph[wifeId].push({ target: husbId, type: 'P' });
             }
+
+            childrenIds.forEach(childId => {
+                if (globalGraph[childId]) {
+                    if (husbId && globalGraph[husbId]) {
+                        globalGraph[husbId].push({ target: childId, type: 'K', fam: rec.id, parent: husbId });
+                        globalGraph[childId].push({ target: husbId, type: 'V', fam: rec.id });
+                    }
+                    if (wifeId && globalGraph[wifeId]) {
+                        globalGraph[wifeId].push({ target: childId, type: 'K', fam: rec.id, parent: wifeId });
+                        globalGraph[childId].push({ target: wifeId, type: 'M', fam: rec.id });
+                    }
+                }
+            });
         });
 
         window.familiesMap = families;
 
         allPersonsData = [];
-        records.forEach(rec => {
-            if ((rec.TAG || '').toUpperCase() === 'INDI') {
-                let id = rec.id || '';
-                let details = extractPersonDetails(rec);
-                const birth = extractEventYearAndPlace(rec, 'BIRT');
-                const death = extractEventYearAndPlace(rec, 'DEAT');
-                const famInfo = families[id] || { marrYear: null, childrenCount: 0, partnerId: '' };
+        Object.keys(parsedPersonsMap).forEach(id => {
+            let rec = parsedPersonsMap[id];
+            let details = indiMap[id];
+            const birth = extractEventYearAndPlace(rec, 'BIRT');
+            const death = extractEventYearAndPlace(rec, 'DEAT');
+            const famInfo = families[id] || { marrYear: null, childrenCount: 0, partnerId: '' };
 
-                let partnerVoornaam = '';
-                let partnerAchternaam = '';
-                if (famInfo.partnerId && indiMap[famInfo.partnerId]) {
-                    partnerVoornaam = indiMap[famInfo.partnerId].voornaam;
-                    partnerAchternaam = indiMap[famInfo.partnerId].achternaam;
-                }
-
-                allPersonsData.push({
-                    id: id,
-                    voornaam: details.voornaam,
-                    achternaam: details.achternaam,
-                    geslacht: details.geslacht,
-                    commentaar: details.commentaar,
-                    echtgenoteVoornaam: partnerVoornaam,
-                    echtgenoteAchternaam: partnerAchternaam,
-                    geboorteplaats: birth.place,
-                    geboortejaar: birth.year,
-                    huwelijksjaar: famInfo.marrYear,
-                    overlijdensjaar: death.year,
-                    aantalKinderen: famInfo.childrenCount
-                });
+            let partnerVoornaam = '';
+            let partnerAchternaam = '';
+            if (famInfo.partnerId && indiMap[famInfo.partnerId]) {
+                partnerVoornaam = indiMap[famInfo.partnerId].voornaam;
+                partnerAchternaam = indiMap[famInfo.partnerId].achternaam;
             }
+
+            allPersonsData.push({
+                id: id,
+                voornaam: details.voornaam,
+                achternaam: details.achternaam,
+                geslacht: details.geslacht,
+                commentaar: details.commentaar,
+                echtgenoteVoornaam: partnerVoornaam,
+                echtgenoteAchternaam: partnerAchternaam,
+                geboorteplaats: birth.place,
+                geboortejaar: birth.year,
+                huwelijksjaar: famInfo.marrYear,
+                overlijdensjaar: death.year,
+                aantalKinderen: famInfo.childrenCount
+            });
         });
 
         if (!currentMainPersonId || !allPersonsData.some(p => p.id === currentMainPersonId)) {
@@ -890,7 +1012,7 @@
                 <td><strong style="color: #c05621;">${sosaDisplay}</strong></td>
                 <td><strong class="indi-link" title="Rechterklik = Opties" oncontextmenu="handleContextMenu(event, '${p.id}')">${p.id}</strong></td>
                 <td>${p.voornaam || '-'}</td>
-                <td>${p.achternaam || '-'}</td>
+                <td><span class="hover-achternaam" onmouseenter="showDetailPopup(event, '${p.id}')" onmousemove="moveDetailPopup(event)" onmouseleave="hideDetailPopup()">${p.achternaam || '-'}</span></td>
                 <td><strong>${p.geslacht}</strong></td>
                 <td>${commentaarBadge}</td>
                 <td>${p.echtgenoteVoornaam || '-'}</td>
@@ -907,6 +1029,136 @@
             tbody.appendChild(tr);
         });
     }
+
+    // --- HOVER DETAIL POPUP LOGICA (DETAIL SCHERM DATA) ---
+    function showDetailPopup(event, personId) {
+        const person = parsedPersonsMap[personId];
+        if (!person) return;
+
+        const nameObj = parsePersonName(person);
+        let sex = person.SEX || 'Onbekend';
+
+        let birthObj = extractBirthDetails(person);
+        let deathObj = extractDeathDetails(person);
+
+        let birthStr = birthObj.formatted || 'Jaartal/Plaats onbekend';
+        let deathStr = deathObj.formatted || 'Jaartal/Plaats onbekend';
+
+        // Ouders
+        let parentsHTML = 'Geen ouders bekend';
+        let famcId = '';
+        (person.children || []).forEach(c => { if (c.tag === 'FAMC') famcId = cleanId(c.value); });
+        if (famcId && parsedFamiliesMap[famcId]) {
+            let fam = parsedFamiliesMap[famcId];
+            let husb = '', wife = '';
+            (fam.children || []).forEach(c => {
+                if (c.tag === 'HUSB') husb = cleanId(c.value);
+                if (c.tag === 'WIFE') wife = cleanId(c.value);
+            });
+            let pNames = [];
+            if (husb && parsedPersonsMap[husb]) {
+                let pPerson = parsedPersonsMap[husb];
+                let pBirth = extractBirthDetails(pPerson);
+                let birthInfo = pBirth.formatted ? ` <span class="popup-date-place">(${pBirth.formatted})</span>` : '';
+                pNames.push(`<strong>Vd:</strong> ${parsePersonName(pPerson).full} (${husb})${birthInfo}`);
+            }
+            if (wife && parsedPersonsMap[wife]) {
+                let mPerson = parsedPersonsMap[wife];
+                let mBirth = extractBirthDetails(mPerson);
+                let birthInfo = mBirth.formatted ? ` <span class="popup-date-place">(${mBirth.formatted})</span>` : '';
+                pNames.push(`<strong>Mo:</strong> ${parsePersonName(mPerson).full} (${wife})${birthInfo}`);
+            }
+            if (pNames.length > 0) parentsHTML = `<ul><li>` + pNames.join('</li><li>') + `</li></ul>`;
+        }
+
+        // Partners & Kinderen
+        let familiesHTML = 'Geen partners bekend';
+        let childrenHTML = 'Geen kinderen bekend';
+        let famsIds = [];
+        (person.children || []).forEach(c => { if (c.tag === 'FAMS') famsIds.push(cleanId(c.value)); });
+
+        if (famsIds.length > 0) {
+            let famList = [];
+            let childList = [];
+            famsIds.forEach(fId => {
+                let fam = parsedFamiliesMap[fId];
+                if (!fam) return;
+                let husb = '', wife = '';
+                let kids = [];
+                (fam.children || []).forEach(c => {
+                    if (c.tag === 'HUSB') husb = cleanId(c.value);
+                    if (c.tag === 'WIFE') wife = cleanId(c.value);
+                    if (c.tag === 'CHIL') kids.push(cleanId(c.value));
+                });
+
+                let partnerId = (husb === personId) ? wife : husb;
+                if (partnerId && parsedPersonsMap[partnerId]) {
+                    let partnerPerson = parsedPersonsMap[partnerId];
+                    let partnerBirth = extractBirthDetails(partnerPerson);
+                    let birthInfo = partnerBirth.formatted ? ` <span class="popup-date-place">(${partnerBirth.formatted})</span>` : '';
+                    famList.push(`${parsePersonName(partnerPerson).full} (${partnerId})${birthInfo}`);
+                }
+
+                kids.forEach(kId => {
+                    if (parsedPersonsMap[kId]) {
+                        let kPerson = parsedPersonsMap[kId];
+                        let kBirth = extractBirthDetails(kPerson);
+                        let birthInfo = kBirth.formatted ? ` <span class="popup-date-place">(${kBirth.formatted})</span>` : '';
+                        childList.push(`${parsePersonName(kPerson).full} (${kId})${birthInfo}`);
+                    }
+                });
+            });
+
+            if (famList.length > 0) familiesHTML = `<ul><li>` + famList.join('</li><li>') + `</li></ul>`;
+            if (childList.length > 0) childrenHTML = `<ul><li>` + childList.join('</li><li>') + `</li></ul>`;
+        }
+
+        // Notities
+        let notesHTML = person.notes && person.notes.length > 0 ? `<ul><li>` + person.notes.join('</li><li>') + `</li></ul>` : 'Geen notities';
+
+        // Popup vullen
+        document.getElementById('popTitle').innerText = nameObj.full;
+        document.getElementById('popId').innerText = personId;
+        document.getElementById('popSex').innerText = sex;
+        document.getElementById('popBirth').innerText = birthStr;
+        document.getElementById('popDeath').innerText = deathStr;
+        document.getElementById('popParents').innerHTML = parentsHTML;
+        document.getElementById('popFamilies').innerHTML = familiesHTML;
+        document.getElementById('popChildren').innerHTML = childrenHTML;
+        document.getElementById('popNotes').innerHTML = notesHTML;
+
+        const popup = document.getElementById('detailPopup');
+        popup.style.display = 'block';
+        positionPopup(event);
+    }
+
+    function moveDetailPopup(event) {
+        positionPopup(event);
+    }
+
+    function positionPopup(event) {
+        const popup = document.getElementById('detailPopup');
+        let x = event.clientX + 15;
+        let y = event.clientY + 15;
+
+        // Controleer of popup buiten scherm valt aan rechterkant of onderkant
+        if (x + popup.offsetWidth > window.innerWidth) {
+            x = event.clientX - popup.offsetWidth - 15;
+        }
+        if (y + popup.offsetHeight > window.innerHeight) {
+            y = event.clientY - popup.offsetHeight - 15;
+        }
+
+        popup.style.left = x + 'px';
+        popup.style.top = y + 'px';
+    }
+
+    function hideDetailPopup() {
+        const popup = document.getElementById('detailPopup');
+        popup.style.display = 'none';
+    }
+
+    function cleanId(id) { return id ? String(id).replace(/@/g, '').trim() : ''; }
 
     function handleContextMenu(event, personId) {
         event.preventDefault();
