@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sociale Netwerken & Super-Connectors Analyse</title>
+    <!-- vis-network voor netwerkvisualisaties -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        h1, h2 { color: #2c3e50; }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: #eef2f5;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2980b9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th { background-color: #34495e; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #f1f1f1; cursor: pointer; }
+        #network-container {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background-color: #ffffff;
+        }
+        .btn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover { background-color: #219150; }
+        #log {
+            font-family: monospace;
+            background: #222;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🕸️ Sociale Netwerken & "Super-Connectors" Analyse</h1>
+    <p>Analyse van het grootste eiland in de IndexedDB-stamboom.</p>
+
+    <div id="log">Status: Bezig met laden uit IndexedDB...</div>
+
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div>Totaal Personen in DB</div>
+            <div id="total-persons" class="stat-number">-</div>
+        </div>
+        <div class="stat-box">
+            <div>Grootste Eiland (Personen)</div>
+            <div id="island-size" class="stat-number">-</div>
+        </div>
+        <div class="stat-box">
+            <div>% van Totale Stamboom</div>
+            <div id="island-percentage" class="stat-number">-</div>
+        </div>
+        <div class="stat-box">
+            <div>Hoogste Verbindingsscore</div>
+            <div id="max-connections" class="stat-number">-</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🏆 Top 20 Super-Connectors (Sleutelfiguren)</h2>
+        <p><em>Klik op een persoon in de tabel om diens directe netwerk in de kaart hieronder te bekijken.</em></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>ID</th>
+                    <th>Naam</th>
+                    <th>Geslacht</th>
+                    <th>Geboorte - Overlijden</th>
+                    <th>Ouders</th>
+                    <th>Partners</th>
+                    <th>Kinderen</th>
+                    <th><strong>Totaal Verbindingen</strong></th>
+                </tr>
+            </thead>
+            <tbody id="connectors-table">
+                <tr><td colspan="9">Data aan het verwerken...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>🌐 Netwerk-Visualisatie van Geselecteerde Connector</h2>
+        <div id="network-container"></div>
+    </div>
+
+<script>
+// --- INDEXEDDB IMPLEMENTATIE ---
+const DB_NAME = 'GedcomDatabase';
+const STORE_NAME = 'gedcomStore';
+const DB_VERSION = 4; // Sluit aan op je bestaande DB versie
+
+function log(msg) {
+    const logEl = document.getElementById('log');
+    logEl.innerHTML += `<br>[${new Date().toLocaleTimeString()}] ${msg}`;
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function getGedcomData() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get('gedcomData');
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+// --- GEDCOM PARSER & EILAND LOGICA ---
+let individuals = {};
+let families = {};
+let largestIslandSet = new Set();
+let connectorData = [];
+let networkInstance = null;
+
+async function init() {
+    try {
+        log("Ophalen van stamboomgegevens uit IndexedDB...");
+        const rawData = await getGedcomData();
+        if (!rawData) {
+            log("❌ Geen data gevonden in IndexedDB. Laad eerst een GEDCOM in via het hoofd-dashboard.");
+            return;
+        }
+
+        log("Data geladen. Bezig met structureren...");
+        parseData(rawData);
+
+        log("Eilanden (netwerken) berekenen via BFS...");
+        findIslands();
+
+        log("Super-Connectors analyseren binnen het hoofdeiland...");
+        analyzeConnectors();
+
+        renderStatsAndTable();
+    } catch (err) {
+        log("❌ Fout bij verwerken: " + err.message);
+        console.error(err);
+    }
+}
+
+function parseData(data) {
+    // Ondersteunt zowel reeds geparste JSON als GEDCOM tekst
+    if (typeof data === 'object' && data.individuals) {
+        individuals = data.individuals;
+        families = data.families;
+        return;
+    }
+
+    // Eenvoudige GEDCOM-tekst parser
+    const lines = data.split('\n');
+    let currentIndi = null;
+    let currentFam = null;
+
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        const parts = line.split(' ');
+        const level = parts[0];
+        const tagOrId = parts[1];
+
+        if (level === '0') {
+            if (parts[2] === 'INDI') {
+                currentIndi = parts[1].replace(/@/g, '');
+                currentFam = null;
+                individuals[currentIndi] = { id: currentIndi, name: 'Onbekend', sex: 'U', bdate: '', ddate: '', parents: [], spouses: [], children: [] };
+            } else if (parts[2] === 'FAM') {
+                currentFam = parts[1].replace(/@/g, '');
+                currentIndi = null;
+                families[currentFam] = { id: currentFam, husb: null, wife: null, children: [] };
+            } else {
+                currentIndi = null; currentFam = null;
+            }
+        } else if (currentIndi) {
+            if (parts[1] === 'NAME') {
+                individuals[currentIndi].name = parts.slice(2).join(' ').replace(/\//g, '');
+            } else if (parts[1] === 'SEX') {
+                individuals[currentIndi].sex = parts[2] || 'U';
+            } else if (parts[1] === 'FAMS') {
+                individuals[currentIndi].spouses.push(parts[2].replace(/@/g, ''));
+            } else if (parts[1] === 'FAMC') {
+                individuals[currentIndi].parents.push(parts[2].replace(/@/g, ''));
+            }
+        } else if (currentFam) {
+            if (parts[1] === 'HUSB') families[currentFam].husb = parts[2].replace(/@/g, '');
+            if (parts[1] === 'WIFE') families[currentFam].wife = parts[2].replace(/@/g, '');
+            if (parts[1] === 'CHIL') families[currentFam].children.push(parts[2].replace(/@/g, ''));
+        }
+    }
+
+    // Koppel relaties terug aan personen
+    Object.values(families).forEach(fam => {
+        if (fam.husb && fam.wife) {
+            if (individuals[fam.husb]) individuals[fam.husb].spouses.push(fam.wife);
+            if (individuals[fam.wife]) individuals[fam.wife].spouses.push(fam.husb);
+        }
+        fam.children.forEach(childId => {
+            if (individuals[childId]) {
+                if (fam.husb) individuals[childId].parents.push(fam.husb);
+                if (fam.wife) individuals[childId].parents.push(fam.wife);
+            }
+            if (fam.husb && individuals[fam.husb]) individuals[fam.husb].children.push(childId);
+            if (fam.wife && individuals[fam.wife]) individuals[fam.wife].children.push(childId);
+        });
+    });
+}
+
+function findIslands() {
+    const visited = new Set();
+    let maxIsland = new Set();
+
+    Object.keys(individuals).forEach(id => {
+        if (!visited.has(id)) {
+            const currentIsland = new Set();
+            const queue = [id];
+            visited.add(id);
+
+            while (queue.length > 0) {
+                const curr = queue.shift();
+                currentIsland.add(curr);
+                const p = individuals[curr];
+                if (!p) continue;
+
+                // Alle buren (ouders, partners, kinderen)
+                const neighbors = [...p.parents, ...p.spouses, ...p.children];
+                neighbors.forEach(n => {
+                    if (n && individuals[n] && !visited.has(n)) {
+                        visited.add(n);
+                        queue.push(n);
+                    }
+                });
+            }
+
+            if (currentIsland.size > maxIsland.size) {
+                maxIsland = currentIsland;
+            }
+        }
+    });
+
+    largestIslandSet = maxIsland;
+}
+
+function analyzeConnectors() {
+    connectorData = [];
+
+    largestIslandSet.forEach(id => {
+        const p = individuals[id];
+        if (!p) return;
+
+        const uniqueParents = new Set(p.parents).size;
+        const uniqueSpouses = new Set(p.spouses).size;
+        const uniqueChildren = new Set(p.children).size;
+        const totalDegree = uniqueParents + uniqueSpouses + uniqueChildren;
+
+        connectorData.push({
+            id: p.id,
+            name: p.name,
+            sex: p.sex,
+            parentsCount: uniqueParents,
+            spousesCount: uniqueSpouses,
+            childrenCount: uniqueChildren,
+            totalScore: totalDegree
+        });
+    });
+
+    // Sorteer op hoogste verbindingen
+    connectorData.sort((a, b) => b.totalScore - a.totalScore);
+}
+
+function renderStatsAndTable() {
+    const totalCount = Object.keys(individuals).length;
+    const islandCount = largestIslandSet.size;
+    const perc = ((islandCount / totalCount) * 100).toFixed(1);
+
+    document.getElementById('total-persons').innerText = totalCount.toLocaleString();
+    document.getElementById('island-size').innerText = islandCount.toLocaleString();
+    document.getElementById('island-percentage').innerText = perc + '%';
+    document.getElementById('max-connections').innerText = connectorData[0] ? connectorData[0].totalScore : 0;
+
+    const tbody = document.getElementById('connectors-table');
+    tbody.innerHTML = '';
+
+    const top20 = connectorData.slice(0, 20);
+    top20.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.onclick = () => renderNetwork(item.id);
+        tr.innerHTML = `
+            <td><strong>${index + 1}</strong></td>
+            <td>${item.id}</td>
+            <td>${item.name}</td>
+            <td>${item.sex === 'M' ? '👨 Man' : (item.sex === 'F' ? '👩 Vrouw' : '❓')}</td>
+            <td>-</td>
+            <td>${item.parentsCount}</td>
+            <td>${item.spousesCount}</td>
+            <td>${item.childrenCount}</td>
+            <td><strong>${item.totalScore}</strong></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    log("Gereed! Klik op een rij in de tabel om het netwerk op te bouwen.");
+    if (top20.length > 0) renderNetwork(top20[0].id);
+}
+
+function renderNetwork(centralId) {
+    const p = individuals[centralId];
+    if (!p) return;
+
+    log(`Netwerk-web opbouwen voor: ${p.name} (${centralId})...`);
+
+    const nodes = [];
+    const edges = [];
+    const addedNodes = new Set();
+
+    // Voeg centrale persoon toe
+    nodes.push({
+        id: p.id,
+        label: `${p.name}\n(SPILFIGUUR)`,
+        shape: 'box',
+        color: { background: '#f1c40f', border: '#d35400' },
+        font: { bold: true }
+    });
+    addedNodes.add(p.id);
+
+    const addRelNode = (id, relationLabel, bgColor) => {
+        if (!id || !individuals[id]) return;
+        const relP = individuals[id];
+
+        if (!addedNodes.has(id)) {
+            nodes.push({
+                id: relP.id,
+                label: `${relP.name}\n[${relationLabel}]`,
+                shape: 'ellipse',
+                color: { background: bgColor }
+            });
+            addedNodes.add(id);
+        }
+
+        edges.push({ from: centralId, to: id, label: relationLabel });
+    };
+
+    // Voeg direct verwanten toe
+    p.parents.forEach(id => addRelNode(id, 'Ouder', '#3498db'));
+    p.spouses.forEach(id => addRelNode(id, 'Partner', '#e74c3c'));
+    p.children.forEach(id => addRelNode(id, 'Kind', '#2ecc71'));
+
+    const container = document.getElementById('network-container');
+    const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+    const options = {
+        physics: { solver: 'forceAtlas2Based' },
+        interaction: { hover: true, zoomView: true }
+    };
+
+    if (networkInstance) networkInstance.destroy();
+    networkInstance = new vis.Network(container, data, options);
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
