@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gedcom Type & Voorgeslacht Analyse</title>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 30px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        h1 { text-align: center; margin-bottom: 20px; }
+        .status-banner {
+            text-align: center;
+            padding: 15px;
+            background: #e8f4fd;
+            border: 2px dashed #3498db;
+            color: #2980b9;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+        .file-select-btn, .action-btn {
+            padding: 10px 18px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .file-select-btn:hover, .action-btn:hover { background-color: #2980b9; }
+        .sort-btn {
+            padding: 6px 14px;
+            background-color: #e2e8f0;
+            color: #2d3748;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-right: 8px;
+            margin-bottom: 10px;
+        }
+        .sort-btn.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .stat-number { font-size: 1.5em; font-weight: bold; color: #2980b9; margin: 8px 0; }
+        .stat-label { color: #7f8c8d; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
+        .section-title {
+            font-size: 1.2rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .data-table th, .data-table td {
+            padding: 10px 15px;
+            text-align: left;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 0.9rem;
+        }
+        .data-table th {
+            background-color: #f8fafc;
+            color: #4a5568;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+        .badge-count {
+            background: #ebf8ff;
+            color: #2b6cb0;
+            font-weight: bold;
+            padding: 3px 10px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        @media (max-width: 900px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+        .control-box {
+            background: #fdfefe;
+            border: 2px solid #3498db;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        select, input[type="text"] {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 100%;
+            max-width: 400px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+        select#personSelect {
+            height: auto;
+            min-height: 160px;
+        }
+        .text-list-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            max-height: 2000px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📊 Gedcom Type & Voorgeslacht Analyse</h1>
+
+    <div class="status-banner" id="statusBanner">
+        <span id="statusText">⏳ Gegevens ophalen uit IndexedDB...</span>
+        <div id="fileFallback" style="display: none; margin-top: 10px;">
+            <input type="file" id="gedcomFileInput" style="display: none;">
+            <button class="file-select-btn" onclick="document.getElementById('gedcomFileInput').click();">📁 Selecteer GEDCOM-bestand</button>
+        </div>
+    </div>
+
+    <!-- BASIS STATISTIEKEN PER TYPE -->
+    <h2 class="section-title">📋 Verdeling naar Type (BASIS, AANVULLING, AANPASSING)</h2>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Basis</div>
+            <div class="stat-number" id="countBasis">0</div>
+            <div style="font-size: 0.85rem; color:#666;" id="pctBasis">0%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Aanvulling</div>
+            <div class="stat-number" id="countAanvulling">0</div>
+            <div style="font-size: 0.85rem; color:#666;" id="pctAanvulling">0%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Aanpassing</div>
+            <div class="stat-number" id="countAanpassing">0</div>
+            <div style="font-size: 0.85rem; color:#666;" id="pctAanpassing">0%</div>
+        </div>
+        <div class="stat-card" style="background: #ebf8ff;">
+            <div class="stat-label">Algemeen Totaal</div>
+            <div class="stat-number" id="countTotalTypes">0</div>
+            <div style="font-size: 0.85rem; color:#2b6cb0;">100%</div>
+        </div>
+    </div>
+
+    <!-- KNOP VOOR TOP 20 TABELLEN -->
+    <div class="control-box" style="text-align: center;">
+        <h3>Top 20 Namen & Geboorteplaatsen per Type (Algemeen)</h3>
+        <p style="font-size: 0.9rem; color: #666;">Klik hieronder om de algemene top 20 frequenties uit te rekenen.</p>
+        <button class="action-btn" onclick="loadTopLists()">Laad Algemene Top 20 Tabellen</button>
+        <div id="loaderTop" style="display: none; color: #2980b9; font-weight: bold; margin-top: 10px;">⏳ Berekenen...</div>
+    </div>
+
+    <!-- TOP 20 TABELLEN PER TYPE -->
+    <div id="topListsSection" style="display: none;">
+        <h2 class="section-title">📜 Top 20 Familienamen per Type</h2>
+        <div class="grid-3">
+            <div>
+                <h4 style="color:#2c3e50;">Basis</h4>
+                <table class="data-table"><thead><tr><th>Naam</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="surnamesBasisBody"></tbody></table>
+            </div>
+            <div>
+                <h4 style="color:#2c3e50;">Aanvulling</h4>
+                <table class="data-table"><thead><tr><th>Naam</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="surnamesAanvullingBody"></tbody></table>
+            </div>
+            <div>
+                <h4 style="color:#2c3e50;">Aanpassing</h4>
+                <table class="data-table"><thead><tr><th>Naam</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="surnamesAanpassingBody"></tbody></table>
+            </div>
+        </div>
+
+        <h2 class="section-title">📍 Top 20 Geboorteplaatsen per Type</h2>
+        <div class="grid-3">
+            <div>
+                <h4 style="color:#2c3e50;">Basis</h4>
+                <table class="data-table"><thead><tr><th>Plaats</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="placesBasisBody"></tbody></table>
+            </div>
+            <div>
+                <h4 style="color:#2c3e50;">Aanvulling</h4>
+                <table class="data-table"><thead><tr><th>Plaats</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="placesAanvullingBody"></tbody></table>
+            </div>
+            <div>
+                <h4 style="color:#2c3e50;">Aanpassing</h4>
+                <table class="data-table"><thead><tr><th>Plaats</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="placesAanpassingBody"></tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- HOOFDPERSOON VOORGESLACHT ANALYSE -->
+    <div class="control-box">
+        <h3>👑 Voorgeslacht Analyse per Hoofdpersoon</h3>
+        <p style="font-size: 0.9rem; color: #666;">Typ (een deel van) de achternaam of beginletters van de hoofdpersoon om te zoeken en selecteer hieronder:</p>
+        
+        <label for="searchPersonInput"><strong>Zoek Hoofdpersoon:</strong></label><br>
+        <input type="text" id="searchPersonInput" placeholder="Bijv. Jansen of J...">
+        <button class="action-btn" onclick="filterPersons()" style="margin-top:0; padding:8px 14px;">Zoek</button><br>
+
+        <label for="personSelect" style="margin-top:10px; display:inline-block;"><strong>Selecteer uit zoekresultaten (alfabetisch gesorteerd):</strong></label><br>
+        <select id="personSelect" size="8"><option value="">-- Zoek eerst een persoon hierboven --</option></select><br>
+
+        <button class="action-btn" onclick="calculateAncestorTypes()">Bereken Voorgeslacht Analyse</button>
+        
+        <div id="ancestorResult" style="margin-top: 20px; display: none;">
+            <h4>Resultaat voor voorgeslacht van: <span id="selectedPersonName" style="color: #2980b9;"></span></h4>
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-label">Basis (Voorouders)</div><div class="stat-number" id="ancBasis">0</div></div>
+                <div class="stat-card"><div class="stat-label">Aanvulling (Voorouders)</div><div class="stat-number" id="ancAanvulling">0</div></div>
+                <div class="stat-card"><div class="stat-label">Aanpassing (Voorouders)</div><div class="stat-number" id="ancAanpassing">0</div></div>
+                <div class="stat-card" style="background: #ebf8ff;"><div class="stat-label">Totaal Voorouders</div><div class="stat-number" id="ancTotal">0</div></div>
+            </div>
+
+            <!-- Top 20 voor AANVULLING en AANPASSING binnen het voorgeslacht -->
+            <div class="grid-2" style="margin-top: 20px;">
+                <div>
+                    <h3 style="color: #2c3e50; font-size: 1.1rem;">🌟 AANVULLING (Voorgeslacht)</h3>
+                    <h4 style="font-size:0.9rem; color:#666; margin-bottom:5px;">Top 20 Geboorteplaatsen</h4>
+                    <table class="data-table"><thead><tr><th>Plaats</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="ancPlacesAanvullingBody"></tbody></table>
+
+                    <h4 style="font-size:0.9rem; color:#666; margin-bottom:5px; margin-top:15px;">Top 20 Familienamen</h4>
+                    <table class="data-table"><thead><tr><th>Naam</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="ancSurnamesAanvullingBody"></tbody></table>
+                </div>
+                <div>
+                    <h3 style="color: #2c3e50; font-size: 1.1rem;">🔧 AANPASSING (Voorgeslacht)</h3>
+                    <h4 style="font-size:0.9rem; color:#666; margin-bottom:5px;">Top 20 Geboorteplaatsen</h4>
+                    <table class="data-table"><thead><tr><th>Plaats</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="ancPlacesAanpassingBody"></tbody></table>
+
+                    <h4 style="font-size:0.9rem; color:#666; margin-bottom:5px; margin-top:15px;">Top 20 Familienamen</h4>
+                    <table class="data-table"><thead><tr><th>Naam</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="ancSurnamesAanpassingBody"></tbody></table>
+                </div>
+            </div>
+
+            <!-- TEKSTUEEL GEDETAILLEERD VOORGESLACHT (ALLEEN AANVULLING & AANPASSING) -->
+            <h3 class="section-title" style="margin-top: 30px;">📄 Gedetailleerd Tekstueel Voorgeslacht (Alleen AANVULLING & AANPASSING)</h3>
+            <div style="margin-bottom: 10px;">
+                <button class="sort-btn active" id="btnSortSosa" onclick="setSortMode('sosa')">🔢 Sorteer op SOSA-nummer (Standaard)</button>
+                <button class="sort-btn" id="btnSortRel" onclick="setSortMode('rel')">🔀 Sorteer op Relatiepad</button>
+            </div>
+            <p style="font-size: 0.9rem; color: #666;">Volledig doorlopend overzicht (volledig uitgediept zonder afbreking):</p>
+            <div class="text-list-box" id="textAncestorList">
+                Geen data geladen...
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const DB_NAME = 'GedcomDatabase';
+    const STORE_NAME = 'gedcomStore';
+    const DB_VERSION = 5;
+
+    let gedcomCache = {};
+    let allPersonsList = [];
+    let currentFilteredAncestors = [];
+    let currentSortMode = 'sosa'; // 'sosa' of 'rel'
+
+    function openGedcomDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+            };
+        });
+    }
+
+    async function getGedcomFromIDB() {
+        const db = await openGedcomDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get('gedcomData');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const savedData = await getGedcomFromIDB();
+            if (savedData) {
+                document.getElementById('statusText').innerHTML = '✅ Data geladen. Analyseren...';
+                document.getElementById('statusBanner').style.backgroundColor = '#e6fffa';
+                const parsedData = parseGedcom(savedData);
+                processGedcomData(parsedData);
+            } else {
+                document.getElementById('statusText').innerHTML = '⚠️ Geen stamboom gevonden in IndexedDB.';
+                document.getElementById('fileFallback').style.display = 'block';
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById('fileFallback').style.display = 'block';
+        }
+    });
+
+    document.getElementById('gedcomFileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async function(evt) {
+            const text = evt.target.result;
+            const db = await openGedcomDB();
+            db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).put(text, 'gedcomData');
+            location.reload();
+        };
+        reader.readAsText(file);
+    });
+
+    function parseGedcom(gedcomText) {
+        const lines = gedcomText.split(/\r?\n/);
+        let records = [], currentRecord = null, currentEvent = null;
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+            const parts = trimmed.split(' ');
+            const level = parseInt(parts[0], 10);
+            if (isNaN(level)) return;
+
+            if (level === 0) {
+                if (currentRecord) records.push(currentRecord);
+                currentEvent = null;
+                let id = parts[1].startsWith('@') ? parts[1].replace(/@/g, '') : '';
+                let tag = parts[1].startsWith('@') ? (parts[2] ? parts[2].toUpperCase() : '') : parts[1].toUpperCase();
+                currentRecord = { TAG: tag, id: id, children: [], notes: [] };
+            } else if (currentRecord) {
+                let tag = parts[1] ? parts[1].toUpperCase() : '';
+                let value = parts.slice(2).join(' ');
+                if (value.startsWith('@') && value.endsWith('@')) value = value.replace(/@/g, '');
+
+                const node = { tag: tag, value: value, children: [] };
+                currentRecord.children.push(node);
+
+                if (level === 1) {
+                    currentRecord[tag] = value;
+                    currentEvent = node;
+                    if (tag === 'NOTE' || tag === 'COMM' || tag === 'TEXT') {
+                        currentRecord.notes.push(value);
+                    }
+                } else if (level >= 2) {
+                    if (currentEvent) currentEvent.children.push(node);
+                    if (tag === 'NOTE' || tag === 'CONT' || tag === 'CONC' || tag === 'TEXT') {
+                        currentRecord.notes.push(value);
+                    }
+                }
+            }
+        });
+        if (currentRecord) records.push(currentRecord);
+        return records;
+    }
+
+    function cleanId(id) { return id ? String(id).replace(/@/g, '').trim() : ''; }
+
+    function parsePersonName(item) {
+        let fullName = item.NAME || '';
+        if (!fullName && item.children) {
+            const n = item.children.find(c => c.tag === 'NAME');
+            if (n) fullName = n.value || '';
+        }
+        let voornaam = '', achternaam = '';
+        if (fullName.includes('/')) {
+            let parts = fullName.split('/');
+            voornaam = parts[0].trim();
+            achternaam = parts[1] ? parts[1].trim() : 'Onbekend';
+        } else {
+            voornaam = fullName.trim();
+        }
+        return { voornaam: voornaam || 'Onbekend', achternaam: achternaam || 'Onbekend', full: `${achternaam}, ${voornaam}` };
+    }
+
+    function extractBirthDetails(item) {
+        const b = item.children ? item.children.find(c => c.tag === 'BIRT') : null;
+        let plac = '', date = '';
+        if (b) {
+            (b.children || []).forEach(sub => {
+                if (sub.tag === 'PLAC') plac = sub.value;
+                if (sub.tag === 'DATE') date = sub.value;
+            });
+        }
+        return { place: plac ? plac.trim() : 'Onbekende plaats', date: date ? date.trim() : '' };
+    }
+
+    function getPersonType(item) {
+        let text = (item.notes.join(' ') + ' ' + (item.NOTE || '')).toUpperCase();
+        if (text.includes('BASIS')) return 'BASIS';
+        if (text.includes('AANVULLING')) return 'AANVULLING';
+        if (text.includes('AANPASSING')) return 'AANPASSING';
+        return 'OVERIG';
+    }
+
+    function processGedcomData(data) {
+        let personsMap = {}, familiesMap = {};
+        let countB = 0, countAanv = 0, countAanp = 0, totalP = 0;
+        let surnames = { BASIS: {}, AANVULLING: {}, AANPASSING: {} };
+        let places = { BASIS: {}, AANVULLING: {}, AANPASSING: {} };
+
+        data.forEach(item => {
+            const tag = (item.TAG || '').toUpperCase();
+            const id = cleanId(item.id);
+            if (!id) return;
+            if (tag === 'INDI') personsMap[id] = item;
+            if (tag === 'FAM') familiesMap[id] = item;
+        });
+
+        Object.keys(personsMap).forEach(id => {
+            const p = personsMap[id];
+            const type = getPersonType(p);
+            const nameObj = parsePersonName(p);
+            const birth = extractBirthDetails(p);
+
+            if (type !== 'OVERIG') {
+                totalP++;
+                if (type === 'BASIS') {
+                    countB++;
+                    surnames.BASIS[nameObj.achternaam] = (surnames.BASIS[nameObj.achternaam] || 0) + 1;
+                    if (birth.place) places.BASIS[birth.place] = (places.BASIS[birth.place] || 0) + 1;
+                } else if (type === 'AANVULLING') {
+                    countAanv++;
+                    surnames.AANVULLING[nameObj.achternaam] = (surnames.AANVULLING[nameObj.achternaam] || 0) + 1;
+                    if (birth.place) places.AANVULLING[birth.place] = (places.AANVULLING[birth.place] || 0) + 1;
+                } else if (type === 'AANPASSING') {
+                    countAanp++;
+                    surnames.AANPASSING[nameObj.achternaam] = (surnames.AANPASSING[nameObj.achternaam] || 0) + 1;
+                    if (birth.place) places.AANPASSING[birth.place] = (places.AANPASSING[birth.place] || 0) + 1;
+                }
+            }
+
+            allPersonsList.push({ id: id, name: `${nameObj.full} (${id})`, rawName: nameObj.full.toLowerCase() });
+        });
+
+        allPersonsList.sort((a, b) => a.name.localeCompare(b.name));
+
+        document.getElementById('countBasis').innerText = countB;
+        document.getElementById('countAanvulling').innerText = countAanv;
+        document.getElementById('countAanpassing').innerText = countAanp;
+        document.getElementById('countTotalTypes').innerText = totalP;
+
+        document.getElementById('pctBasis').innerText = totalP ? Math.round((countB / totalP) * 100) + '%' : '0%';
+        document.getElementById('pctAanvulling').innerText = totalP ? Math.round((countAanv / totalP) * 100) + '%' : '0%';
+        document.getElementById('pctAanpassing').innerText = totalP ? Math.round((countAanp / totalP) * 100) + '%' : '0%';
+
+        gedcomCache = { personsMap, familiesMap, surnames, places };
+    }
+
+    function filterPersons() {
+        const query = document.getElementById('searchPersonInput').value.toLowerCase().trim();
+        const selectElem = document.getElementById('personSelect');
+        selectElem.innerHTML = '';
+
+        if (!query || query.length < 1) {
+            selectElem.innerHTML = '<option value="">-- Typ minimaal 1 teken om te zoeken --</option>';
+            return;
+        }
+
+        const matches = allPersonsList.filter(p => p.rawName.includes(query));
+
+        if (matches.length === 0) {
+            selectElem.innerHTML = '<option value="">-- Geen personen gevonden --</option>';
+            return;
+        }
+
+        selectElem.innerHTML = matches.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+    }
+
+    function loadTopLists() {
+        document.getElementById('loaderTop').style.display = 'block';
+        setTimeout(() => {
+            const { surnames, places } = gedcomCache;
+            fillTable('surnamesBasisBody', surnames.BASIS);
+            fillTable('surnamesAanvullingBody', surnames.AANVULLING);
+            fillTable('surnamesAanpassingBody', surnames.AANPASSING);
+
+            fillTable('placesBasisBody', places.BASIS);
+            fillTable('placesAanvullingBody', places.AANVULLING);
+            fillTable('placesAanpassingBody', places.AANPASSING);
+
+            document.getElementById('loaderTop').style.display = 'none';
+            document.getElementById('topListsSection').style.display = 'block';
+        }, 20);
+    }
+
+    function fillTable(tbodyId, objData) {
+        const tbody = document.getElementById(tbodyId);
+        tbody.innerHTML = '';
+        const sorted = Object.entries(objData).sort((a, b) => b[1] - a[1]).slice(0, 20);
+        if (sorted.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="color: #a0aec0; text-align:center;">Geen data</td></tr>';
+            return;
+        }
+        sorted.forEach(([k, v]) => {
+            tbody.innerHTML += `<tr><td><strong>${k}</strong></td><td style="text-align: right;"><span class="badge-count">${v}</span></td></tr>`;
+        });
+    }
+
+    function calculateAncestorTypes() {
+        const personId = document.getElementById('personSelect').value;
+        if (!personId) {
+            alert('Selecteer eerst een hoofdpersoon uit de zoekresultaten.');
+            return;
+        }
+        const { personsMap, familiesMap } = gedcomCache;
+        let ancestorsMap = new Map(); 
+
+        function getAncestors(pId, qnr, relString) {
+            const person = personsMap[pId];
+            if (!person) return;
+
+            let birth = extractBirthDetails(person);
+            let type = getPersonType(person);
+            let nameObj = parsePersonName(person);
+
+            ancestorsMap.set(qnr, {
+                id: pId,
+                qnr: qnr,
+                name: nameObj.full,
+                birthDate: birth.date,
+                birthPlace: birth.place,
+                type: type,
+                relation: relString || 'Hoofdpersoon'
+            });
+
+            let famcId = '';
+            (person.children || []).forEach(c => { if (c.tag === 'FAMC') famcId = cleanId(c.value); });
+            if (!famcId) return;
+            const fam = familiesMap[famcId];
+            if (!fam) return;
+
+            let husb = '', wife = '';
+            (fam.children || []).forEach(c => {
+                if (c.tag === 'HUSB') husb = cleanId(c.value);
+                if (c.tag === 'WIFE') wife = cleanId(c.value);
+            });
+
+            if (husb && personsMap[husb]) {
+                getAncestors(husb, 2 * qnr, relString ? relString + '-V' : 'V');
+            }
+            if (wife && personsMap[wife]) {
+                getAncestors(wife, 2 * qnr + 1, relString ? relString + '-M' : 'M');
+            }
+        }
+
+        getAncestors(personId, 1, '');
+
+        let bCount = 0, aanvCount = 0, aanpCount = 0;
+        let ancSurnames = { AANVULLING: {}, AANPASSING: {} };
+        let ancPlaces = { AANVULLING: {}, AANPASSING: {} };
+
+        let sortedAncestors = Array.from(ancestorsMap.values()).sort((a, b) => a.qnr - b.qnr);
+        currentFilteredAncestors = [];
+
+        sortedAncestors.forEach(item => {
+            if (item.type === 'BASIS') {
+                bCount++;
+            } else if (item.type === 'AANVULLING') {
+                aanvCount++;
+            } else if (item.type === 'AANPASSING') {
+                aanpCount++;
+            }
+
+            if (item.type === 'AANVULLING' || item.type === 'AANPASSING') {
+                let parts = item.name.split(',');
+                let achternaam = parts[0] ? parts[0].trim() : 'Onbekend';
+                
+                if (item.type === 'AANVULLING') {
+                    ancSurnames.AANVULLING[achternaam] = (ancSurnames.AANVULLING[achternaam] || 0) + 1;
+                    if (item.birthPlace) ancPlaces.AANVULLING[item.birthPlace] = (ancPlaces.AANVULLING[item.birthPlace] || 0) + 1;
+                } else if (item.type === 'AANPASSING') {
+                    ancSurnames.AANPASSING[achternaam] = (ancSurnames.AANPASSING[achternaam] || 0) + 1;
+                    if (item.birthPlace) ancPlaces.AANPASSING[item.birthPlace] = (ancPlaces.AANPASSING[item.birthPlace] || 0) + 1;
+                }
+
+                currentFilteredAncestors.push(item);
+            }
+        });
+
+        const mainPerson = personsMap[personId];
+        const nameObj = parsePersonName(mainPerson);
+
+        document.getElementById('selectedPersonName').innerText = nameObj.full;
+        document.getElementById('ancBasis').innerText = bCount;
+        document.getElementById('ancAanvulling').innerText = aanvCount;
+        document.getElementById('ancAanpassing').innerText = aanpCount;
+        document.getElementById('ancTotal').innerText = sortedAncestors.length;
+
+        fillTable('ancPlacesAanvullingBody', ancPlaces.AANVULLING);
+        fillTable('ancSurnamesAanvullingBody', ancSurnames.AANVULLING);
+        fillTable('ancPlacesAanpassingBody', ancPlaces.AANPASSING);
+        fillTable('ancSurnamesAanpassingBody', ancSurnames.AANPASSING);
+
+        renderTextAncestorList();
+        document.getElementById('ancestorResult').style.display = 'block';
+    }
+
+    function setSortMode(mode) {
+        currentSortMode = mode;
+        document.getElementById('btnSortSosa').classList.toggle('active', mode === 'sosa');
+        document.getElementById('btnSortRel').classList.toggle('active', mode === 'rel');
+        renderTextAncestorList();
+    }
+
+    function renderTextAncestorList() {
+        if (!currentFilteredAncestors || currentFilteredAncestors.length === 0) {
+            document.getElementById('textAncestorList').innerHTML = "Geen voorouders gevonden met type AANVULLING of AANPASSING.";
+            return;
+        }
+
+        let listToRender = [...currentFilteredAncestors];
+
+        if (currentSortMode === 'sosa') {
+            listToRender.sort((a, b) => a.qnr - b.qnr);
+        } else if (currentSortMode === 'rel') {
+            listToRender.sort((a, b) => {
+                let relA = a.relation || '';
+                let relB = b.relation || '';
+                return relA.localeCompare(relB);
+            });
+        }
+
+        let textOutputHTML = "";
+        listToRender.forEach((item, index) => {
+            let counterText = index + 1;
+            let dateStr = item.birthDate ? ` (° ${item.birthDate})` : '';
+            let typeBadge = `<span style="color: ${item.type === 'AANVULLING' ? '#27ae60' : '#d35400'}; font-weight: bold;">[${item.type}]</span>`;
+            let relStr = item.relation ? ` [Relatie: ${item.relation}]` : '';
+            textOutputHTML += `<strong>${counterText}. (Kwartier ${item.qnr})</strong> ${item.name}${dateStr} - Plaats: <em>${item.birthPlace}</em> ${relStr} ${typeBadge}<br>`;
+        });
+
+        document.getElementById('textAncestorList').innerHTML = textOutputHTML;
+    }
+</script>
+
+</body>
+</html>

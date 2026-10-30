@@ -186,7 +186,7 @@
         <div class="stat-card" style="background: #ebf8ff;">
             <div class="stat-label">Algemeen Totaal</div>
             <div class="stat-number" id="countTotalTypes">0</div>
-            <div style="font-size: 0.85rem; color:#2b6cb0;">100%</div>
+            <div style="font-size: 0.85rem; color: #2b6cb0;">100%</div>
         </div>
     </div>
 
@@ -282,7 +282,7 @@
                 <button class="sort-btn active" id="btnSortSosa" onclick="setSortMode('sosa')">🔢 Sorteer op SOSA-nummer (Standaard)</button>
                 <button class="sort-btn" id="btnSortRel" onclick="setSortMode('rel')">🔀 Sorteer op Relatiepad</button>
             </div>
-            <p style="font-size: 0.9rem; color: #666;">Volledig doorlopend overzicht (volledig uitgediept zonder afbreking):</p>
+            <p style="font-size: 0.9rem; color: #666;">Volledig doorlopend overzicht:</p>
             <div class="text-list-box" id="textAncestorList">
                 Geen data geladen...
             </div>
@@ -426,7 +426,19 @@
                 if (sub.tag === 'DATE') date = sub.value;
             });
         }
-        return { place: plac ? plac.trim() : 'Onbekende plaats', date: date ? date.trim() : '' };
+        return { place: plac ? plac.trim() : '', date: date ? date.trim() : '' };
+    }
+
+    function extractDeathDetails(item) {
+        const d = item.children ? item.children.find(c => c.tag === 'DEAT') : null;
+        let plac = '', date = '';
+        if (d) {
+            (d.children || []).forEach(sub => {
+                if (sub.tag === 'PLAC') plac = sub.value;
+                if (sub.tag === 'DATE') date = sub.value;
+            });
+        }
+        return { place: plac ? plac.trim() : '', date: date ? date.trim() : '' };
     }
 
     function getPersonType(item) {
@@ -555,6 +567,7 @@
             if (!person) return;
 
             let birth = extractBirthDetails(person);
+            let death = extractDeathDetails(person);
             let type = getPersonType(person);
             let nameObj = parsePersonName(person);
 
@@ -564,6 +577,8 @@
                 name: nameObj.full,
                 birthDate: birth.date,
                 birthPlace: birth.place,
+                deathDate: death.date,
+                deathPlace: death.place,
                 type: type,
                 relation: relString || 'Hoofdpersoon'
             });
@@ -668,10 +683,19 @@
         let textOutputHTML = "";
         listToRender.forEach((item, index) => {
             let counterText = index + 1;
-            let dateStr = item.birthDate ? ` (° ${item.birthDate})` : '';
+            
+            let lifeInfoArr = [];
+            if (item.birthDate || item.birthPlace) {
+                lifeInfoArr.push(`° ${[item.birthDate, item.birthPlace].filter(Boolean).join(' ')}`.trim());
+            }
+            if (item.deathDate || item.deathPlace) {
+                lifeInfoArr.push(`† ${[item.deathDate, item.deathPlace].filter(Boolean).join(' ')}`.trim());
+            }
+            let lifeStr = lifeInfoArr.length > 0 ? ` (${lifeInfoArr.join(' - ')})` : '';
+
             let typeBadge = `<span style="color: ${item.type === 'AANVULLING' ? '#27ae60' : '#d35400'}; font-weight: bold;">[${item.type}]</span>`;
-            let relStr = item.relation ? ` [Relatie: ${item.relation}]` : '';
-            textOutputHTML += `<strong>${counterText}. (Kwartier ${item.qnr})</strong> ${item.name}${dateStr} - Plaats: <em>${item.birthPlace}</em> ${relStr} ${typeBadge}<br>`;
+            
+            textOutputHTML += `<strong>${counterText}. (${item.qnr})</strong> ${item.name}${lifeStr} ${typeBadge}<br>`;
         });
 
         document.getElementById('textAncestorList').innerHTML = textOutputHTML;
