@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sociale Netwerken & Bloedverwanten Analyse</title>
+    <!-- vis-network voor netwerkvisualisaties -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+            box-sizing: border-box;
+        }
+        h1 { color: #2c3e50; margin-top: 0; }
+        
+        /* Split screen layout */
+        .container-split {
+            display: flex;
+            width: 100%;
+            height: calc(100vh - 180px);
+            min-height: 500px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .pane-left {
+            width: 55%;
+            padding: 20px;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        .pane-right {
+            flex-grow: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            background-color: #fafbfc;
+        }
+        .splitter {
+            width: 8px;
+            background-color: #ddd;
+            cursor: ew-resize;
+            transition: background-color 0.2s;
+        }
+        .splitter:hover, .splitter.dragging {
+            background-color: #2980b9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .stat-box {
+            background: #eef2f5;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2980b9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+            font-size: 13px;
+        }
+        th { 
+            background-color: #34495e; 
+            color: white; 
+            position: sticky; 
+            top: 0; 
+            z-index: 10; 
+            cursor: pointer;
+            user-select: none;
+        }
+        th:hover {
+            background-color: #2c3e50;
+        }
+        th::after {
+            content: ' ↕';
+            font-size: 11px;
+            color: #bdc3c7;
+        }
+        th.sorted-asc::after {
+            content: ' ⬆';
+            color: #f1c40f;
+        }
+        th.sorted-desc::after {
+            content: ' ⬇';
+            color: #f1c40f;
+        }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #f1f1f1; cursor: pointer; }
+        
+        #network-container {
+            width: 100%;
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background-color: #ffffff;
+            min-height: 400px;
+        }
+        #log {
+            font-family: monospace;
+            background: #222;
+            color: #00ff00;
+            padding: 8px;
+            border-radius: 5px;
+            max-height: 90px;
+            overflow-y: auto;
+            font-size: 11px;
+            margin-bottom: 15px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🕸️ Sociale Netwerken & Bloedverwanten Analyse</h1>
+    
+    <div id="log">Status: Bezig met laden uit IndexedDB...</div>
+
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div>Totaal Personen</div>
+            <div id="total-persons" class="stat-number">-</div>
+        </div>
+        <div class="stat-box">
+            <div>Grootste Eiland</div>
+            <div id="island-size" class="stat-number">-</div>
+        </div>
+        <div class="stat-box">
+            <div>% Stamboom</div>
+            <div id="island-percentage" class="stat-number">-</div>
+        </div>
+        <div class="stat-box">
+            <div>Max Verbindingen</div>
+            <div id="max-connections" class="stat-number">-</div>
+        </div>
+    </div>
+
+    <div class="container-split" id="splitContainer">
+        <!-- LINKER PANEEL: Tabel & Statistieken -->
+        <div class="pane-left" id="paneLeft">
+            <h2>🏆 Top Spilfiguren & Bloedverwanten</h2>
+            <p style="font-size: 13px; color: #666;"><em>Klik op een kolomkop om te sorteren. Klik op een persoon om het netwerk rechts te tonen.</em></p>
+            <input type="text" id="tableSearch" class="search-input" placeholder="🔍 Zoek op naam in lijst..." onkeyup="filterTable()">
+            
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('originalIndex')">#</th>
+                            <th onclick="sortTable('name')">Naam</th>
+                            <th onclick="sortTable('sex')">Gesl.</th>
+                            <th onclick="sortTable('birtYearNum')">Geb.</th>
+                            <th onclick="sortTable('totalScore')">Directe Rel.</th>
+                            <th onclick="sortTable('ancestorCount')">Voorouders ⬆</th>
+                            <th onclick="sortTable('descendantCount')">Nakomelingen ⬇</th>
+                        </tr>
+                    </thead>
+                    <tbody id="connectors-table">
+                        <tr><td colspan="7">Data aan het verwerken...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SCHEIDINGSBALK -->
+        <div class="splitter" id="splitter"></div>
+
+        <!-- RECHTER PANEEL: Schema / Netwerk -->
+        <div class="pane-right" id="paneRight">
+            <h2 id="network-title" style="margin-top:0; font-size:18px;">🌐 Netwerk-Visualisatie</h2>
+            <div id="network-container"></div>
+        </div>
+    </div>
+
+<script>
+// --- INDEXEDDB IMPLEMENTATIE ---
+const DB_NAME = 'GedcomDatabase';
+const STORE_NAME = 'gedcomStore';
+
+function log(msg) {
+    const logEl = document.getElementById('log');
+    if (!logEl) return;
+    logEl.innerHTML += `<br>[${new Date().toLocaleTimeString()}] ${msg}`;
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function getGedcomData() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get('gedcomData');
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+// --- GEDCOM PARSER & EILAND LOGICA ---
+let individuals = {};
+let families = {};
+let largestIslandSet = new Set();
+let connectorData = [];
+let networkInstance = null;
+
+// Sorteerstaat
+let currentSortCol = 'totalScore';
+let currentSortAsc = false;
+
+async function init() {
+    try {
+        log("Ophalen van stamboomgegevens uit IndexedDB...");
+        const rawData = await getGedcomData();
+        if (!rawData) {
+            log("❌ Geen data gevonden in IndexedDB. Laad eerst een GEDCOM in.");
+            return;
+        }
+
+        log("Data geladen. Bezig met structureren...");
+        parseData(rawData);
+
+        log("Eilanden (netwerken) berekenen via BFS...");
+        findIslands();
+
+        log("Super-Connectors, Voorouders en Nakomelingen analyseren...");
+        analyzeConnectors();
+
+        renderStatsAndTable();
+    } catch (err) {
+        log("❌ Fout bij verwerken: " + err.message);
+        console.error(err);
+    }
+}
+
+function parseYearString(str) {
+    if (!str) return '';
+    const match = String(str).match(/\b(1\d{3}|20\d{2})\b/);
+    return match ? match[1] : '';
+}
+
+function parseData(data) {
+    if (typeof data === 'object' && data.individuals) {
+        individuals = data.individuals;
+        Object.values(individuals).forEach(ind => {
+            if (!ind.birtYear && ind.birt) {
+                ind.birtYear = parseYearString(ind.birt);
+            }
+            if (!ind.parents) ind.parents = [];
+            if (!ind.spouses) ind.spouses = [];
+            if (!ind.children) ind.children = [];
+        });
+        if (data.families) families = data.families;
+        return;
+    }
+
+    const lines = data.split('\n');
+    let currentIndi = null;
+    let currentFam = null;
+
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        const parts = line.split(' ');
+        const level = parts[0];
+
+        if (level === '0') {
+            if (parts[2] === 'INDI') {
+                currentIndi = parts[1].replace(/@/g, '');
+                currentFam = null;
+                individuals[currentIndi] = { id: currentIndi, name: 'Onbekend', sex: 'U', birtYear: '', parents: [], spouses: [], children: [] };
+            } else if (parts[2] === 'FAM') {
+                currentFam = parts[1].replace(/@/g, '');
+                currentIndi = null;
+                families[currentFam] = { id: currentFam, husb: null, wife: null, children: [] };
+            } else {
+                currentIndi = null; currentFam = null;
+            }
+        } else if (currentIndi) {
+            if (parts[1] === 'NAME') {
+                individuals[currentIndi].name = parts.slice(2).join(' ').replace(/\//g, '');
+            } else if (parts[1] === 'SEX') {
+                individuals[currentIndi].sex = parts[2] || 'U';
+            } else if (parts[1] === 'DATE') {
+                const year = parseYearString(parts.slice(2).join(' '));
+                if (year && !individuals[currentIndi].birtYear) {
+                    individuals[currentIndi].birtYear = year;
+                }
+            } else if (parts[1] === 'FAMS') {
+                individuals[currentIndi].spouses.push(parts[2].replace(/@/g, ''));
+            } else if (parts[1] === 'FAMC') {
+                individuals[currentIndi].parents.push(parts[2].replace(/@/g, ''));
+            }
+        } else if (currentFam) {
+            if (parts[1] === 'HUSB') families[currentFam].husb = parts[2].replace(/@/g, '');
+            if (parts[1] === 'WIFE') families[currentFam].wife = parts[2].replace(/@/g, '');
+            if (parts[1] === 'CHIL') families[currentFam].children.push(parts[2].replace(/@/g, ''));
+        }
+    }
+
+    Object.values(families).forEach(fam => {
+        if (fam.husb && fam.wife) {
+            if (individuals[fam.husb]) individuals[fam.husb].spouses.push(fam.wife);
+            if (individuals[fam.wife]) individuals[fam.wife].spouses.push(fam.husb);
+        }
+        fam.children.forEach(childId => {
+            if (individuals[childId]) {
+                if (fam.husb) individuals[childId].parents.push(fam.husb);
+                if (fam.wife) individuals[childId].parents.push(fam.wife);
+            }
+            if (fam.husb && individuals[fam.husb]) individuals[fam.husb].children.push(childId);
+            if (fam.wife && individuals[fam.wife]) individuals[fam.wife].children.push(childId);
+        });
+    });
+}
+
+function findIslands() {
+    const visited = new Set();
+    let maxIsland = new Set();
+
+    Object.keys(individuals).forEach(id => {
+        if (!visited.has(id)) {
+            const currentIsland = new Set();
+            const queue = [id];
+            visited.add(id);
+
+            while (queue.length > 0) {
+                const curr = queue.shift();
+                currentIsland.add(curr);
+                const p = individuals[curr];
+                if (!p) continue;
+
+                const neighbors = [...p.parents, ...p.spouses, ...p.children];
+                neighbors.forEach(n => {
+                    if (n && individuals[n] && !visited.has(n)) {
+                        visited.add(n);
+                        queue.push(n);
+                    }
+                });
+            }
+
+            if (currentIsland.size > maxIsland.size) {
+                maxIsland = currentIsland;
+            }
+        }
+    });
+
+    largestIslandSet = maxIsland;
+}
+
+// 1. Verzamel alle VOOROUDERS (recursief omhoog)
+function getAncestors(startId) {
+    const ancestors = new Set();
+    const queue = [...(individuals[startId]?.parents || [])];
+    const visited = new Set();
+
+    while (queue.length > 0) {
+        const currId = queue.shift();
+        if (visited.has(currId)) continue;
+        visited.add(currId);
+        ancestors.add(currId);
+
+        const p = individuals[currId];
+        if (p && p.parents) {
+            p.parents.forEach(par => {
+                if (par && !visited.has(par)) queue.push(par);
+            });
+        }
+    }
+    return ancestors;
+}
+
+// 2. Verzamel alle NAKOMELINGEN (recursief omlaag)
+function getDescendants(startId) {
+    const descendants = new Set();
+    const queue = [...(individuals[startId]?.children || [])];
+    const visited = new Set();
+
+    while (queue.length > 0) {
+        const currId = queue.shift();
+        if (visited.has(currId)) continue;
+        visited.add(currId);
+        descendants.add(currId);
+
+        const p = individuals[currId];
+        if (p && p.children) {
+            p.children.forEach(chil => {
+                if (chil && !visited.has(chil)) queue.push(chil);
+            });
+        }
+    }
+    return descendants;
+}
+
+function analyzeConnectors() {
+    connectorData = [];
+
+    largestIslandSet.forEach(id => {
+        const p = individuals[id];
+        if (!p) return;
+
+        const uniqueParents = new Set(p.parents).size;
+        const uniqueSpouses = new Set(p.spouses).size;
+        const uniqueChildren = new Set(p.children).size;
+        const totalDegree = uniqueParents + uniqueSpouses + uniqueChildren;
+
+        const ancestors = getAncestors(p.id);
+        const descendants = getDescendants(p.id);
+
+        connectorData.push({
+            id: p.id,
+            name: p.name,
+            sex: p.sex,
+            birtYear: p.birtYear || '-',
+            birtYearNum: p.birtYear ? parseInt(p.birtYear, 10) : 0,
+            totalScore: totalDegree,
+            ancestorCount: ancestors.size,
+            descendantCount: descendants.size
+        });
+    });
+
+    sortData('totalScore', false);
+    connectorData.forEach((item, idx) => {
+        item.originalIndex = idx + 1;
+    });
+}
+
+function sortData(col, asc) {
+    connectorData.sort((a, b) => {
+        let valA = a[col];
+        let valB = b[col];
+
+        if (typeof valA === 'string') {
+            valA = valA.toLowerCase();
+            valB = valB.toLowerCase();
+        }
+
+        if (valA < valB) return asc ? -1 : 1;
+        if (valA > valB) return asc ? 1 : -1;
+        return 0;
+    });
+}
+
+function sortTable(col) {
+    if (currentSortCol === col) {
+        currentSortAsc = !currentSortAsc;
+    } else {
+        currentSortCol = col;
+        currentSortAsc = (col === 'name' || col === 'sex');
+    }
+
+    sortData(currentSortCol, currentSortAsc);
+    updateTableHeaders();
+    filterTable();
+}
+
+function updateTableHeaders() {
+    const ths = document.querySelectorAll('thead th');
+    ths.forEach(th => th.classList.remove('sorted-asc', 'sorted-desc'));
+
+    const colMap = { 
+        'originalIndex': 0, 
+        'name': 1, 
+        'sex': 2, 
+        'birtYearNum': 3, 
+        'totalScore': 4, 
+        'ancestorCount': 5, 
+        'descendantCount': 6 
+    };
+    
+    const index = colMap[currentSortCol];
+    if (index !== undefined && ths[index]) {
+        ths[index].classList.add(currentSortAsc ? 'sorted-asc' : 'sorted-desc');
+    }
+}
+
+function renderStatsAndTable() {
+    const totalCount = Object.keys(individuals).length;
+    const islandCount = largestIslandSet.size;
+    const perc = ((islandCount / totalCount) * 100).toFixed(1);
+
+    document.getElementById('total-persons').innerText = totalCount.toLocaleString();
+    document.getElementById('island-size').innerText = islandCount.toLocaleString();
+    document.getElementById('island-percentage').innerText = perc + '%';
+    
+    const maxConn = Math.max(...connectorData.map(d => d.totalScore));
+    document.getElementById('max-connections').innerText = maxConn;
+
+    updateTableHeaders();
+    filterTable();
+    log("Gereed! Klik op kolomkoppen om te sorteren.");
+    if (connectorData.length > 0) renderNetwork(connectorData[0].id);
+}
+
+function populateTable(dataList) {
+    const tbody = document.getElementById('connectors-table');
+    tbody.innerHTML = '';
+
+    dataList.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.onclick = () => renderNetwork(item.id);
+        tr.innerHTML = `
+            <td><strong>${index + 1}</strong></td>
+            <td>${item.name}</td>
+            <td>${item.sex === 'M' ? '👨' : (item.sex === 'F' ? '👩' : '❓')}</td>
+            <td>${item.birtYear}</td>
+            <td>${item.totalScore}</td>
+            <td><strong style="color: #2980b9;">${item.ancestorCount.toLocaleString()}</strong></td>
+            <td><strong style="color: #27ae60;">${item.descendantCount.toLocaleString()}</strong></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function filterTable() {
+    const query = document.getElementById('tableSearch').value.toLowerCase();
+    const filtered = connectorData.filter(item => item.name.toLowerCase().includes(query));
+    populateTable(filtered.slice(0, 100));
+}
+
+function renderNetwork(centralId) {
+    const p = individuals[centralId];
+    if (!p) return;
+
+    document.getElementById('network-title').innerText = `🌐 Netwerk van: ${p.name} (${p.birtYear ? '°' + p.birtYear : ''})`;
+    log(`Netwerk-web opbouwen voor: ${p.name} (${centralId})...`);
+
+    const nodes = [];
+    const edges = [];
+    const addedNodes = new Set();
+
+    const birthStr = p.birtYear ? `\n(°${p.birtYear})` : '';
+    nodes.push({
+        id: p.id,
+        label: `${p.name}${birthStr}\n[SPILFIGUUR]`,
+        shape: 'box',
+        color: { background: '#f1c40f', border: '#d35400' },
+        font: { bold: true }
+    });
+    addedNodes.add(p.id);
+
+    const addRelNode = (id, relationLabel, bgColor) => {
+        if (!id || !individuals[id]) return;
+        const relP = individuals[id];
+        const relBirth = relP.birtYear ? ` (°${relP.birtYear})` : '';
+
+        if (!addedNodes.has(id)) {
+            nodes.push({
+                id: relP.id,
+                label: `${relP.name}${relBirth}\n[${relationLabel}]`,
+                shape: 'ellipse',
+                color: { background: bgColor }
+            });
+            addedNodes.add(id);
+        }
+
+        edges.push({ from: centralId, to: id, label: relationLabel });
+    };
+
+    p.parents.forEach(id => addRelNode(id, 'Ouder', '#3498db'));
+    p.spouses.forEach(id => addRelNode(id, 'Partner', '#e74c3c'));
+    p.children.forEach(id => addRelNode(id, 'Kind', '#2ecc71'));
+
+    const container = document.getElementById('network-container');
+    const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+    const options = {
+        physics: { solver: 'forceAtlas2Based' },
+        interaction: { hover: true, zoomView: true }
+    };
+
+    if (networkInstance) networkInstance.destroy();
+    networkInstance = new vis.Network(container, data, options);
+}
+
+// --- SPLIT SCREEN RESIZER LOGICA ---
+const splitter = document.getElementById('splitter');
+const paneLeft = document.getElementById('paneLeft');
+const splitContainer = document.getElementById('splitContainer');
+
+let isDragging = false;
+
+splitter.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    splitter.classList.add('dragging');
+    document.body.style.cursor = 'ew-resize';
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const containerRect = splitContainer.getBoundingClientRect();
+    const offsetX = e.clientX - containerRect.left;
+    const totalWidth = containerRect.width;
+    
+    let percentage = (offsetX / totalWidth) * 100;
+    if (percentage < 20) percentage = 20;
+    if (percentage > 80) percentage = 80;
+
+    paneLeft.style.width = percentage + '%';
+});
+
+window.addEventListener('mouseup', () => {
+    if (isDragging) {
+        isDragging = false;
+        splitter.classList.remove('dragging');
+        document.body.style.cursor = 'default';
+        if (networkInstance) networkInstance.redraw();
+    }
+});
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
