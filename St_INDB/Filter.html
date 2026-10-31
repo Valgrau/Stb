@@ -132,9 +132,9 @@
             font-size: 0.75rem;
             font-weight: bold;
         }
-        .tag-basis { background-color: #e2e8f0; color: #2d3748; }
-        .tag-aanvulling { background-color: #c6f6d5; color: #22543d; }
-        .tag-aanpassing { background-color: #feebc8; color: #744210; }
+        .tag-oud { background-color: #e2e8f0; color: #2d3748; }
+        .tag-new { background-color: #c6f6d5; color: #22543d; }
+        .tag-mod { background-color: #feebc8; color: #744210; }
         
         #contextMenu {
             display: none;
@@ -180,7 +180,7 @@
             padding: 15px;
             font-size: 0.85rem;
             color: #333;
-            pointer-events: none; /* Voorkomt dat muis over popup crasht */
+            pointer-events: none;
         }
         #detailPopup h3 {
             margin-top: 0;
@@ -256,9 +256,9 @@
                 <label>Commentaar</label>
                 <select id="filterCommentaar">
                     <option value="">Alle</option>
-                    <option value="BASIS">BASIS</option>
-                    <option value="AANVULLING">AANVULLING</option>
-                    <option value="AANPASSING">AANPASSING</option>
+                    <option value="OUD">OUD</option>
+                    <option value="NEW">NEW</option>
+                    <option value="MOD">MOD</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -543,12 +543,12 @@
         });
 
         const fullNoteText = notes.join(' ').toUpperCase();
-        if (fullNoteText.includes('AANVULLING')) {
-            commentaar = 'AANVULLING';
-        } else if (fullNoteText.includes('AANPASSING')) {
-            commentaar = 'AANPASSING';
-        } else if (fullNoteText.includes('BASIS')) {
-            commentaar = 'BASIS';
+        if (fullNoteText.includes('NEW')) {
+            commentaar = 'NEW';
+        } else if (fullNoteText.includes('MOD')) {
+            commentaar = 'MOD';
+        } else if (fullNoteText.includes('OUD')) {
+            commentaar = 'OUD';
         }
 
         return { voornaam, achternaam, geslacht, commentaar };
@@ -999,12 +999,12 @@
             let bloedvColor = isBloed ? '#38a169' : (isGeen ? '#a0aec0' : '#d69e2e');
 
             let commentaarBadge = '-';
-            if (p.commentaar === 'BASIS') {
-                commentaarBadge = '<span class="tag-status tag-basis">BASIS</span>';
-            } else if (p.commentaar === 'AANVULLING') {
-                commentaarBadge = '<span class="tag-status tag-aanvulling">AANVULLING</span>';
-            } else if (p.commentaar === 'AANPASSING') {
-                commentaarBadge = '<span class="tag-status tag-aanpassing">AANPASSING</span>';
+            if (p.commentaar === 'OUD') {
+                commentaarBadge = '<span class="tag-status tag-oud">OUD</span>';
+            } else if (p.commentaar === 'NEW') {
+                commentaarBadge = '<span class="tag-status tag-new">NEW</span>';
+            } else if (p.commentaar === 'MOD') {
+                commentaarBadge = '<span class="tag-status tag-mod">MOD</span>';
             }
 
             const tr = document.createElement('tr');
@@ -1030,7 +1030,6 @@
         });
     }
 
-    // --- HOVER DETAIL POPUP LOGICA (DETAIL SCHERM DATA) ---
     function showDetailPopup(event, personId) {
         const person = parsedPersonsMap[personId];
         if (!person) return;
@@ -1044,7 +1043,6 @@
         let birthStr = birthObj.formatted || 'Jaartal/Plaats onbekend';
         let deathStr = deathObj.formatted || 'Jaartal/Plaats onbekend';
 
-        // Ouders
         let parentsHTML = 'Geen ouders bekend';
         let famcId = '';
         (person.children || []).forEach(c => { if (c.tag === 'FAMC') famcId = cleanId(c.value); });
@@ -1071,7 +1069,6 @@
             if (pNames.length > 0) parentsHTML = `<ul><li>` + pNames.join('</li><li>') + `</li></ul>`;
         }
 
-        // Partners & Kinderen
         let familiesHTML = 'Geen partners bekend';
         let childrenHTML = 'Geen kinderen bekend';
         let famsIds = [];
@@ -1113,10 +1110,8 @@
             if (childList.length > 0) childrenHTML = `<ul><li>` + childList.join('</li><li>') + `</li></ul>`;
         }
 
-        // Notities
         let notesHTML = person.notes && person.notes.length > 0 ? `<ul><li>` + person.notes.join('</li><li>') + `</li></ul>` : 'Geen notities';
 
-        // Popup vullen
         document.getElementById('popTitle').innerText = nameObj.full;
         document.getElementById('popId').innerText = personId;
         document.getElementById('popSex').innerText = sex;
@@ -1141,7 +1136,6 @@
         let x = event.clientX + 15;
         let y = event.clientY + 15;
 
-        // Controleer of popup buiten scherm valt aan rechterkant of onderkant
         if (x + popup.offsetWidth > window.innerWidth) {
             x = event.clientX - popup.offsetWidth - 15;
         }
@@ -1173,7 +1167,7 @@
     function setAsMainPerson() {
         if (contextMenuTargetId) {
             currentMainPersonId = contextMenuTargetId;
-            let targetPerson = allPersonsData.find(p => p.id === currentMainPersonId);
+            let targetPerson = allPersonsData.some(p => p.id === currentMainPersonId) ? allPersonsData.find(p => p.id === currentMainPersonId) : null;
             let nameStr = targetPerson ? `${currentMainPersonId} (${targetPerson.voornaam} ${targetPerson.achternaam})` : currentMainPersonId;
             
             document.getElementById('currentRootInfo').innerHTML = `📍 Huidige hoofdpersoon: <strong>${nameStr}</strong>`;

@@ -166,20 +166,20 @@
     </div>
 
     <!-- BASIS STATISTIEKEN PER TYPE -->
-    <h2 class="section-title">📋 Verdeling naar Type (BASIS, AANVULLING, AANPASSING)</h2>
+    <h2 class="section-title">📋 Verdeling naar Type (OUD, NEW, MOD)</h2>
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-label">Basis</div>
+            <div class="stat-label">Oud</div>
             <div class="stat-number" id="countBasis">0</div>
             <div style="font-size: 0.85rem; color:#666;" id="pctBasis">0%</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Aanvulling</div>
+            <div class="stat-label">New</div>
             <div class="stat-number" id="countAanvulling">0</div>
             <div style="font-size: 0.85rem; color:#666;" id="pctAanvulling">0%</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Aanpassing</div>
+            <div class="stat-label">Mod</div>
             <div class="stat-number" id="countAanpassing">0</div>
             <div style="font-size: 0.85rem; color:#666;" id="pctAanpassing">0%</div>
         </div>
@@ -203,15 +203,15 @@
         <h2 class="section-title">📜 Top 20 Familienamen per Type</h2>
         <div class="grid-3">
             <div>
-                <h4 style="color:#2c3e50;">Basis</h4>
+                <h4 style="color:#2c3e50;">Oud</h4>
                 <table class="data-table"><thead><tr><th>Naam</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="surnamesBasisBody"></tbody></table>
             </div>
             <div>
-                <h4 style="color:#2c3e50;">Aanvulling</h4>
+                <h4 style="color:#2c3e50;">New</h4>
                 <table class="data-table"><thead><tr><th>Naam</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="surnamesAanvullingBody"></tbody></table>
             </div>
             <div>
-                <h4 style="color:#2c3e50;">Aanpassing</h4>
+                <h4 style="color:#2c3e50;">Mod</h4>
                 <table class="data-table"><thead><tr><th>Naam</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="surnamesAanpassingBody"></tbody></table>
             </div>
         </div>
@@ -219,15 +219,15 @@
         <h2 class="section-title">📍 Top 20 Geboorteplaatsen per Type</h2>
         <div class="grid-3">
             <div>
-                <h4 style="color:#2c3e50;">Basis</h4>
+                <h4 style="color:#2c3e50;">Oud</h4>
                 <table class="data-table"><thead><tr><th>Plaats</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="placesBasisBody"></tbody></table>
             </div>
             <div>
-                <h4 style="color:#2c3e50;">Aanvulling</h4>
+                <h4 style="color:#2c3e50;">New</h4>
                 <table class="data-table"><thead><tr><th>Plaats</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="placesAanvullingBody"></tbody></table>
             </div>
             <div>
-                <h4 style="color:#2c3e50;">Aanpassing</h4>
+                <h4 style="color:#2c3e50;">Mod</h4>
                 <table class="data-table"><thead><tr><th>Plaats</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="placesAanpassingBody"></tbody></table>
             </div>
         </div>
@@ -250,16 +250,16 @@
         <div id="ancestorResult" style="margin-top: 20px; display: none;">
             <h4>Resultaat voor voorgeslacht van: <span id="selectedPersonName" style="color: #2980b9;"></span></h4>
             <div class="stats-grid">
-                <div class="stat-card"><div class="stat-label">Basis (Voorouders)</div><div class="stat-number" id="ancBasis">0</div></div>
-                <div class="stat-card"><div class="stat-label">Aanvulling (Voorouders)</div><div class="stat-number" id="ancAanvulling">0</div></div>
-                <div class="stat-card"><div class="stat-label">Aanpassing (Voorouders)</div><div class="stat-number" id="ancAanpassing">0</div></div>
+                <div class="stat-card"><div class="stat-label">Oud (Voorouders)</div><div class="stat-number" id="ancBasis">0</div></div>
+                <div class="stat-card"><div class="stat-label">New (Voorouders)</div><div class="stat-number" id="ancAanvulling">0</div></div>
+                <div class="stat-card"><div class="stat-label">Mod (Voorouders)</div><div class="stat-number" id="ancAanpassing">0</div></div>
                 <div class="stat-card" style="background: #ebf8ff;"><div class="stat-label">Totaal Voorouders</div><div class="stat-number" id="ancTotal">0</div></div>
             </div>
 
-            <!-- Top 20 voor AANVULLING en AANPASSING binnen het voorgeslacht -->
+            <!-- Top 20 voor NEW en MOD binnen het voorgeslacht -->
             <div class="grid-2" style="margin-top: 20px;">
                 <div>
-                    <h3 style="color: #2c3e50; font-size: 1.1rem;">🌟 AANVULLING (Voorgeslacht)</h3>
+                    <h3 style="color: #2c3e50; font-size: 1.1rem;">🌟 NEW (Voorgeslacht)</h3>
                     <h4 style="font-size:0.9rem; color:#666; margin-bottom:5px;">Top 20 Geboorteplaatsen</h4>
                     <table class="data-table"><thead><tr><th>Plaats</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="ancPlacesAanvullingBody"></tbody></table>
 
@@ -267,7 +267,7 @@
                     <table class="data-table"><thead><tr><th>Naam</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="ancSurnamesAanvullingBody"></tbody></table>
                 </div>
                 <div>
-                    <h3 style="color: #2c3e50; font-size: 1.1rem;">🔧 AANPASSING (Voorgeslacht)</h3>
+                    <h3 style="color: #2c3e50; font-size: 1.1rem;">🔧 MOD (Voorgeslacht)</h3>
                     <h4 style="font-size:0.9rem; color:#666; margin-bottom:5px;">Top 20 Geboorteplaatsen</h4>
                     <table class="data-table"><thead><tr><th>Plaats</th><th style="text-align:right;">Aantal</th></tr></thead><tbody id="ancPlacesAanpassingBody"></tbody></table>
 
@@ -276,8 +276,8 @@
                 </div>
             </div>
 
-            <!-- TEKSTUEEL GEDETAILLEERD VOORGESLACHT (ALLEEN AANVULLING & AANPASSING) -->
-            <h3 class="section-title" style="margin-top: 30px;">📄 Gedetailleerd Tekstueel Voorgeslacht (Alleen AANVULLING & AANPASSING)</h3>
+            <!-- TEKSTUEEL GEDETAILLEERD VOORGESLACHT (ALLEEN NEW & MOD) -->
+            <h3 class="section-title" style="margin-top: 30px;">📄 Gedetailleerd Tekstueel Voorgeslacht (Alleen NEW & MOD)</h3>
             <div style="margin-bottom: 10px;">
                 <button class="sort-btn active" id="btnSortSosa" onclick="setSortMode('sosa')">🔢 Sorteer op SOSA-nummer (Standaard)</button>
                 <button class="sort-btn" id="btnSortRel" onclick="setSortMode('rel')">🔀 Sorteer op Relatiepad</button>
@@ -303,9 +303,20 @@
 
     function openGedcomDB() {
         return new Promise((resolve, reject) => {
+            // Voeg een time-out toe van 5 seconden voor het openen van IndexedDB om hangen te voorkomen
+            const timer = setTimeout(() => {
+                reject(new Error("IndexedDB openen duurde te lang (timeout)."));
+            }, 5000);
+
             const request = indexedDB.open(DB_NAME, DB_VERSION);
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => {
+                clearTimeout(timer);
+                reject(request.error);
+            };
+            request.onsuccess = () => {
+                clearTimeout(timer);
+                resolve(request.result);
+            };
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
@@ -326,18 +337,30 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
         try {
+            document.getElementById('statusText').innerHTML = '⏳ Gegevens ophalen uit IndexedDB...';
             const savedData = await getGedcomFromIDB();
             if (savedData) {
                 document.getElementById('statusText').innerHTML = '✅ Data geladen. Analyseren...';
                 document.getElementById('statusBanner').style.backgroundColor = '#e6fffa';
-                const parsedData = parseGedcom(savedData);
-                processGedcomData(parsedData);
+                
+                // Gebruik setTimeout om de UI te laten renderen voordat de zware parser start
+                setTimeout(() => {
+                    try {
+                        const parsedData = parseGedcom(savedData);
+                        processGedcomData(parsedData);
+                    } catch (parseErr) {
+                        console.error("Fout bij parsen GEDCOM:", parseErr);
+                        document.getElementById('statusText').innerHTML = '⚠️ Fout bij verwerken van stamboomdata.';
+                        document.getElementById('fileFallback').style.display = 'block';
+                    }
+                }, 50);
             } else {
                 document.getElementById('statusText').innerHTML = '⚠️ Geen stamboom gevonden in IndexedDB.';
                 document.getElementById('fileFallback').style.display = 'block';
             }
         } catch (err) {
-            console.error(err);
+            console.error("IndexedDB fout of timeout:", err);
+            document.getElementById('statusText').innerHTML = '⚠️ Kan geen verbinding maken met IndexedDB of data ontbreekt.';
             document.getElementById('fileFallback').style.display = 'block';
         }
     });
@@ -348,9 +371,14 @@
         const reader = new FileReader();
         reader.onload = async function(evt) {
             const text = evt.target.result;
-            const db = await openGedcomDB();
-            db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).put(text, 'gedcomData');
-            location.reload();
+            try {
+                const db = await openGedcomDB();
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(text, 'gedcomData');
+                tx.oncomplete = () => location.reload();
+            } catch (err) {
+                alert("Fout bij opslaan in IndexedDB: " + err.message);
+            }
         };
         reader.readAsText(file);
     });
@@ -443,17 +471,17 @@
 
     function getPersonType(item) {
         let text = (item.notes.join(' ') + ' ' + (item.NOTE || '')).toUpperCase();
-        if (text.includes('BASIS')) return 'BASIS';
-        if (text.includes('AANVULLING')) return 'AANVULLING';
-        if (text.includes('AANPASSING')) return 'AANPASSING';
+        if (text.includes('NEW')) return 'NEW';
+        if (text.includes('MOD')) return 'MOD';
+        if (text.includes('OUD')) return 'OUD';
         return 'OVERIG';
     }
 
     function processGedcomData(data) {
         let personsMap = {}, familiesMap = {};
         let countB = 0, countAanv = 0, countAanp = 0, totalP = 0;
-        let surnames = { BASIS: {}, AANVULLING: {}, AANPASSING: {} };
-        let places = { BASIS: {}, AANVULLING: {}, AANPASSING: {} };
+        let surnames = { OUD: {}, NEW: {}, MOD: {} };
+        let places = { OUD: {}, NEW: {}, MOD: {} };
 
         data.forEach(item => {
             const tag = (item.TAG || '').toUpperCase();
@@ -471,18 +499,18 @@
 
             if (type !== 'OVERIG') {
                 totalP++;
-                if (type === 'BASIS') {
+                if (type === 'OUD') {
                     countB++;
-                    surnames.BASIS[nameObj.achternaam] = (surnames.BASIS[nameObj.achternaam] || 0) + 1;
-                    if (birth.place) places.BASIS[birth.place] = (places.BASIS[birth.place] || 0) + 1;
-                } else if (type === 'AANVULLING') {
+                    surnames.OUD[nameObj.achternaam] = (surnames.OUD[nameObj.achternaam] || 0) + 1;
+                    if (birth.place) places.OUD[birth.place] = (places.OUD[birth.place] || 0) + 1;
+                } else if (type === 'NEW') {
                     countAanv++;
-                    surnames.AANVULLING[nameObj.achternaam] = (surnames.AANVULLING[nameObj.achternaam] || 0) + 1;
-                    if (birth.place) places.AANVULLING[birth.place] = (places.AANVULLING[birth.place] || 0) + 1;
-                } else if (type === 'AANPASSING') {
+                    surnames.NEW[nameObj.achternaam] = (surnames.NEW[nameObj.achternaam] || 0) + 1;
+                    if (birth.place) places.NEW[birth.place] = (places.NEW[birth.place] || 0) + 1;
+                } else if (type === 'MOD') {
                     countAanp++;
-                    surnames.AANPASSING[nameObj.achternaam] = (surnames.AANPASSING[nameObj.achternaam] || 0) + 1;
-                    if (birth.place) places.AANPASSING[birth.place] = (places.AANPASSING[birth.place] || 0) + 1;
+                    surnames.MOD[nameObj.achternaam] = (surnames.MOD[nameObj.achternaam] || 0) + 1;
+                    if (birth.place) places.MOD[birth.place] = (places.MOD[birth.place] || 0) + 1;
                 }
             }
 
@@ -527,13 +555,13 @@
         document.getElementById('loaderTop').style.display = 'block';
         setTimeout(() => {
             const { surnames, places } = gedcomCache;
-            fillTable('surnamesBasisBody', surnames.BASIS);
-            fillTable('surnamesAanvullingBody', surnames.AANVULLING);
-            fillTable('surnamesAanpassingBody', surnames.AANPASSING);
+            fillTable('surnamesBasisBody', surnames.OUD);
+            fillTable('surnamesAanvullingBody', surnames.NEW);
+            fillTable('surnamesAanpassingBody', surnames.MOD);
 
-            fillTable('placesBasisBody', places.BASIS);
-            fillTable('placesAanvullingBody', places.AANVULLING);
-            fillTable('placesAanpassingBody', places.AANPASSING);
+            fillTable('placesBasisBody', places.OUD);
+            fillTable('placesAanvullingBody', places.NEW);
+            fillTable('placesAanpassingBody', places.MOD);
 
             document.getElementById('loaderTop').style.display = 'none';
             document.getElementById('topListsSection').style.display = 'block';
@@ -606,31 +634,31 @@
         getAncestors(personId, 1, '');
 
         let bCount = 0, aanvCount = 0, aanpCount = 0;
-        let ancSurnames = { AANVULLING: {}, AANPASSING: {} };
-        let ancPlaces = { AANVULLING: {}, AANPASSING: {} };
+        let ancSurnames = { NEW: {}, MOD: {} };
+        let ancPlaces = { NEW: {}, MOD: {} };
 
         let sortedAncestors = Array.from(ancestorsMap.values()).sort((a, b) => a.qnr - b.qnr);
         currentFilteredAncestors = [];
 
         sortedAncestors.forEach(item => {
-            if (item.type === 'BASIS') {
+            if (item.type === 'OUD') {
                 bCount++;
-            } else if (item.type === 'AANVULLING') {
+            } else if (item.type === 'NEW') {
                 aanvCount++;
-            } else if (item.type === 'AANPASSING') {
+            } else if (item.type === 'MOD') {
                 aanpCount++;
             }
 
-            if (item.type === 'AANVULLING' || item.type === 'AANPASSING') {
+            if (item.type === 'NEW' || item.type === 'MOD') {
                 let parts = item.name.split(',');
                 let achternaam = parts[0] ? parts[0].trim() : 'Onbekend';
                 
-                if (item.type === 'AANVULLING') {
-                    ancSurnames.AANVULLING[achternaam] = (ancSurnames.AANVULLING[achternaam] || 0) + 1;
-                    if (item.birthPlace) ancPlaces.AANVULLING[item.birthPlace] = (ancPlaces.AANVULLING[item.birthPlace] || 0) + 1;
-                } else if (item.type === 'AANPASSING') {
-                    ancSurnames.AANPASSING[achternaam] = (ancSurnames.AANPASSING[achternaam] || 0) + 1;
-                    if (item.birthPlace) ancPlaces.AANPASSING[item.birthPlace] = (ancPlaces.AANPASSING[item.birthPlace] || 0) + 1;
+                if (item.type === 'NEW') {
+                    ancSurnames.NEW[achternaam] = (ancSurnames.NEW[achternaam] || 0) + 1;
+                    if (item.birthPlace) ancPlaces.NEW[item.birthPlace] = (ancPlaces.NEW[item.birthPlace] || 0) + 1;
+                } else if (item.type === 'MOD') {
+                    ancSurnames.MOD[achternaam] = (ancSurnames.MOD[achternaam] || 0) + 1;
+                    if (item.birthPlace) ancPlaces.MOD[item.birthPlace] = (ancPlaces.MOD[item.birthPlace] || 0) + 1;
                 }
 
                 currentFilteredAncestors.push(item);
@@ -646,10 +674,10 @@
         document.getElementById('ancAanpassing').innerText = aanpCount;
         document.getElementById('ancTotal').innerText = sortedAncestors.length;
 
-        fillTable('ancPlacesAanvullingBody', ancPlaces.AANVULLING);
-        fillTable('ancSurnamesAanvullingBody', ancSurnames.AANVULLING);
-        fillTable('ancPlacesAanpassingBody', ancPlaces.AANPASSING);
-        fillTable('ancSurnamesAanpassingBody', ancSurnames.AANPASSING);
+        fillTable('ancPlacesAanvullingBody', ancPlaces.NEW);
+        fillTable('ancSurnamesAanvullingBody', ancSurnames.NEW);
+        fillTable('ancPlacesAanpassingBody', ancPlaces.MOD);
+        fillTable('ancSurnamesAanpassingBody', ancSurnames.MOD);
 
         renderTextAncestorList();
         document.getElementById('ancestorResult').style.display = 'block';
@@ -664,7 +692,7 @@
 
     function renderTextAncestorList() {
         if (!currentFilteredAncestors || currentFilteredAncestors.length === 0) {
-            document.getElementById('textAncestorList').innerHTML = "Geen voorouders gevonden met type AANVULLING of AANPASSING.";
+            document.getElementById('textAncestorList').innerHTML = "Geen voorouders gevonden met type NEW of MOD.";
             return;
         }
 
@@ -693,7 +721,7 @@
             }
             let lifeStr = lifeInfoArr.length > 0 ? ` (${lifeInfoArr.join(' - ')})` : '';
 
-            let typeBadge = `<span style="color: ${item.type === 'AANVULLING' ? '#27ae60' : '#d35400'}; font-weight: bold;">[${item.type}]</span>`;
+            let typeBadge = `<span style="color: ${item.type === 'NEW' ? '#27ae60' : '#d35400'}; font-weight: bold;">[${item.type}]</span>`;
             
             textOutputHTML += `<strong>${counterText}. (${item.qnr})</strong> ${item.name}${lifeStr} ${typeBadge}<br>`;
         });
