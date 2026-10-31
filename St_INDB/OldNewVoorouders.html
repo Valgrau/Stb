@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voorgeslacht Onderzoek met Uitsluiting</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 30px;
+            color: #333;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        h1 { text-align: center; margin-bottom: 10px; }
+        .status-banner {
+            text-align: center;
+            padding: 15px;
+            background: #e8f4fd;
+            border: 2px dashed #3498db;
+            color: #2980b9;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .control-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        .filter-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 15px;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .filter-group label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+        select, input[type="text"] {
+            padding: 8px 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background-color: #fff;
+            min-width: 260px;
+        }
+        select[multiple] {
+            height: 100px;
+        }
+        .action-btn, .file-select-btn, .stop-btn {
+            padding: 9px 18px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .action-btn:hover, .file-select-btn:hover { background-color: #2980b9; }
+        .stop-btn { background-color: #e53e3e; display: none; }
+        .stop-btn:hover { background-color: #c53030; }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .data-table th, .data-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 0.85rem;
+        }
+        .data-table th {
+            background-color: #f8fafc;
+            color: #4a5568;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+        }
+        .tag-status {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .tag-old { background-color: #e2e8f0; color: #2d3748; }
+        .tag-new { background-color: #c6f6d5; color: #22543d; }
+        .path-code {
+            font-family: monospace;
+            background: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌳 Voorgeslacht Relatie Onderzoek (Met Uitsluiting)</h1>
+    <p style="text-align: center; color: #666; margin-top: 0;">Onderzoek het voorgeslacht van een specifieke persoon en vergelijk dit met jouw startpersoon, zonder je zoon en kleinzoon als brug.</p>
+
+    <div class="status-banner" id="statusBanner">
+        <span id="statusText">⏳ Gegevens ophalen uit IndexedDB...</span>
+        <div id="fileFallback" style="display: none; margin-top: 12px;">
+            <input type="file" id="gedcomFileInput" style="display: none;" accept=".ged">
+            <button class="file-select-btn" onclick="document.getElementById('gedcomFileInput').click();">📁 Selecteer GEDCOM-bestand handmatig</button>
+        </div>
+    </div>
+
+    <!-- Controles & Filters -->
+    <div class="control-box">
+        <h3 style="margin-top: 0; color: #2c3e50; font-size: 1rem;">🔍 Instellingen</h3>
+        <div class="filter-row">
+            <div class="filter-group">
+                <label for="selectMySelf">1. Selecteer JIJzelf (Startpersoon)</label>
+                <select id="selectMySelf">
+                    <option value="">-- Kies jezelf --</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="selectTargetPerson">2. Selecteer PERSOON (van wie je het voorgeslacht zoekt)</label>
+                <select id="selectTargetPerson">
+                    <option value="">-- Kies persoon --</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="excludePersonsSelect">3. Uit te sluiten (Zoon & Kleinzoon)</label>
+                <select id="excludePersonsSelect" multiple title="Houd Ctrl ingedrukt om meerdere personen te selecteren">
+                    <option value="" disabled>-- Laad eerst data --</option>
+                </select>
+                <span style="font-size: 0.7rem; color: #666; margin-top: 3px;">(Houd Ctrl ingedrukt voor meerdere)</span>
+            </div>
+            <div class="filter-group">
+                <label for="filterMaxStappen">Max. Stappen</label>
+                <select id="filterMaxStappen">
+                    <option value="6">Max 6 stappen</option>
+                    <option value="10">Max 10 stappen</option>
+                    <option value="15">Max 15 stappen</option>
+                    <option value="20" selected>Max 20 stappen</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn" id="startBtn" onclick="startVoorgeslachtAnalyse()">Start Analyse</button>
+                <button class="stop-btn" id="stopBtn" onclick="stopAnalyse()">Stop</button>
+            </div>
+        </div>
+        <div id="analyseStatus" style="font-size: 0.85rem; color: #4a5568; font-weight: 600; margin-top: 10px;"></div>
+    </div>
+
+    <!-- Resultaten Tabel -->
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Voorouder uit Kwadraat / Voorgeslacht</th>
+                    <th>Type</th>
+                    <th>Geboorte</th>
+                    <th>Verbinding met Jouw Startpersoon</th>
+                    <th>Stappen</th>
+                    <th>Relatiepad</th>
+                    <th>Actie</th>
+                </tr>
+            </thead>
+            <tbody id="resultsTableBody">
+                <tr><td colspan="7" style="text-align: center; color: #a0aec0;">Selecteer jezelf, de doelpersoon, sluit je zoon/kleinzoon uit en klik op 'Start Analyse'.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const DB_NAME = 'GedcomDatabase';
+    const STORE_NAME = 'gedcomStore';
+    const DB_VERSION = 5;
+
+    let parsedPersonsMap = {};
+    let parsedFamiliesMap = {};
+    let globalGraph = {};
+    let personsListMeta = [];
+    let isCancelled = false;
+
+    function openGedcomDB() {
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error("Timeout bij openen IndexedDB")), 4000);
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => { clearTimeout(timer); reject(request.error); };
+            request.onsuccess = () => { clearTimeout(timer); resolve(request.result); };
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+            };
+        });
+    }
+
+    async function getStoredGedcomText() {
+        const db = await openGedcomDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const req = store.get('gedcomData');
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => resolve(null);
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const gedcomText = await getStoredGedcomText();
+            if (gedcomText) {
+                document.getElementById('statusText').innerHTML = '⏳ Bezig met inlezen en opbouwen graaf...';
+                setTimeout(() => {
+                    parseGedcomData(gedcomText);
+                    const banner = document.getElementById('statusBanner');
+                    banner.style.backgroundColor = '#e6fffa';
+                    banner.style.borderColor = '#38b2ac';
+                    document.getElementById('statusText').innerHTML = `✅ Data geladen. Totaal aantal personen: ${personsListMeta.length}.`;
+                    populateDropdowns();
+                }, 50);
+            } else {
+                triggerFallback("⚠️ Geen stamboom gevonden in IndexedDB.");
+            }
+        } catch (err) {
+            triggerFallback("⚠️ Kon IndexedDB niet laden. Selecteer handmatig je GEDCOM-bestand.");
+        }
+    });
+
+    function triggerFallback(msg) {
+        document.getElementById('statusText').innerHTML = msg;
+        document.getElementById('fileFallback').style.display = 'block';
+    }
+
+    document.getElementById('gedcomFileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async function(evt) {
+            const text = evt.target.result;
+            try {
+                const db = await openGedcomDB();
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(text, 'gedcomData');
+            } catch (dbErr) {}
+
+            document.getElementById('fileFallback').style.display = 'none';
+            document.getElementById('statusText').innerHTML = '⏳ Bezig met verwerken bestand...';
+            setTimeout(() => {
+                parseGedcomData(text);
+                const banner = document.getElementById('statusBanner');
+                banner.style.backgroundColor = '#e6fffa';
+                banner.style.borderColor = '#38b2ac';
+                document.getElementById('statusText').innerHTML = `✅ Bestand ingelezen. Totaal aantal personen: ${personsListMeta.length}.`;
+                populateDropdowns();
+            }, 50);
+        };
+        reader.readAsText(file);
+    });
+
+    function cleanId(id) { return id ? String(id).replace(/@/g, '').trim() : ''; }
+
+    function parseGedcomData(gedcomText) {
+        const lines = gedcomText.split(/\r?\n/);
+        let records = [], currentRecord = null, currentEvent = null;
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+            const parts = trimmed.split(' ');
+            const level = parseInt(parts[0], 10);
+            if (isNaN(level)) return;
+
+            if (level === 0) {
+                if (currentRecord) records.push(currentRecord);
+                currentEvent = null;
+                let id = '';
+                let tag = '';
+                if (parts[1].startsWith('@')) {
+                    id = parts[1].replace(/@/g, '');
+                    tag = parts[2] ? parts[2].toUpperCase() : '';
+                } else {
+                    tag = parts[1].toUpperCase();
+                }
+                currentRecord = { TAG: tag, id: id, children: [], notes: [] };
+            } else if (currentRecord) {
+                let tag = parts[1] ? parts[1].toUpperCase() : '';
+                let value = parts.slice(2).join(' ').replace(/@/g, '');
+                const node = { tag: tag, value: value, children: [] };
+
+                if (level === 1) {
+                    currentRecord[tag] = value;
+                    currentRecord.children.push(node);
+                    currentEvent = node;
+                    if (tag === 'NOTE' || tag === 'COMM' || tag === 'TEXT') currentRecord.notes.push(value);
+                } else if (level >= 2) {
+                    if (currentEvent) currentEvent.children.push(node);
+                    if (tag === 'NOTE' || tag === 'CONT' || tag === 'CONC' || tag === 'TEXT') currentRecord.notes.push(value);
+                }
+            }
+        });
+        if (currentRecord) records.push(currentRecord);
+
+        parsedPersonsMap = {};
+        parsedFamiliesMap = {};
+        records.forEach(rec => {
+            const tag = (rec.TAG || '').toUpperCase();
+            if (tag === 'INDI') parsedPersonsMap[rec.id] = rec;
+            if (tag === 'FAM') parsedFamiliesMap[rec.id] = rec;
+        });
+
+        personsListMeta = [];
+        Object.keys(parsedPersonsMap).forEach(id => {
+            let rec = parsedPersonsMap[id];
+            let nameInfo = parsePersonName(rec);
+            let birthInfo = extractBirthDetails(rec);
+            let type = getPersonType(rec);
+
+            let pObj = {
+                id: id,
+                voornaam: nameInfo.voornaam,
+                achternaam: nameInfo.achternaam,
+                fullName: nameInfo.full,
+                birthYear: birthInfo.year,
+                birthPlace: birthInfo.place,
+                type: type
+            };
+
+            personsListMeta.push(pObj);
+        });
+
+        globalGraph = {};
+        Object.keys(parsedPersonsMap).forEach(id => { globalGraph[id] = []; });
+
+        Object.keys(parsedFamiliesMap).forEach(fId => {
+            let rec = parsedFamiliesMap[fId];
+            let husbId = '', wifeId = '', childrenIds = [];
+
+            (rec.children || []).forEach(c => {
+                if (c.tag === 'HUSB') husbId = cleanId(c.value);
+                if (c.tag === 'WIFE') wifeId = cleanId(c.value);
+                if (c.tag === 'CHIL') childrenIds.push(cleanId(c.value));
+            });
+
+            if (husbId && wifeId && globalGraph[husbId] && globalGraph[wifeId]) {
+                globalGraph[husbId].push({ target: wifeId, type: 'P' });
+                globalGraph[wifeId].push({ target: husbId, type: 'P' });
+            }
+
+            childrenIds.forEach(childId => {
+                if (globalGraph[childId]) {
+                    if (husbId && globalGraph[husbId]) {
+                        globalGraph[husbId].push({ target: childId, type: 'K' });
+                        globalGraph[childId].push({ target: husbId, type: 'V' });
+                    }
+                    if (wifeId && globalGraph[wifeId]) {
+                        globalGraph[wifeId].push({ target: childId, type: 'K' });
+                        globalGraph[childId].push({ target: wifeId, type: 'M' });
+                    }
+                }
+            });
+        });
+    }
+
+    function getPersonType(item) {
+        let text = (item.notes.join(' ') + ' ' + (item.NOTE || '')).toUpperCase();
+        if (text.includes('NEW')) return 'NEW';
+        if (text.includes('MOD')) return 'MOD';
+        if (text.includes('OUD') || text.includes('BASIS')) return 'OLD';
+        return 'OLD';
+    }
+
+    function parsePersonName(item) {
+        let fullName = item.NAME || '';
+        if (!fullName && item.children) {
+            const n = item.children.find(c => c.tag === 'NAME');
+            if (n) fullName = n.value || '';
+        }
+        let voornaam = '', achternaam = '';
+        if (fullName.includes('/')) {
+            let parts = fullName.split('/');
+            voornaam = parts[0].trim();
+            achternaam = parts[1] ? parts[1].trim() : 'Onbekend';
+        } else {
+            voornaam = fullName.trim();
+        }
+        return { voornaam: voornaam || 'Onbekend', achternaam: achternaam || 'Onbekend', full: `${achternaam}, ${voornaam}` };
+    }
+
+    function extractBirthDetails(item) {
+        const b = item.children ? item.children.find(c => c.tag === 'BIRT') : null;
+        let plac = '', date = '';
+        if (b) {
+            (b.children || []).forEach(sub => {
+                if (sub.tag === 'PLAC') plac = sub.value;
+                if (sub.tag === 'DATE') date = sub.value;
+            });
+        }
+        let year = null;
+        if (date) {
+            const match = String(date).match(/\b(\d{3,4})\b/);
+            if (match) year = parseInt(match[1], 10);
+        }
+        return { year: year, place: plac ? plac.trim() : '', date: date ? date.trim() : '' };
+    }
+
+    function populateDropdowns() {
+        const selectMe = document.getElementById('selectMySelf');
+        const selectTarget = document.getElementById('selectTargetPerson');
+        selectMe.innerHTML = '<option value="">-- Kies jezelf --</option>';
+        selectTarget.innerHTML = '<option value="">-- Kies doelpersoon --</option>';
+
+        personsListMeta.sort((a, b) => a.fullName.localeCompare(b.fullName));
+        personsListMeta.forEach(p => {
+            const opt1 = document.createElement('option');
+            opt1.value = p.id;
+            opt1.textContent = `${p.fullName} (${p.id}) [${p.type}]`;
+            selectMe.appendChild(opt1);
+
+            const opt2 = document.createElement('option');
+            opt2.value = p.id;
+            opt2.textContent = `${p.fullName} (${p.id}) [${p.type}]`;
+            selectTarget.appendChild(opt2);
+        });
+
+        const selectExclude = document.getElementById('excludePersonsSelect');
+        selectExclude.innerHTML = '';
+        personsListMeta.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = `${p.fullName} (${p.id})`;
+            selectExclude.appendChild(opt);
+        });
+    }
+
+    // Haal alle voorouders op van een gegeven persoon (recursief via FAMC -> HUSB/WIFE)
+    function verzamelVoorouders(startPersonId) {
+        let vooroudersMap = new Map(); // ID -> relatie/generatie info
+
+        function recursiefZoek(pId, generatie) {
+            if (generatie > 15) return; // Beperk maximale generatiediepte voor voorouders
+            const personRec = parsedPersonsMap[pId];
+            if (!personRec) return;
+
+            let famcId = '';
+            (personRec.children || []).forEach(c => { if (c.tag === 'FAMC') famcId = cleanId(c.value); });
+            if (!famcId) return;
+
+            const famRec = parsedFamiliesMap[famcId];
+            if (!famRec) return;
+
+            let husb = '', wife = '';
+            (famRec.children || []).forEach(c => {
+                if (c.tag === 'HUSB') husb = cleanId(c.value);
+                if (c.tag === 'WIFE') wife = cleanId(c.value);
+            });
+
+            if (husb && parsedPersonsMap[husb] && !vooroudersMap.has(husb)) {
+                vooroudersMap.set(husb, generatie + 1);
+                recursiefZoek(husb, generatie + 1);
+            }
+            if (wife && parsedPersonsMap[wife] && !vooroudersMap.has(wife)) {
+                vooroudersMap.set(wife, generatie + 1);
+                recursiefZoek(wife, generatie + 1);
+            }
+        }
+
+        vooroudersMap.set(startPersonId, 0);
+        recursiefZoek(startPersonId, 0);
+        return vooroudersMap;
+    }
+
+    // Zoek pad tussen twee specifieke personen met uitsluiting
+    function vindPadTussenPersonen(startId, doelId, maxStappen, uitgeslotenSet) {
+        let queue = [[startId, []]];
+        let visited = new Set([startId]);
+
+        while (queue.length > 0 && !isCancelled) {
+            let [currId, path] = queue.shift();
+
+            if (currId !== startId && uitgeslotenSet.has(currId)) {
+                continue;
+            }
+
+            if (currId === doelId) {
+                return path;
+            }
+
+            if (path.length >= maxStappen) continue;
+
+            for (let edge of (globalGraph[currId] || [])) {
+                if (uitgeslotenSet.has(edge.target)) continue;
+
+                if (!visited.has(edge.target)) {
+                    visited.add(edge.target);
+                    queue.push([edge.target, [...path, edge.type]]);
+                }
+            }
+        }
+        return null;
+    }
+
+    function stopAnalyse() {
+        isCancelled = true;
+        document.getElementById('analyseStatus').innerText = '⚠️ Analyse geannuleerd door gebruiker.';
+        document.getElementById('startBtn').style.display = 'inline-block';
+        document.getElementById('stopBtn').style.display = 'none';
+    }
+
+    function startVoorgeslachtAnalyse() {
+        if (personsListMeta.length === 0) {
+            alert("Geen stamboomgegevens geladen.");
+            return;
+        }
+
+        const myId = document.getElementById('selectMySelf').value;
+        const targetId = document.getElementById('selectTargetPerson').value;
+        const maxStappen = parseInt(document.getElementById('filterMaxStappen').value, 10);
+
+        if (!myId || !targetId) {
+            alert("Selecteer zowel jezelf als de doelpersoon.");
+            return;
+        }
+
+        const excludeSelect = document.getElementById('excludePersonsSelect');
+        let uitgeslotenSet = new Set();
+        for (let option of excludeSelect.options) {
+            if (option.selected) {
+                uitgeslotenSet.add(option.value);
+            }
+        }
+
+        isCancelled = false;
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'inline-block';
+
+        const tbody = document.getElementById('resultsTableBody');
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #3498db;">⏳ Bezig met voorgeslacht analyseren en relaties doorzoeken...</td></tr>`;
+        document.getElementById('analyseStatus').innerText = 'Bezig...';
+
+        setTimeout(() => {
+            // Stap 1: Verzamel alle voorouders van de doelpersoon
+            let vooroudersMap = verzamelVoorouders(targetId);
+            let results = [];
+
+            // Stap 2: Onderzoek voor elke voorouder of er een pad naar jou is (zonder de uitgesloten personen)
+            vooroudersMap.forEach((generatie, ancestorId) => {
+                if (isCancelled) return;
+                if (ancestorId === myId) return;
+
+                let path = vindPadTussenPersonen(myId, ancestorId, maxStappen, uitgeslotenSet);
+                if (path) {
+                    let ancestorMeta = personsListMeta.find(p => p.id === ancestorId);
+                    results.push({
+                        ancestor: ancestorMeta,
+                        path: path,
+                        steps: path.length
+                    });
+                }
+            });
+
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('stopBtn').style.display = 'none';
+
+            if (!isCancelled) {
+                results.sort((a, b) => a.steps - b.steps);
+                document.getElementById('analyseStatus').innerText = `${results.length} voorouder(s) gevonden die verbonden zijn met jou (zonder ${uitgeslotenSet.size} uitgesloten personen).`;
+                renderResults(results);
+            }
+        }, 30);
+    }
+
+    function renderResults(results) {
+        const tbody = document.getElementById('resultsTableBody');
+        tbody.innerHTML = '';
+
+        if (results.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #a0aec0;">Geen voorouders gevonden die verbonden zijn binnen het gekozen aantal stappen en uitsluitingen.</td></tr>';
+            return;
+        }
+
+        results.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${r.ancestor.fullName}</strong> (${r.ancestor.id})</td>
+                <td><span class="tag-status ${r.ancestor.type === 'NEW' ? 'tag-new' : 'tag-old'}">${r.ancestor.type}</span></td>
+                <td>${r.ancestor.birthYear || '-'}</td>
+                <td>Verbonden met jou</td>
+                <td><strong>${r.steps}</strong></td>
+                <td><span class="path-code">${r.path.join(' - ')}</span></td>
+                <td>
+                    <button class="action-btn" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openLevensverhaal('${r.ancestor.id}')">📖 Verhaal</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function openLevensverhaal(personId) {
+        sessionStorage.setItem('levensverhaalPersoonId', personId);
+        window.location.href = 'Levensverhaal.html';
+    }
+</script>
+
+</body>
+</html>
