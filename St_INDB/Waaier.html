@@ -26,16 +26,6 @@
             color: #2c3e50;
             margin-bottom: 20px;
         }
-        .back-link {
-            display: inline-block;
-            margin-bottom: 20px;
-            text-decoration: none;
-            color: #3498db;
-            font-weight: bold;
-        }
-        .back-link:hover {
-            text-decoration: underline;
-        }
         .status-banner {
             text-align: center;
             padding: 15px;
@@ -46,6 +36,19 @@
             font-weight: 600;
             margin-bottom: 25px;
         }
+        .fanchart-container {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+            min-height: 700px;
+            margin-bottom: 20px;
+        }
         .fanchart-controls {
             display: flex;
             flex-wrap: wrap;
@@ -55,7 +58,7 @@
             padding: 15px;
             border-radius: 8px;
             border: 1px solid #e1e8ed;
-            margin-bottom: 20px;
+            margin-top: 20px;
         }
         .fanchart-controls select, .fanchart-controls button {
             padding: 8px 12px;
@@ -73,12 +76,29 @@
         .fanchart-controls button:hover {
             background-color: #2980b9;
         }
+        .btn-back-fan {
+            background-color: #64748b;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+        .btn-back-fan:hover {
+            background-color: #475569;
+        }
+        .btn-back-fan:disabled {
+            background-color: #cbd5e1;
+            cursor: not-allowed;
+        }
         .generation-range-box {
             background: #f8fafc;
             border: 1px solid #e1e8ed;
             border-radius: 8px;
             padding: 12px 20px;
-            margin-bottom: 20px;
+            margin-top: 20px;
             font-size: 0.9rem;
         }
         .generation-range-box h3 {
@@ -101,21 +121,9 @@
             border-radius: 5px;
             font-size: 0.85rem;
         }
-        .fanchart-container {
-            width: 100%;
-            background: #ffffff;
-            border: 1px solid #e1e8ed;
-            border-radius: 8px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            position: relative;
-            min-height: 700px;
-        }
         .fan-slice {
             cursor: pointer;
-            transition: fill 0.2s;
+            transition: fill 0.2s, stroke-width 0.2s;
         }
         .fan-slice:hover {
             fill: #f39c12 !important;
@@ -134,7 +142,7 @@
             line-height: 1.4;
         }
 
-        /* Verplaatsbare en schaalbare Modal */
+        /* Modal voor Levensloop & Wereldgebeurtenissen */
         .modal {
             display: none;
             position: fixed;
@@ -192,19 +200,35 @@
             font-weight: bold;
             color: #2980b9;
         }
+        
+        .fan-text {
+            fill: #ffffff;
+            font-weight: 600;
+            text-shadow: 0px 1px 3px rgba(0, 0, 0, 0.85), 0px 0px 2px rgba(0, 0, 0, 0.9);
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <a href="Statistiek.html" class="back-link">← Terug naar Dashboard</a>
     <h1>🎨 Interactieve Voorouderwaaier (Fan Chart)</h1>
 
     <div class="status-banner" id="statusBanner">
         <span id="statusText">⏳ Gegevens ophalen uit IndexedDB...</span>
     </div>
 
+    <!-- Waaier visualisatie direct bovenaan -->
+    <div class="fanchart-container" id="fanChartContainer">
+        <div class="fanchart-tooltip" id="fanTooltip"></div>
+        <svg id="fanChartSvg" viewBox="0 0 1200 700" width="100%" height="100%">
+            <text x="600" y="350" text-anchor="middle" fill="#94a3b8" font-size="16">Laad eerst een stamboom om de waaier te bekijken</text>
+        </svg>
+    </div>
+
+    <!-- Bedieningsbalk ONDER de waaier geplaatst -->
     <div class="fanchart-controls" id="controlsSection" style="display: none;">
+        <button id="btnFanBack" class="btn-back-fan" onclick="goBackFanPerson()" disabled>⬅ Terug</button>
+
         <label for="fanRootSelect"><strong>Startpersoon:</strong></label>
         <select id="fanRootSelect" style="flex: 1; min-width: 250px;">
             <option value="">-- Selecteer een persoon --</option>
@@ -225,16 +249,9 @@
         <h3>📅 Geboortedatums per generatie:</h3>
         <ul class="generation-range-list" id="genRangeList"></ul>
     </div>
-    
-    <div class="fanchart-container" id="fanChartContainer">
-        <div class="fanchart-tooltip" id="fanTooltip"></div>
-        <svg id="fanChartSvg" viewBox="0 0 1200 700" width="100%" height="100%">
-            <text x="600" y="350" text-anchor="middle" fill="#94a3b8" font-size="16">Laad eerst een stamboom om de waaier te bekijken</text>
-        </svg>
-    </div>
 </div>
 
-<!-- Modal voor Levensloop & Wereldgebeurtenissen (Sleepbaar & Schaalbaar) -->
+<!-- Modal voor Levensloop & Wereldgebeurtenissen -->
 <div class="modal" id="personModal">
     <div class="modal-content" id="modalContentBox">
         <div class="modal-header" id="modalHeader">
@@ -255,7 +272,9 @@
     let globalPersonsMap = {};
     let globalFamiliesMap = {};
 
-    // Ingebouwde uitgebreide historische wereld- en Belgische gebeurtenissen
+    let fanHistory = [];
+    let currentRootId = "";
+
     const wereldGebeurtenissen = [
         { jaar: 1700, gebeurtenis: "Begin van de Spaanse Successieoorlog" },
         { jaar: 1709, gebeurtenis: "De 'Grote Winter' met extreme vorst en hongersnood in Europa" },
@@ -355,10 +374,6 @@
         { jaar: 2008, gebeurtenis: "Wereldwijde banken- en financiële crisis na het omvallen van Lehman Brothers" },
         { jaar: 2010, gebeurtenis: "Historische politieke crisis in België: record van 541 dagen zonder federale regering" },
         { jaar: 2011, gebeurtenis: "Arabische Lente & kernramp in Fukushima (Japan)" },
-        { jaar: 2013, gebeurtenis: "Troonsafstand van Koning Albert II en eedaflegging van Koning Filip" },
-        { jaar: 2015, gebeurtenis: "Parijs-klimaatakkoord & Europese vluchtelingencrisis" },
-        { jaar: 2016, gebeurtenis: "Brexit-referendum in het Verenigd Koninkrijk & terroristische aanslagen in Brussel (Zaventem en Maalbeek)" },
-        { jaar: 2019, gebeurtenis: "Eerste rechtstreekse foto van een zwart gat & klimaatmarsen van jeugd in België" },
         { jaar: 2020, gebeurtenis: "Wereldwijde uitbraak van de COVID-19-pandemie met lockdowns en reizenrestricties" },
         { jaar: 2021, gebeurtenis: "Grote overstromingen in Wallonië en delen van Vlaanderen met materiële schade" },
         { jaar: 2022, gebeurtenis: "Russische inval in Oekraïne en aanhoudende energiecrisis in Europa" }
@@ -404,7 +419,6 @@
             showError('⚠️ Fout bij het ophalen van gegevens uit IndexedDB.');
         }
 
-        // Activeer sleepfunctionaliteit (Draggable) voor de modal
         makeElementDraggable(document.getElementById('modalContentBox'), document.getElementById('modalHeader'));
     });
 
@@ -493,6 +507,17 @@
         const children = item.children || [];
         const sexNode = children.find(c => c && c.tag === 'SEX');
         return sexNode ? String(sexNode.value) : '';
+    }
+
+    function extractNotes(item) {
+        let notes = [];
+        if (item.NOTE) notes.push(String(item.NOTE));
+        if (item.children) {
+            item.children.forEach(c => {
+                if (c.tag === 'NOTE' && c.value) notes.push(String(c.value));
+            });
+        }
+        return notes.join(' ').toUpperCase();
     }
 
     function extractEventYearAndPlace(item, eventTag) {
@@ -609,16 +634,47 @@
         });
     }
 
+    function changeRootPerson(newId, recordHistory = true) {
+        if (!newId || !globalPersonsMap[newId]) return;
+
+        if (recordHistory && currentRootId && currentRootId !== newId) {
+            fanHistory.push(currentRootId);
+        }
+        currentRootId = newId;
+        document.getElementById('fanRootSelect').value = newId;
+
+        const btnBack = document.getElementById('btnFanBack');
+        if (btnBack) {
+            btnBack.disabled = (fanHistory.length === 0);
+        }
+
+        const maxGen = parseInt(document.getElementById('fanGenerations').value, 10) || 4;
+        renderAncestorFanChart(newId, maxGen);
+    }
+
+    function goBackFanPerson() {
+        if (fanHistory.length > 0) {
+            const prevId = fanHistory.pop();
+            currentRootId = prevId;
+            document.getElementById('fanRootSelect').value = prevId;
+
+            const btnBack = document.getElementById('btnFanBack');
+            if (btnBack) {
+                btnBack.disabled = (fanHistory.length === 0);
+            }
+
+            const maxGen = parseInt(document.getElementById('fanGenerations').value, 10) || 4;
+            renderAncestorFanChart(prevId, maxGen);
+        }
+    }
+
     function generateFanChart() {
         const rootId = document.getElementById('fanRootSelect').value;
-        const maxGen = parseInt(document.getElementById('fanGenerations').value, 10) || 4;
-        
         if (!rootId) {
             alert('Selecteer eerst een persoon uit de lijst!');
             return;
         }
-
-        renderAncestorFanChart(rootId, maxGen);
+        changeRootPerson(rootId, true);
     }
 
     function renderAncestorFanChart(rootId, maxGen) {
@@ -695,12 +751,13 @@
                 
                 let fillColor = '#f8fafc';
                 let strokeColor = '#cbd5e1';
-                let textColor = '#334155';
+                let strokeWidth = "1";
 
                 let voornaam = 'Onbekend';
                 let achternaam = 'Onbekend';
                 let birthYear = '?';
                 let deathYear = '?';
+                let sexSymbol = '';
 
                 if (pId && globalPersonsMap[pId]) {
                     const p = globalPersonsMap[pId];
@@ -708,21 +765,39 @@
                     const birth = extractEventYearAndPlace(p, 'BIRT');
                     const death = extractEventYearAndPlace(p, 'DEAT');
                     const sex = extractSex(p).toUpperCase();
+                    const notes = extractNotes(p);
 
                     voornaam = name.voornaam;
                     achternaam = name.achternaam;
                     birthYear = birth.year ? birth.year : '?';
                     deathYear = death.year ? death.year : '?';
 
-                    if (g === 0) {
-                        fillColor = '#3498db';
-                        textColor = '#ffffff';
-                    } else if (['M', 'MALE', 'MAN'].includes(sex)) {
-                        fillColor = '#e0f2fe';
+                    if (['M', 'MALE', 'MAN'].includes(sex)) {
+                        strokeColor = '#1d4ed8';
+                        strokeWidth = "2";
+                        sexSymbol = ' ♂';
                     } else if (['F', 'FEMALE', 'VROUW'].includes(sex)) {
-                        fillColor = '#fce7f3';
+                        strokeColor = '#db2777';
+                        strokeWidth = "2";
+                        sexSymbol = ' ♀';
+                    }
+
+                    if (notes.includes('OUD')) {
+                        fillColor = '#27ae60';
+                    } else if (notes.includes('MOD')) {
+                        fillColor = '#2980b9';
+                    } else if (notes.includes('NEW')) {
+                        fillColor = '#c0392b';
                     } else {
-                        fillColor = '#f1f5f9';
+                        if (g === 0) {
+                            fillColor = '#2563eb';
+                        } else if (['M', 'MALE', 'MAN'].includes(sex)) {
+                            fillColor = '#3b82f6';
+                        } else if (['F', 'FEMALE', 'VROUW'].includes(sex)) {
+                            fillColor = '#ec4899';
+                        } else {
+                            fillColor = '#64748b';
+                        }
                     }
                 }
 
@@ -730,21 +805,24 @@
                 path.setAttribute("d", pathData);
                 path.setAttribute("fill", fillColor);
                 path.setAttribute("stroke", strokeColor);
-                path.setAttribute("stroke-width", "1");
+                path.setAttribute("stroke-width", strokeWidth);
                 path.setAttribute("class", "fan-slice");
 
                 path.addEventListener('mousemove', (e) => {
                     tooltip.style.display = 'block';
                     tooltip.style.left = (e.clientX + 15) + 'px';
                     tooltip.style.top = (e.clientY + 15) + 'px';
-                    tooltip.innerHTML = `<strong>${voornaam} ${achternaam}</strong><br>Geboren: ${birthYear} | Overleden: ${deathYear} <br><span style="font-size:0.75rem; color:#94a3b8;">Klik voor levensloop & historie</span>`;
+                    tooltip.innerHTML = `<strong>${voornaam} ${achternaam}${sexSymbol}</strong><br>Geboren: ${birthYear} | Overleden: ${deathYear} <br><span style="font-size:0.75rem; color:#cbd5e1;">Klik: Levensloop | <strong>Ctrl+Klik: Maak Hoofdpersoon</strong></span>`;
                 });
                 path.addEventListener('mouseleave', () => {
                     tooltip.style.display = 'none';
                 });
 
-                path.addEventListener('click', () => {
-                    if (pId) {
+                path.addEventListener('click', (e) => {
+                    if (!pId) return;
+                    if (e.ctrlKey) {
+                        changeRootPerson(pId, true);
+                    } else {
                         openPersonModal(pId);
                     }
                 });
@@ -764,16 +842,23 @@
                     let gTag = document.createElementNS("http://www.w3.org/2000/svg", "g");
                     gTag.setAttribute("transform", `translate(${tx}, ${ty}) rotate(${angleDeg})`);
                     gTag.style.cursor = "pointer";
-                    gTag.addEventListener('click', () => { openPersonModal(pId); });
+                    
+                    gTag.addEventListener('click', (e) => { 
+                        if (e.ctrlKey) {
+                            changeRootPerson(pId, true);
+                        } else {
+                            openPersonModal(pId); 
+                        }
+                    });
 
                     let fontSize = g === 0 ? "12" : (g <= 2 ? "10" : (g <= 4 ? "7" : "6"));
 
                     let t1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
                     t1.setAttribute("x", "0");
                     t1.setAttribute("y", g === 0 ? "-10" : (g >= 5 ? "-5" : "-8"));
-                    t1.setAttribute("fill", textColor);
+                    t1.setAttribute("class", "fan-text");
                     t1.setAttribute("font-size", fontSize);
-                    t1.setAttribute("font-weight", g === 0 ? "bold" : "normal");
+                    t1.setAttribute("font-weight", g === 0 ? "bold" : "600");
                     t1.setAttribute("text-anchor", "middle");
                     t1.textContent = voornaam.length > 14 ? voornaam.substring(0, 12) + '..' : voornaam;
                     gTag.appendChild(t1);
@@ -781,7 +866,7 @@
                     let t2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
                     t2.setAttribute("x", "0");
                     t2.setAttribute("y", "0");
-                    t2.setAttribute("fill", textColor);
+                    t2.setAttribute("class", "fan-text");
                     t2.setAttribute("font-size", fontSize);
                     t2.setAttribute("font-weight", "bold");
                     t2.setAttribute("text-anchor", "middle");
@@ -791,7 +876,7 @@
                     let t3 = document.createElementNS("http://www.w3.org/2000/svg", "text");
                     t3.setAttribute("x", "0");
                     t3.setAttribute("y", g === 0 ? "10" : (g >= 5 ? "6" : "9"));
-                    t3.setAttribute("fill", textColor);
+                    t3.setAttribute("class", "fan-text");
                     t3.setAttribute("font-size", g === 0 ? "11" : (g >= 5 ? "5" : "7"));
                     t3.setAttribute("text-anchor", "middle");
                     t3.textContent = `°${birthYear}`;
@@ -855,7 +940,6 @@
         }
     }
 
-    // Functie om de modal verplaatsbaar (draggable) te maken
     function makeElementDraggable(elmnt, header) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         if (header) {
@@ -882,7 +966,7 @@
             pos4 = e.clientY;
             elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
             elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
-            elmnt.style.transform = "none"; // Schakel de standaard transform center uit zodra er gesleept wordt
+            elmnt.style.transform = "none";
         }
 
         function closeDragElement() {
