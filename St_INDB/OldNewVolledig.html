@@ -204,12 +204,24 @@
     const STORE_NAME = 'gedcomStore';
     const DB_VERSION = 5;
 
-    let parsedPersonsMap = {};
-    let parsedFamiliesMap = {};
-    let globalGraph = {};
-    let personsListMeta = [];
-    let newPersonsList = [];
+    // ---- Opgebouwde gegevens ----
+    let personsListMeta = [];      // alle personen: id, voornaam, achternaam, fullName, birthYear, birthPlace, type
+    let newPersonsList = [];       // alleen de personen van type NEW (in volgorde van het bestand)
+    let metaById = new Map();      // id -> meta
+    let graph = null;              // compacte graaf (zie parseGedcomData)
     let isCancelled = false;
+    let huidigeRun = 0;            // teller zodat een oude, afgebroken analyse nooit in een nieuwe tussenkomt
+
+    const TYPE_LETTERS = ['P', 'K', 'V', 'M'];   // Partner, Kind, Vader, Moeder
+
+    function nextTick() { return new Promise(resolve => setTimeout(resolve, 0)); }
+
+    const ESC_TEST = /[&<>"]/;
+    const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+    function esc(s) {
+        s = String(s);
+        return ESC_TEST.test(s) ? s.replace(/[&<>"]/g, c => ESC_MAP[c]) : s;
+    }
 
     function openGedcomDB() {
         return new Promise((resolve, reject) => {
@@ -289,65 +301,151 @@
 
     function cleanId(id) { return id ? String(id).replace(/@/g, '').trim() : ''; }
 
-    function parseGedcomData(gedcomText) {
-        const lines = gedcomText.split(/\r?\n/);
-        let records = [], currentRecord = null, currentEvent = null;
+    // Witruimte zoals String.trim() die kent.
+    function isWs(c) {
+        return c === 32 || (c >= 9 && c <= 13) || c === 0xA0 || c === 0xFEFF || c === 0x1680 ||
+               (c >= 0x2000 && c <= 0x200A) || c === 0x2028 || c === 0x2029 || c === 0x202F ||
+               c === 0x205F || c === 0x3000;
+    }
 
-        lines.forEach(line => {
-            const trimmed = line.trim();
-            if (!trimmed) return;
-            const parts = trimmed.split(' ');
-            const level = parseInt(parts[0], 10);
-            if (isNaN(level)) return;
+    // Waarde van een regel (tekst na de tag), zonder @-tekens.
+    function leesWaarde(txt, vStart, e) {
+        if (vStart === -1) return '';
+        const v = txt.substring(vStart, e);
+        return v.indexOf('@') === -1 ? v : v.replace(/@/g, '');
+    }
+
+    // Een notitietekst die "NEW" of "MOD" bevat bepaalt het type van de persoon.
+    function controleerNotitie(rec, value) {
+        if (value.length < 3) return;
+        const u = value.toUpperCase();
+        if (u.includes('NEW')) rec.hasNew = true;
+        else if (u.includes('MOD')) rec.hasMod = true;
+    }
+
+    function parseGedcomData(gedcomText) {
+        // Gewone objecten (geen Map): zo blijft de volgorde van personen en gezinnen
+        // exact dezelfde als in de oorspronkelijke versie.
+        const persons = {};
+        const families = {};
+        let kind = 0;                 // 0 = ander record (wordt overgeslagen), 1 = INDI, 2 = FAM
+        let rec = null;
+        let inBirt = false, seenBirt = false;
+
+        const txt = gedcomText;
+        const len = txt.length;
+        let pos = 0;
+
+        while (pos < len) {
+            // Eén regel: van pos tot de volgende \n, zonder omringende witruimte (zoals trim())
+            let end = txt.indexOf('\n', pos);
+            if (end === -1) end = len;
+            let s = pos, e = end;
+            pos = end + 1;
+            while (s < e && isWs(txt.charCodeAt(s))) s++;
+            while (e > s && isWs(txt.charCodeAt(e - 1))) e--;
+            if (s >= e) continue;
+
+            // Regels van records die ons niet interesseren (bronnen, notities, ...) overslaan
+            const c0 = txt.charCodeAt(s);
+            if (kind === 0 && c0 >= 49 && c0 <= 57) continue;
+
+            let sp1 = txt.indexOf(' ', s);
+            if (sp1 >= e) sp1 = -1;
+            const level = parseInt(txt.substring(s, sp1 === -1 ? e : sp1), 10);
+            if (isNaN(level)) continue;
 
             if (level === 0) {
-                if (currentRecord) records.push(currentRecord);
-                currentEvent = null;
-                let id = '';
-                let tag = '';
-                if (parts[1].startsWith('@')) {
-                    id = parts[1].replace(/@/g, '');
-                    tag = parts[2] ? parts[2].toUpperCase() : '';
+                kind = 0; rec = null; inBirt = false; seenBirt = false;
+                if (sp1 === -1) continue;
+                let e1 = txt.indexOf(' ', sp1 + 1);
+                if (e1 === -1 || e1 >= e) e1 = e;
+                const tok1 = txt.substring(sp1 + 1, e1);
+                let id = '', tag = '';
+                if (tok1.charCodeAt(0) === 64) {                     // '@'
+                    id = tok1.replace(/@/g, '');
+                    if (e1 < e) {
+                        let e2 = txt.indexOf(' ', e1 + 1);
+                        if (e2 === -1 || e2 >= e) e2 = e;
+                        tag = txt.substring(e1 + 1, e2).toUpperCase();
+                    }
                 } else {
-                    tag = parts[1].toUpperCase();
+                    tag = tok1.toUpperCase();
                 }
-                currentRecord = { TAG: tag, id: id, children: [], notes: [] };
-            } else if (currentRecord) {
-                let tag = parts[1] ? parts[1].toUpperCase() : '';
-                let value = parts.slice(2).join(' ').replace(/@/g, '');
-                const node = { tag: tag, value: value, children: [] };
+                if (tag === 'INDI') {
+                    kind = 1;
+                    rec = { id: id, nameLast: null, nameFirst: null, hasNew: false, hasMod: false, place: '', date: '' };
+                    persons[id] = rec;
+                } else if (tag === 'FAM') {
+                    kind = 2;
+                    rec = { husb: '', wife: '', kids: [] };
+                    families[id] = rec;
+                }
+                continue;
+            }
 
-                if (level === 1) {
-                    currentRecord[tag] = value;
-                    currentRecord.children.push(node);
-                    currentEvent = node;
-                    if (tag === 'NOTE' || tag === 'COMM' || tag === 'TEXT') currentRecord.notes.push(value);
-                } else if (level >= 2) {
-                    if (currentEvent) currentEvent.children.push(node);
-                    if (tag === 'NOTE' || tag === 'CONT' || tag === 'CONC' || tag === 'TEXT') currentRecord.notes.push(value);
+            if (kind === 0) continue;
+
+            // Tag (in hoofdletters) en begin van de waarde
+            let tag = '', vStart = -1;
+            if (sp1 !== -1) {
+                let e1 = txt.indexOf(' ', sp1 + 1);
+                if (e1 === -1 || e1 >= e) e1 = e;
+                tag = txt.substring(sp1 + 1, e1);
+                for (let k = 0; k < tag.length; k++) {
+                    if (tag.charCodeAt(k) > 90) { tag = tag.toUpperCase(); break; }
+                }
+                if (e1 < e) vStart = e1 + 1;
+            }
+
+            if (level === 1) {
+                inBirt = false;
+                if (kind === 1) {
+                    if (tag === 'NAME') {
+                        const v = leesWaarde(txt, vStart, e);
+                        if (rec.nameFirst === null) rec.nameFirst = v;
+                        rec.nameLast = v;
+                    } else if (tag === 'NOTE' || tag === 'COMM' || tag === 'TEXT') {
+                        controleerNotitie(rec, leesWaarde(txt, vStart, e));
+                    } else if (tag === 'BIRT' && !seenBirt) {
+                        seenBirt = true;
+                        inBirt = true;
+                    }
+                } else if (tag === 'HUSB') {
+                    rec.husb = leesWaarde(txt, vStart, e).trim();
+                } else if (tag === 'WIFE') {
+                    rec.wife = leesWaarde(txt, vStart, e).trim();
+                } else if (tag === 'CHIL') {
+                    rec.kids.push(leesWaarde(txt, vStart, e).trim());
+                }
+            } else if (kind === 1) {
+                if (tag === 'NOTE' || tag === 'CONT' || tag === 'CONC' || tag === 'TEXT') {
+                    controleerNotitie(rec, leesWaarde(txt, vStart, e));
+                }
+                if (inBirt) {
+                    if (tag === 'PLAC') rec.place = leesWaarde(txt, vStart, e);
+                    else if (tag === 'DATE') rec.date = leesWaarde(txt, vStart, e);
                 }
             }
-        });
-        if (currentRecord) records.push(currentRecord);
+        }
 
-        parsedPersonsMap = {};
-        parsedFamiliesMap = {};
-        records.forEach(rec => {
-            const tag = (rec.TAG || '').toUpperCase();
-            if (tag === 'INDI') parsedPersonsMap[rec.id] = rec;
-            if (tag === 'FAM') parsedFamiliesMap[rec.id] = rec;
-        });
-
+        // ---- Personen ----
         personsListMeta = [];
         newPersonsList = [];
+        metaById = new Map();
+        const ids = Object.keys(persons);
+        const index = new Map();
 
-        Object.keys(parsedPersonsMap).forEach(id => {
-            let rec = parsedPersonsMap[id];
-            let nameInfo = parsePersonName(rec);
-            let birthInfo = extractBirthDetails(rec);
-            let type = getPersonType(rec);
+        for (let i = 0; i < ids.length; i++) {
+            const id = ids[i];
+            const r = persons[id];
+            index.set(id, i);
 
-            let pObj = {
+            const nameInfo = parsePersonName(r.nameLast, r.nameFirst);
+            const birthInfo = extractBirthDetails(r.place, r.date);
+            const type = r.hasNew ? 'NEW' : (r.hasMod ? 'MOD' : 'OLD');
+
+            const pObj = {
                 id: id,
                 voornaam: nameInfo.voornaam,
                 achternaam: nameInfo.achternaam,
@@ -356,58 +454,56 @@
                 birthPlace: birthInfo.place,
                 type: type
             };
-
             personsListMeta.push(pObj);
+            metaById.set(id, pObj);
             if (type === 'NEW') newPersonsList.push(pObj);
-        });
-
-        globalGraph = {};
-        Object.keys(parsedPersonsMap).forEach(id => { globalGraph[id] = []; });
-
-        Object.keys(parsedFamiliesMap).forEach(fId => {
-            let rec = parsedFamiliesMap[fId];
-            let husbId = '', wifeId = '', childrenIds = [];
-
-            (rec.children || []).forEach(c => {
-                if (c.tag === 'HUSB') husbId = cleanId(c.value);
-                if (c.tag === 'WIFE') wifeId = cleanId(c.value);
-                if (c.tag === 'CHIL') childrenIds.push(cleanId(c.value));
-            });
-
-            if (husbId && wifeId && globalGraph[husbId] && globalGraph[wifeId]) {
-                globalGraph[husbId].push({ target: wifeId, type: 'P' });
-                globalGraph[wifeId].push({ target: husbId, type: 'P' });
-            }
-
-            childrenIds.forEach(childId => {
-                if (globalGraph[childId]) {
-                    if (husbId && globalGraph[husbId]) {
-                        globalGraph[husbId].push({ target: childId, type: 'K' });
-                        globalGraph[childId].push({ target: husbId, type: 'V' });
-                    }
-                    if (wifeId && globalGraph[wifeId]) {
-                        globalGraph[wifeId].push({ target: childId, type: 'K' });
-                        globalGraph[childId].push({ target: wifeId, type: 'M' });
-                    }
-                }
-            });
-        });
-    }
-
-    function getPersonType(item) {
-        let text = (item.notes.join(' ') + ' ' + (item.NOTE || '')).toUpperCase();
-        if (text.includes('NEW')) return 'NEW';
-        if (text.includes('MOD')) return 'MOD';
-        if (text.includes('OUD') || text.includes('BASIS')) return 'OLD';
-        return 'OLD';
-    }
-
-    function parsePersonName(item) {
-        let fullName = item.NAME || '';
-        if (!fullName && item.children) {
-            const n = item.children.find(c => c.tag === 'NAME');
-            if (n) fullName = n.value || '';
         }
+
+        // ---- Graaf (compact: aaneengesloten arrays i.p.v. een object per verbinding) ----
+        const famIds = Object.keys(families);
+        let cap = 0;                                   // bovengrens van het aantal verbindingen
+        for (let fi = 0; fi < famIds.length; fi++) cap += 2 + 4 * families[famIds[fi]].kids.length;
+        const src = new Int32Array(cap), dst = new Int32Array(cap), typ = new Uint8Array(cap);
+        let m = 0;
+        const addEdge = (a, b, t) => { src[m] = a; dst[m] = b; typ[m] = t; m++; };   // t: 0=P 1=K 2=V 3=M
+
+        for (let fi = 0; fi < famIds.length; fi++) {
+            const f = families[famIds[fi]];
+            const h = (f.husb && index.has(f.husb)) ? index.get(f.husb) : -1;
+            const w = (f.wife && index.has(f.wife)) ? index.get(f.wife) : -1;
+
+            if (h >= 0 && w >= 0) {
+                addEdge(h, w, 0);
+                addEdge(w, h, 0);
+            }
+            for (let k = 0; k < f.kids.length; k++) {
+                const c = index.get(f.kids[k]);
+                if (c === undefined) continue;
+                if (h >= 0) { addEdge(h, c, 1); addEdge(c, h, 2); }
+                if (w >= 0) { addEdge(w, c, 1); addEdge(c, w, 3); }
+            }
+        }
+
+        // Naar CSR-formaat (per persoon een stukje in één lange lijst); de volgorde van de
+        // verbindingen per persoon blijft gelijk aan de volgorde waarin ze zijn toegevoegd.
+        const n = ids.length;
+        const start = new Int32Array(n + 1);
+        for (let e = 0; e < m; e++) start[src[e] + 1]++;
+        for (let i = 0; i < n; i++) start[i + 1] += start[i];
+        const fill = start.slice(0, n);
+        const target = new Int32Array(m);
+        const type = new Uint8Array(m);
+        for (let e = 0; e < m; e++) {
+            const p = fill[src[e]]++;
+            target[p] = dst[e];
+            type[p] = typ[e];
+        }
+        graph = { index: index, start: start, target: target, type: type, count: n };
+    }
+
+    function parsePersonName(nameLast, nameFirst) {
+        let fullName = nameLast || '';
+        if (!fullName) fullName = nameFirst || '';
         let voornaam = '', achternaam = '';
         if (fullName.includes('/')) {
             let parts = fullName.split('/');
@@ -419,15 +515,7 @@
         return { voornaam: voornaam || 'Onbekend', achternaam: achternaam || 'Onbekend', full: `${achternaam}, ${voornaam}` };
     }
 
-    function extractBirthDetails(item) {
-        const b = item.children ? item.children.find(c => c.tag === 'BIRT') : null;
-        let plac = '', date = '';
-        if (b) {
-            (b.children || []).forEach(sub => {
-                if (sub.tag === 'PLAC') plac = sub.value;
-                if (sub.tag === 'DATE') date = sub.value;
-            });
-        }
+    function extractBirthDetails(plac, date) {
         let year = null;
         if (date) {
             const match = String(date).match(/\b(\d{3,4})\b/);
@@ -437,67 +525,63 @@
     }
 
     function populateDropdowns() {
-        const selectMe = document.getElementById('selectMySelf');
-        selectMe.innerHTML = '<option value="">-- Kies jezelf --</option>';
         personsListMeta.sort((a, b) => a.fullName.localeCompare(b.fullName));
-        personsListMeta.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = `${p.fullName} (${p.id}) [${p.type}]`;
-            selectMe.appendChild(opt);
-        });
 
-        const selectExclude = document.getElementById('excludePersonsSelect');
-        selectExclude.innerHTML = '';
-        personsListMeta.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = `${p.fullName} (${p.id})`;
-            selectExclude.appendChild(opt);
-        });
+        const meParts = ['<option value="">-- Kies jezelf --</option>'];
+        const exParts = [];
+        for (let i = 0; i < personsListMeta.length; i++) {
+            const p = personsListMeta[i];
+            const id = esc(p.id), name = esc(p.fullName);
+            meParts.push(`<option value="${id}">${name} (${id}) [${p.type}]</option>`);
+            exParts.push(`<option value="${id}">${name} (${id})</option>`);
+        }
+        document.getElementById('selectMySelf').innerHTML = meParts.join('');
+        document.getElementById('excludePersonsSelect').innerHTML = exParts.join('');
 
-        const letterSelect = document.getElementById('filterBeginLetter');
-        letterSelect.innerHTML = '<option value="">-- Alle NEW personen --</option>';
-        let letters = new Set();
+        const letters = new Set();
         newPersonsList.forEach(p => {
             let firstChar = p.fullName.charAt(0).toUpperCase();
             if (firstChar >= 'A' && firstChar <= 'Z') letters.add(firstChar);
         });
-        Array.from(letters).sort().forEach(l => {
-            const opt = document.createElement('option');
-            opt.value = l;
-            opt.textContent = `Beginletter: ${l}`;
-            letterSelect.appendChild(opt);
-        });
+        const letterParts = ['<option value="">-- Alle NEW personen --</option>'];
+        Array.from(letters).sort().forEach(l => letterParts.push(`<option value="${l}">Beginletter: ${l}</option>`));
+        document.getElementById('filterBeginLetter').innerHTML = letterParts.join('');
     }
 
-    function vindPadenVanuitMij(startId, doelNewId, maxStappen, uitgeslotenSet) {
-        let queue = [[startId, []]];
-        let visited = new Set([startId]);
+    // Eén keer breedte-eerst zoeken vanaf de startpersoon. Daarmee ligt voor ALLE personen
+    // meteen het kortste pad vast (voorheen: een aparte zoektocht per NEW persoon).
+    // Het gekozen pad is hetzelfde als bij de oude methode: de eerste route die gevonden wordt.
+    async function berekenKortstePaden(startIdx, maxStappen, uitgesloten, runId) {
+        const g = graph;
+        const parent = new Int32Array(g.count).fill(-1);   // -1 = niet bereikt
+        const via = new Uint8Array(g.count);               // soort verbinding naar deze persoon
+        const diepte = new Uint8Array(g.count);
+        const queue = new Int32Array(g.count);
+        let head = 0, tail = 0;
 
-        while (queue.length > 0 && !isCancelled) {
-            let [currId, path] = queue.shift();
+        parent[startIdx] = startIdx;
+        queue[tail++] = startIdx;
 
-            if (currId !== startId && uitgeslotenSet.has(currId)) {
-                continue;
-            }
-
-            if (currId === doelNewId) {
-                return path;
-            }
-
-            if (path.length >= maxStappen) continue;
-
-            for (let edge of (globalGraph[currId] || [])) {
-                if (uitgeslotenSet.has(edge.target)) continue;
-
-                if (!visited.has(edge.target)) {
-                    visited.add(edge.target);
-                    queue.push([edge.target, [...path, edge.type]]);
+        const SLICE = 150000;   // na zoveel personen even adem geven aan de browser (Stop-knop blijft werken)
+        while (head < tail) {
+            if (isCancelled || runId !== huidigeRun) return null;
+            const limiet = Math.min(tail, head + SLICE);
+            while (head < limiet) {
+                const u = queue[head++];
+                const d = diepte[u];
+                if (d >= maxStappen) continue;
+                for (let e = g.start[u], eind = g.start[u + 1]; e < eind; e++) {
+                    const v = g.target[e];
+                    if (uitgesloten[v] || parent[v] !== -1) continue;
+                    parent[v] = u;
+                    via[v] = g.type[e];
+                    diepte[v] = d + 1;
+                    queue[tail++] = v;
                 }
             }
+            if (head < tail) await nextTick();
         }
-        return null;
+        return { parent: parent, via: via };
     }
 
     function stopAnalyse() {
@@ -507,7 +591,7 @@
         document.getElementById('stopBtn').style.display = 'none';
     }
 
-    function startMijzelfAnalyse() {
+    async function startMijzelfAnalyse() {
         if (personsListMeta.length === 0) {
             alert("Geen stamboomgegevens geladen.");
             return;
@@ -522,12 +606,14 @@
             return;
         }
 
-        const excludeSelect = document.getElementById('excludePersonsSelect');
-        let uitgeslotenSet = new Set();
-        for (let option of excludeSelect.options) {
-            if (option.selected) {
-                uitgeslotenSet.add(option.value);
-            }
+        const uitgeslotenSet = new Set();
+        const uitgesloten = new Uint8Array(graph.count);
+        const geselecteerd = document.getElementById('excludePersonsSelect').selectedOptions;
+        for (let i = 0; i < geselecteerd.length; i++) {
+            const id = geselecteerd[i].value;
+            uitgeslotenSet.add(id);
+            const idx = graph.index.get(id);
+            if (idx !== undefined) uitgesloten[idx] = 1;
         }
 
         let doelLijst = newPersonsList;
@@ -536,6 +622,7 @@
         }
 
         isCancelled = false;
+        const runId = ++huidigeRun;
         document.getElementById('startBtn').style.display = 'none';
         document.getElementById('stopBtn').style.display = 'inline-block';
 
@@ -543,39 +630,51 @@
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #3498db;">⏳ Bezig met doorzoeken van ${doelLijst.length} NEW personen (max ${maxStappen} stappen)...</td></tr>`;
         document.getElementById('analyseStatus').innerText = 'Bezig...';
 
-        setTimeout(() => {
-            let results = [];
+        await new Promise(resolve => setTimeout(resolve, 30));   // eerst de statusmelding laten verschijnen
 
-            for (let i = 0; i < doelLijst.length; i++) {
-                if (isCancelled) break;
+        const startIdx = graph.index.get(myId);
+        const bereik = await berekenKortstePaden(startIdx, maxStappen, uitgesloten, runId);
+        if (bereik === null) return;     // geannuleerd of vervangen door een nieuwe analyse
 
-                let newP = doelLijst[i];
-                if (newP.id === myId) continue;
+        const meMeta = metaById.get(myId);
+        const results = [];
+        for (let i = 0; i < doelLijst.length; i++) {
+            const newP = doelLijst[i];
+            if (newP.id === myId) continue;
+            const t = graph.index.get(newP.id);
+            if (t === undefined || bereik.parent[t] === -1) continue;
 
-                let path = vindPadenVanuitMij(myId, newP.id, maxStappen, uitgeslotenSet);
-                if (path) {
-                    let meMeta = personsListMeta.find(p => p.id === myId);
-                    results.push({
-                        me: meMeta,
-                        newPerson: newP,
-                        path: path,
-                        steps: path.length
-                    });
-                }
-            }
+            const path = [];
+            for (let cur = t; cur !== startIdx; cur = bereik.parent[cur]) path.push(TYPE_LETTERS[bereik.via[cur]]);
+            path.reverse();
+            results.push({ me: meMeta, newPerson: newP, path: path, steps: path.length });
+        }
 
-            document.getElementById('startBtn').style.display = 'inline-block';
-            document.getElementById('stopBtn').style.display = 'none';
+        if (isCancelled || runId !== huidigeRun) return;
 
-            if (!isCancelled) {
-                results.sort((a, b) => a.steps - b.steps);
-                document.getElementById('analyseStatus').innerText = `${results.length} verbinding(en) gevonden (zonder ${uitgeslotenSet.size} uitgesloten personen).`;
-                renderResults(results);
-            }
-        }, 30);
+        document.getElementById('startBtn').style.display = 'inline-block';
+        document.getElementById('stopBtn').style.display = 'none';
+
+        results.sort((a, b) => a.steps - b.steps);
+        document.getElementById('analyseStatus').innerText = `${results.length} verbinding(en) gevonden (zonder ${uitgeslotenSet.size} uitgesloten personen).`;
+        await renderResults(results, runId);
     }
 
-    function renderResults(results) {
+    function resultaatRij(r) {
+        return `<tr>
+                <td><strong>${esc(r.me.fullName)}</strong> (${esc(r.me.id)})</td>
+                <td><strong>${esc(r.newPerson.fullName)}</strong> (${esc(r.newPerson.id)}) <span class="tag-status tag-new">NEW</span></td>
+                <td>${r.newPerson.birthYear || '-'}</td>
+                <td><strong>${r.steps}</strong></td>
+                <td><span class="path-code">${r.path.join(' - ')}</span></td>
+                <td>
+                    <button class="action-btn" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openLevensverhaal('${esc(r.newPerson.id)}')">📖 Verhaal</button>
+                </td>
+            </tr>`;
+    }
+
+    // De tabel wordt in blokken opgebouwd, zodat de pagina bij duizenden resultaten bruikbaar blijft.
+    async function renderResults(results, runId) {
         const tbody = document.getElementById('resultsTableBody');
         tbody.innerHTML = '';
 
@@ -584,20 +683,12 @@
             return;
         }
 
-        results.forEach(r => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>${r.me.fullName}</strong> (${r.me.id})</td>
-                <td><strong>${r.newPerson.fullName}</strong> (${r.newPerson.id}) <span class="tag-status tag-new">NEW</span></td>
-                <td>${r.newPerson.birthYear || '-'}</td>
-                <td><strong>${r.steps}</strong></td>
-                <td><span class="path-code">${r.path.join(' - ')}</span></td>
-                <td>
-                    <button class="action-btn" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openLevensverhaal('${r.newPerson.id}')">📖 Verhaal</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
+        const BLOK = 1500;
+        for (let i = 0; i < results.length; i += BLOK) {
+            if (runId !== undefined && runId !== huidigeRun) return;
+            tbody.insertAdjacentHTML('beforeend', results.slice(i, i + BLOK).map(resultaatRij).join(''));
+            if (i + BLOK < results.length) await nextTick();
+        }
     }
 
     function openLevensverhaal(personId) {
