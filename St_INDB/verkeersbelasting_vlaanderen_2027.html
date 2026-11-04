@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulator verkeersbelasting Vlaanderen 2027</title>
+<style>
+  :root { font-family: Arial, Helvetica, sans-serif; color: #20252b; background: #f4f6f8; }
+  body { margin: 0; padding: 24px; }
+  main { max-width: 920px; margin: auto; }
+  h1 { font-size: 1.7rem; margin: 0 0 8px; }
+  .intro, .note { color: #4d5965; line-height: 1.5; }
+  .panel { background: white; border: 1px solid #d9e0e7; border-radius: 12px; padding: 20px; margin: 16px 0; }
+  h2 { font-size: 1.15rem; margin: 0 0 14px; }
+  fieldset { border: 0; border-top: 1px solid #e5e9ee; padding: 14px 0 4px; margin: 14px 0 0; }
+  legend { font-weight: 700; padding: 0 8px 0 0; }
+  .choices { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 9px 0; }
+  label.choice { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+  input[type=radio] { accent-color: #145da0; }
+  .field { margin-top: 12px; }
+  .field label { display: block; font-weight: 700; margin-bottom: 6px; }
+  input[type=number] { padding: 10px; border: 1px solid #aeb9c4; border-radius: 7px; font-size: 1rem; width: 150px; }
+  button { border: 0; border-radius: 8px; padding: 11px 17px; font-size: 1rem; font-weight: 700; cursor: pointer; background: #145da0; color: white; }
+  button.secondary { background: #e8edf2; color: #263442; margin-left: 8px; }
+  .result { background: #f7fafc; border-left: 4px solid #145da0; padding: 16px; border-radius: 6px; }
+  .amount { font-size: 2rem; font-weight: 800; margin: 4px 0 12px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+  td { padding: 9px 6px; border-bottom: 1px solid #e1e6eb; }
+  td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .muted { color: #5b6671; font-size: .92rem; }
+  .warning { background: #fff8e7; border: 1px solid #f0d99d; border-radius: 8px; padding: 12px; line-height: 1.45; }
+  a { color: #145da0; }
+  @media (max-width: 600px) { body { padding: 12px; } .panel { padding: 15px; } .amount { font-size: 1.65rem; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Simulator nieuwe verkeersbelasting Vlaanderen</h1>
+  <p class="intro">Indicatieve berekening volgens de aangekondigde hervorming vanaf 1 januari 2027 voor personenwagens. Vul de voertuiggegevens in en druk op <b>Bereken</b>.</p>
+
+  <div class="warning">
+    <b>Opgelet:</b> de hervorming en onderstaande tarieven zijn volgens de Vlaamse overheid nog onder voorbehoud van definitieve goedkeuring door het Vlaams Parlement. Dit is een zelfstandige rekentool, geen officiële aanslagberekening.
+  </div>
+
+  <section class="panel">
+    <h2>1. Voertuiggegevens</h2>
+
+    <fieldset>
+      <legend>Datum eerste inschrijving</legend>
+      <div class="choices">
+        <label class="choice"><input type="radio" name="registration" value="old" checked> Ten laatste 31 december 2020</label>
+        <label class="choice"><input type="radio" name="registration" value="new"> Vanaf 1 januari 2021</label>
+      </div>
+      <p class="muted">Deze keuze bepaalt welke CO₂-vergroeningstabel wordt gebruikt.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Maximaal toegelaten massa (MTM)</legend>
+      <div class="choices" id="mtmChoices">
+        <label class="choice"><input type="radio" name="mtm" value="1300" checked> ≤ 1.300 kg (€ 27)</label>
+        <label class="choice"><input type="radio" name="mtm" value="1400"> 1.301–1.400 kg (€ 33)</label>
+        <label class="choice"><input type="radio" name="mtm" value="1500"> 1.401–1.500 kg (€ 40)</label>
+        <label class="choice"><input type="radio" name="mtm" value="1600"> 1.501–1.600 kg (€ 41)</label>
+        <label class="choice"><input type="radio" name="mtm" value="1700"> 1.601–1.700 kg (€ 43)</label>
+        <label class="choice"><input type="radio" name="mtm" value="1800"> 1.701–1.800 kg (€ 52)</label>
+        <label class="choice"><input type="radio" name="mtm" value="1900"> 1.801–1.900 kg (€ 66)</label>
+        <label class="choice"><input type="radio" name="mtm" value="2000"> 1.901–2.000 kg (€ 82)</label>
+        <label class="choice"><input type="radio" name="mtm" value="2100"> 2.001–2.100 kg (€ 94)</label>
+        <label class="choice"><input type="radio" name="mtm" value="2200"> 2.101–2.200 kg (€ 108)</label>
+        <label class="choice"><input type="radio" name="mtm" value="2300"> 2.201–2.300 kg (€ 115)</label>
+        <label class="choice"><input type="radio" name="mtm" value="2500"> 2.301–2.500 kg (€ 137)</label>
+        <label class="choice"><input type="radio" name="mtm" value="2600"> 2.501–2.600 kg (€ 156)</label>
+        <label class="choice"><input type="radio" name="mtm" value="3100"> 2.601–3.100 kg (€ 159)</label>
+        <label class="choice"><input type="radio" name="mtm" value="99999"> &gt; 3.100 kg (€ 217)</label>
+      </div>
+    </fieldset>
+
+    <div class="field">
+      <label for="co2">CO₂-uitstoot volgens homologatie (g/km)</label>
+      <input id="co2" type="number" min="0" max="1000" step="1" value="132">
+    </div>
+
+    <fieldset>
+      <legend>Brandstofsoort</legend>
+      <div class="choices">
+        <label class="choice"><input type="radio" name="fuel" value="diesel" checked> Diesel</label>
+        <label class="choice"><input type="radio" name="fuel" value="other"> Benzine / LPG / hybride / elektrisch / andere</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Euronorm</legend>
+      <div class="choices">
+        <label class="choice"><input type="radio" name="euro" value="6" checked> Euro 6 of hoger</label>
+        <label class="choice"><input type="radio" name="euro" value="5"> Euro 5</label>
+        <label class="choice"><input type="radio" name="euro" value="4"> Euro 4</label>
+        <label class="choice"><input type="radio" name="euro" value="3"> Euro 3 of lager</label>
+      </div>
+      <p class="muted">De NOx-correctie wordt alleen toegepast op dieselwagens.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Cilinderinhoud</legend>
+      <div class="choices">
+        <label class="choice"><input type="radio" name="cc" value="0" checked> ≤ 2.400 cc (€ 0)</label>
+        <label class="choice"><input type="radio" name="cc" value="500"> 2.401–2.600 cc (€ 500)</label>
+        <label class="choice"><input type="radio" name="cc" value="750"> 2.601–2.800 cc (€ 750)</label>
+        <label class="choice"><input type="radio" name="cc" value="1000"> 2.801–3.000 cc (€ 1.000)</label>
+        <label class="choice"><input type="radio" name="cc" value="1500"> 3.001–3.250 cc (€ 1.500)</label>
+        <label class="choice"><input type="radio" name="cc" value="2000"> 3.251–3.500 cc (€ 2.000)</label>
+        <label class="choice"><input type="radio" name="cc" value="2500"> 3.501–3.750 cc (€ 2.500)</label>
+        <label class="choice"><input type="radio" name="cc" value="3000"> 3.751–4.000 cc (€ 3.000)</label>
+        <label class="choice"><input type="radio" name="cc" value="3500"> 4.001–4.250 cc (€ 3.500)</label>
+        <label class="choice"><input type="radio" name="cc" value="4000"> 4.251–4.500 cc (€ 4.000)</label>
+        <label class="choice"><input type="radio" name="cc" value="4500"> 4.501–4.750 cc (€ 4.500)</label>
+        <label class="choice"><input type="radio" name="cc" value="5000"> 4.751–5.000 cc (€ 5.000)</label>
+        <label class="choice"><input type="radio" name="cc" value="6000"> 5.001–6.000 cc (€ 6.000)</label>
+        <label class="choice"><input type="radio" name="cc" value="7000"> &gt; 6.000 cc (€ 7.000)</label>
+      </div>
+    </fieldset>
+
+    <p style="margin-top:20px">
+      <button type="button" onclick="calculate()">Bereken verkeersbelasting</button>
+      <button type="button" class="secondary" onclick="resetForm()">Herstel voorbeeld</button>
+    </p>
+  </section>
+
+  <section class="panel" aria-live="polite">
+    <h2>2. Detail van de berekening</h2>
+    <div id="output" class="result">
+      <p>Vul de gegevens in en klik op <b>Bereken verkeersbelasting</b>.</p>
+    </div>
+  </section>
+
+  <p class="muted">Formule: (basisbedrag × vergroeningsfactor + cc-correctie + eventuele NOx-correctie) × 1,10. De opdeciem bedraagt 10%.</p>
+  <p class="muted">Bron: <a href="https://www.vlaanderen.be/belastingen-en-begroting/vlaamse-belastingen/verkeersbelastingen/hervorming-jaarlijkse-verkeersbelasting" target="_blank" rel="noopener">Vlaanderen.be – Hervorming jaarlijkse verkeersbelasting</a>.</p>
+</main>
+
+<script>
+const mtmBands = [
+  [1300,27],[1400,33],[1500,40],[1600,41],[1700,43],[1800,52],[1900,66],
+  [2000,82],[2100,94],[2200,108],[2300,115],[2500,137],[2600,156],[3100,159],[99999,217]
+];
+const oldFactors = [
+  [25,1.31],[50,1.32],[75,2.04],[115,2.37],[140,2.54],[145,2.98],
+  [150,3.13],[175,3.51],[200,4.48],[225,5.76],[250,7.86],[275,10.35],
+  [300,13.38],[Infinity,23.52]
+];
+const newFactors = [
+  [25,1.00],[50,1.04],[175,1.84],[200,2.87],[225,3.61],[250,5.60],
+  [275,10.68],[350,15.66],[375,18.15],[400,19.56],[Infinity,26.98]
+];
+
+function selected(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : null;
+}
+function euro(value) {
+  return new Intl.NumberFormat('nl-BE', {style:'currency', currency:'EUR'}).format(value);
+}
+function factorFor(co2, isNew) {
+  const table = isNew ? newFactors : oldFactors;
+  const row = table.find(([limit]) => co2 <= limit);
+  return row[1];
+}
+function bandLabel(value, bands, suffix) {
+  let previous = 0;
+  for (const [limit, amount] of bands) {
+    if (value <= limit) return previous === 0 ? `≤ ${limit.toLocaleString('nl-BE')} ${suffix}` :
+      `${(previous+1).toLocaleString('nl-BE')}–${limit.toLocaleString('nl-BE')} ${suffix}`;
+    previous = limit;
+  }
+}
+function calculate() {
+  const co2 = Number(document.getElementById('co2').value);
+  if (!Number.isFinite(co2) || co2 < 0 || co2 > 1000) {
+    document.getElementById('output').innerHTML = '<b>Controleer de CO₂-uitstoot.</b> Geef een getal tussen 0 en 1.000 g/km in.';
+    return;
+  }
+  const isNew = selected('registration') === 'new';
+  const mtmLimit = Number(selected('mtm'));
+  const baseRow = mtmBands.find(([limit]) => mtmLimit <= limit);
+  const base = baseRow[1];
+  const factor = factorFor(co2, isNew);
+  const fuel = selected('fuel');
+  const euroNorm = Number(selected('euro'));
+  const cc = Number(selected('cc'));
+  const nox = fuel === 'diesel' ? ({6:0,5:100,4:150,3:200}[euroNorm]) : 0;
+  const multiplied = base * factor;
+  const beforeSurcharge = multiplied + cc + nox;
+  const localTax = beforeSurcharge * 0.10;
+  const total = beforeSurcharge + localTax;
+  const regText = isNew ? 'Vanaf 1 januari 2021' : 'Ten laatste 31 december 2020';
+  const euroText = euroNorm === 6 ? 'Euro 6 of hoger' : `Euro ${euroNorm === 5 ? '5' : euroNorm === 4 ? '4' : '3 of lager'}`;
+  const fuelText = fuel === 'diesel' ? 'Diesel' : 'Andere brandstof';
+  const ccLabel = cc === 0 ? '≤ 2.400 cc' : `Gekozen cc-schijf (correctie ${euro(cc)})`;
+  const mtmLabel = mtmBands.find(([limit]) => limit === mtmLimit);
+  const mtmDesc = mtmLimit === 99999 ? '> 3.100 kg' :
+    (mtmLimit === 1300 ? '≤ 1.300 kg' :
+    `${(mtmBands[mtmBands.findIndex(x=>x[0]===mtmLimit)-1][0]+1).toLocaleString('nl-BE')}–${mtmLimit.toLocaleString('nl-BE')} kg`);
+  document.getElementById('output').innerHTML = `
+    <div class="muted">Berekende jaarlijkse verkeersbelasting (indicatief)</div>
+    <div class="amount">${euro(total)}</div>
+    <div><b>Ingevoerde gegevens</b></div>
+    <table>
+      <tr><td>Datum eerste inschrijving</td><td>${regText}</td></tr>
+      <tr><td>MTM</td><td>${mtmDesc}</td></tr>
+      <tr><td>CO₂-uitstoot</td><td>${co2} g/km</td></tr>
+      <tr><td>Brandstof / euronorm</td><td>${fuelText} / ${euroText}</td></tr>
+      <tr><td>Cilinderinhoudschijf</td><td>${ccLabel}</td></tr>
+    </table>
+    <div style="margin-top:16px"><b>Rekenstappen</b></div>
+    <table>
+      <tr><td>1. Basisbedrag volgens MTM</td><td>${euro(base)}</td></tr>
+      <tr><td>2. Vergroeningsfactor (${isNew ? 'tabel vanaf 2021' : 'tabel t.e.m. 2020'})</td><td>× ${factor.toLocaleString('nl-BE')}</td></tr>
+      <tr><td>Basisbedrag × vergroeningsfactor</td><td>${euro(multiplied)}</td></tr>
+      <tr><td>3. Cilinderinhoudcorrectie</td><td>+ ${euro(cc)}</td></tr>
+      <tr><td>4. NOx-correctie ${fuel === 'diesel' ? '(diesel, ' + euroText + ')' : '(niet van toepassing: geen diesel)'}</td><td>+ ${euro(nox)}</td></tr>
+      <tr><td><b>Subtotaal vóór opdeciem</b></td><td><b>${euro(beforeSurcharge)}</b></td></tr>
+      <tr><td>5. Gemeentelijke opdeciem (10%)</td><td>+ ${euro(localTax)}</td></tr>
+      <tr><td><b>Jaarlijkse verkeersbelasting</b></td><td><b>${euro(total)}</b></td></tr>
+    </table>
+    <p class="muted">Toegepaste formule: (${euro(base)} × ${factor.toLocaleString('nl-BE')} + ${euro(cc)} + ${euro(nox)}) × 1,10 = ${euro(total)}.</p>
+  `;
+}
+function resetForm() {
+  document.querySelector('input[name="registration"][value="old"]').checked = true;
+  document.querySelector('input[name="mtm"][value="1300"]').checked = true;
+  document.getElementById('co2').value = 132;
+  document.querySelector('input[name="fuel"][value="diesel"]').checked = true;
+  document.querySelector('input[name="euro"][value="6"]').checked = true;
+  document.querySelector('input[name="cc"][value="0"]').checked = true;
+  calculate();
+}
+calculate();
+</script>
+</body>
+</html>
